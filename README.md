@@ -38,3 +38,13 @@ paths:
           description: API is healthy
       summary: Check API health
 ```
+
+Then you can add the code in the `./api/src/epa_api/api_implementation/` directory:
+```python
+from epa_api.apis.default_api_base import BaseDefaultApi
+from epa_api.models.status import Status
+
+class EpaAPIImplementation(BaseDefaultApi):
+    async def get_status(self) -> Status:
+        return Status(status="healthy", version="1.0.0")
+```
