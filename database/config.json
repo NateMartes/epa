@@ -1,0 +1,16 @@
+{
+  "collections": [
+    {
+      "name": "users",
+      "indexes": [
+        { "fields": ["userId"], "unique": true }
+      ]
+    },
+    {
+      "name": "posts",
+      "indexes": [
+        {"fields": ["createdAt"]}
+      ]
+    }
+  ]
+}
