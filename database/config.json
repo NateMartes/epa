@@ -3,13 +3,13 @@
     {
       "name": "users",
       "indexes": [
-        { "fields": ["userId"], "unique": true }
+        { "field": "userId", "unique": true }
       ]
     },
     {
       "name": "posts",
       "indexes": [
-        {"fields": ["createdAt"]}
+        {"field": "createdAt"}
       ]
     }
   ]
