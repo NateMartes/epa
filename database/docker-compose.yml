@@ -1,0 +1,26 @@
+services:
+   epa_database:
+     image: mongo:8.2.3-noble
+     restart: always
+     environment:
+       MONGO_INITDB_ROOT_USERNAME: test
+       MONGO_INITDB_ROOT_PASSWORD: test
+     ports:
+      - "27017:27017"
+     hostname: db
+     healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      retries: 12
+      start_period: 5s
+      timeout: 2s
+      
+   epa_database_init:
+      build:
+        context: .
+      depends_on:
+       - epa_database
+      environment:
+       MONGO_DB_HOSTNAME: db
+       MONGO_INITDB_ROOT_USERNAME: test
+       MONGO_INITDB_ROOT_PASSWORD: test
