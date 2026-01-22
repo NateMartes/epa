@@ -13,7 +13,7 @@ npm install -g @openapitools/openapi-generator-cli
 Then you can generate the API endpoints like such:
 ```bash
 openapi-generator-cli generate \
--i swagger.yml \
+-i openapi.yml \
 -g python-fastapi \
 -o ./api \ --additional-properties=packageName=epa_api,fastapiImplementationPackage=api_implementation
 ```
@@ -48,3 +48,30 @@ class EpaAPIImplementation(BaseDefaultApi):
     async def get_status(self) -> Status:
         return Status(status="healthy", version="1.0.0")
 ```
+
+---
+## The Database
+The database uses MongoDB to store a `users` collection and `posts` collection.
+The database is initialized using a Python script and the `config.json` file found within the `./database` directory.
+You can spin up the database using `docker compose`. The initializer will add the needed collections from the `config.json` file.
+
+---
+## User Timeline Caching
+To ensure a user can see a post very quickly, we preform caching on post and store them into a Redis database.
+The provider for this service is Upstash. You can locally test this database using the `docker-compose.yml` file in the
+`./user_timeline_post_cache` directory to simulate Upstash.
+
+---
+## The Post Queue
+
+---
+## The Notifier
+
+---
+## The Post Ingestor
+
+___
+## The User Cache Loader
+
+---
+## The EPA Moblie App
