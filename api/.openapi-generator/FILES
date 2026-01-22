@@ -2,7 +2,6 @@
 .gitignore
 Dockerfile
 README.md
-docker-compose.yaml
 openapi.yaml
 pyproject.toml
 requirements.txt

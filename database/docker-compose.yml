@@ -7,7 +7,7 @@ services:
        MONGO_INITDB_ROOT_PASSWORD: test
      ports:
       - "27017:27017"
-     hostname: db
+     hostname: epa-db
      healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok"]
       interval: 5s
@@ -21,6 +21,6 @@ services:
       depends_on:
        - epa_database
       environment:
-       MONGO_DB_HOSTNAME: db
+       MONGO_DB_HOSTNAME: epa-db
        MONGO_INITDB_ROOT_USERNAME: test
        MONGO_INITDB_ROOT_PASSWORD: test
