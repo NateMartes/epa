@@ -1,0 +1,5 @@
+services:
+   epa_post_ingestor:
+      build:
+        context: .
+      hostname: epa-post-ingestor
