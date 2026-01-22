@@ -2,3 +2,4 @@ include:
    - "./user_timeline_post_cache/docker-compose.yml"
    - "./database/docker-compose.yml"
    - "./api/docker-compose.yaml"
+   - "./cache_loader/docker-compose.yml"
