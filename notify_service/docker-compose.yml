@@ -1,0 +1,6 @@
+services:
+   epa_cache_loader:
+      build:
+         context: .
+      image: epa_cache_loader:latest
+      hostname: epa-cache-loader
