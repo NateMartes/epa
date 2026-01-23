@@ -3,3 +3,6 @@ include:
    - "./database/docker-compose.yml"
    - "./api/docker-compose.yaml"
    - "./cache_loader/docker-compose.yml"
+   - "./notify_service/docker-compose.yml"
+   - "./post_queue/docker-compose.yml"
+   - "./post_ingestor/docker-compose.yml"

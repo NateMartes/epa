@@ -1,6 +1,6 @@
 services:
-   epa_cache_loader:
+   epa_notify_service:
       build:
          context: .
-      image: epa_cache_loader:latest
-      hostname: epa-cache-loader
+      image: epa_notify_service:latest
+      hostname: epa-notify-service
