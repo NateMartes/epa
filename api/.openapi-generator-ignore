@@ -23,4 +23,3 @@
 #!docs/README.md
 
 docker-compose.yaml
-src/epa_api/api_implementation/main.py

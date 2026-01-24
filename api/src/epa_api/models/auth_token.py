@@ -20,20 +20,22 @@ import json
 
 
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class Status(BaseModel):
+class AuthToken(BaseModel):
     """
-    Status
+    AuthToken
     """ # noqa: E501
-    status: Optional[StrictStr] = None
-    version: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["status", "version"]
+    access_token: Optional[StrictStr] = None
+    refresh_token: Optional[StrictStr] = None
+    token_type: Optional[StrictStr] = None
+    expires_in: Optional[StrictInt] = None
+    __properties: ClassVar[List[str]] = ["access_token", "refresh_token", "token_type", "expires_in"]
 
     model_config = {
         "populate_by_name": True,
@@ -53,7 +55,7 @@ class Status(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of Status from a JSON string"""
+        """Create an instance of AuthToken from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -76,7 +78,7 @@ class Status(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Dict) -> Self:
-        """Create an instance of Status from a dict"""
+        """Create an instance of AuthToken from a dict"""
         if obj is None:
             return None
 
@@ -84,8 +86,10 @@ class Status(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "status": obj.get("status"),
-            "version": obj.get("version")
+            "access_token": obj.get("access_token"),
+            "refresh_token": obj.get("refresh_token"),
+            "token_type": obj.get("token_type"),
+            "expires_in": obj.get("expires_in")
         })
         return _obj
 

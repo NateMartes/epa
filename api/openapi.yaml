@@ -1,13 +1,20 @@
 openapi: 3.0.3
 info:
+  description: |
+    API for a mobile safety application that allows users to post and subscribe  to local safety concerns.
   title: EPA (Event Posting App) API
   version: 1.0.0
 servers:
 - url: /
+tags:
+- description: Service health and metadata.
+  name: System
+- description: Identity management including native and social OAuth2 exchanges.
+  name: Authentication
 paths:
-  /status:
+  /v1/status:
     get:
-      operationId: get_status
+      operationId: get_api_status
       responses:
         "200":
           content:
@@ -16,18 +23,229 @@ paths:
                 $ref: "#/components/schemas/Status"
           description: API is healthy
       summary: Check API health
+      tags:
+      - System
+  /v1/auth/register:
+    post:
+      description: Creates a user account. Users must be authenticated via email to
+        avoid spam.
+      operationId: register_new_user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRegistration"
+        required: true
+      responses:
+        "201":
+          description: User created successfully
+      summary: Register a new user
+      tags:
+      - Authentication
+  /v1/auth/login:
+    post:
+      description: Returns a JWT for application access.
+      operationId: login_with_password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthToken"
+          description: Successful authentication returns access and refresh tokens.
+      summary: Login with email/password
+      tags:
+      - Authentication
+  /v1/auth/social/google:
+    post:
+      description: Exchanges a Google ID Token for an EPA-issued JWT.
+      operationId: authenticate_with_google
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SocialTokenExchange"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthToken"
+          description: Successful authentication returns access and refresh tokens.
+      summary: Google OAuth2 Exchange
+      tags:
+      - Authentication
+  /v1/auth/social/apple:
+    post:
+      description: Exchanges an Apple Identity Token for an EPA-issued JWT.
+      operationId: authenticate_with_apple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppleTokenExchange"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthToken"
+          description: Successful authentication returns access and refresh tokens.
+      summary: Apple Sign-In Exchange
+      tags:
+      - Authentication
+  /v1/auth/refresh:
+    post:
+      description: Uses a refresh token to generate a new short-lived access JWT.
+      operationId: refresh_session_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthToken"
+          description: Successful authentication returns access and refresh tokens.
+      summary: Refresh Access Token
+      tags:
+      - Authentication
 components:
+  responses:
+    TokenResponse:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AuthToken"
+      description: Successful authentication returns access and refresh tokens.
   schemas:
     Status:
       example:
-        version: version
-        status: status
+        status: healthy
+        version: 1.0.0
       properties:
         status:
-          title: status
           type: string
         version:
-          title: version
           type: string
       title: Status
       type: object
+    UserRegistration:
+      example:
+        password: password
+        email: email
+        username: username
+      properties:
+        email:
+          format: email
+          title: email
+          type: string
+        password:
+          format: password
+          title: password
+          type: string
+        username:
+          title: username
+          type: string
+      required:
+      - email
+      - password
+      - username
+      title: UserRegistration
+      type: object
+    LoginRequest:
+      example:
+        password: password
+        email: email
+      properties:
+        email:
+          title: email
+          type: string
+        password:
+          title: password
+          type: string
+      required:
+      - email
+      - password
+      title: LoginRequest
+      type: object
+    SocialTokenExchange:
+      example:
+        idToken: idToken
+      properties:
+        idToken:
+          description: Token from social provider SDK.
+          title: idToken
+          type: string
+      required:
+      - idToken
+      title: SocialTokenExchange
+      type: object
+    AppleTokenExchange:
+      example:
+        identityToken: identityToken
+        fullName: fullName
+      properties:
+        identityToken:
+          title: identityToken
+          type: string
+        fullName:
+          title: fullName
+          type: string
+      required:
+      - identityToken
+      title: AppleTokenExchange
+      type: object
+    RefreshTokenRequest:
+      example:
+        refreshToken: refreshToken
+      properties:
+        refreshToken:
+          title: refreshToken
+          type: string
+      required:
+      - refreshToken
+      title: RefreshTokenRequest
+      type: object
+    AuthToken:
+      example:
+        access_token: access_token
+        refresh_token: refresh_token
+        token_type: Bearer
+        expires_in: 3600
+      properties:
+        access_token:
+          title: access_token
+          type: string
+        refresh_token:
+          title: refresh_token
+          type: string
+        token_type:
+          example: Bearer
+          title: token_type
+          type: string
+        expires_in:
+          example: 3600
+          title: expires_in
+          type: integer
+      title: AuthToken
+      type: object
+  securitySchemes:
+    BearerAuth:
+      bearerFormat: JWT
+      description: |
+        Enter your JWT access token. This allows the RESTful API to verify  your identity before allowing posts or subscriptions.
+      scheme: bearer
+      type: http
