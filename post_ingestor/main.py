@@ -9,7 +9,7 @@ def lambda_handler(event, context):
       }
     """
     # FILL WITH REAL VALUES LATER
-    env_vars = []
+    env_vars = {}
     env_vars["KAFKA_TOKEN"] =  os.getenv("KAFKA_TOKEN", "KAFKA_TOKEN")
     env_vars["MONGO_SECRET"] =  os.getenv("MONGO_SECRET", "MONGO_SECRET")
     env_vars["MONGO_URI"] =  os.getenv("MONGO_URI", "MONGO_URI")
