@@ -1,0 +1,53 @@
+name: Run API Build Process
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  Explore-GitHub-Actions:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the branch that is making the pull request (head branch)
+      - name: Check out pull request
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - run: echo "The ${{ github.repository }} repository has been cloned to the runner."
+      - run: echo "The workflow is now ready to test your code on the runner."
+
+      - name: List files in the repository
+        run: |
+          ls ${{ github.workspace }}
+
+      #  Set up Docker
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Check Docker
+      - name: Check Docker and Docker Compose
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Docker version:"
+          docker --version
+
+          # Prefer Compose v2 plugin: `docker compose`
+          if docker compose version >/dev/null 2>&1; then
+            echo "Docker Compose v2 is available:"
+            docker compose version
+          else
+            echo "Docker Compose v2 not found. Installing docker-compose-plugin..."
+            sudo apt-get update
+            sudo apt-get install -y docker-compose-plugin
+            docker compose version
+          fi
+
+      # Build epa_api container
+      - name: Build the API image
+        run: |
+          docker compose -f ./docker-compose.yml build epa_api
