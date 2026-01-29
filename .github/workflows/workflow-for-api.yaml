@@ -1,6 +1,4 @@
-name: GitHub Actions Demo
-run-name: ${{ github.actor }} is testing out GitHub Actions 
-
+name: Run API Build Process
 on:
   pull_request:
     branches:
@@ -11,10 +9,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - run: echo "The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "PR from ${{ github.head_ref }} into ${{ github.base_ref }} in ${{ github.repository }}."
-
       # Checkout the branch that is making the pull request (head branch)
       - name: Check out pull request
         uses: actions/checkout@v5
@@ -28,11 +22,6 @@ jobs:
       - name: List files in the repository
         run: |
           ls ${{ github.workspace }}
-
-      # Build the API (expects an api/directory with a Dockerfile)
-      - name: Build the API image
-        run: |
-          docker compose -f ./docker-compose.yml build epa_api
 
       #  Set up Docker
       - name: Set up Docker Buildx
