@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  notify_service
+
+  Sample SAM Template for notify_service
+
+Globals:
+  Function:
+    Timeout: 5
+    MemorySize: 128
+    LoggingConfig:
+      LogFormat: JSON
+      
+Resources:
+  NotifyServiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Architectures:
+      - x86_64
+      Events:
+        MyMSKEvent:
+          Type: MSK
+          Properties:
+            StartingPosition: LATEST
+            # Stream: !Ref PUT MKS CLUSTER ARN HERE
+            Topics:
+              - notify_service_consumer
+            BatchSize: 100
+            MaximumBatchingWindowInSeconds: 5
+            Enabled: true
+      Environment:
+        Variables:
+          PARAM1: VALUE
+          # fill later
+    Metadata:
+      DockerTag: provided.al2-v1
+      DockerContext: .
+      Dockerfile: Dockerfile
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+Outputs:
+  NotifyServiceFunction:
+    Description: API Gateway endpoint URL for Prod environment for First 
+      Function
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/prod/cache-loader/"
+  NotifyServiceFunction:
+    Description: First Lambda Function ARN
+    Value: !GetAtt NotifyServiceFunction.Arn
+  NotifyServiceFunction:
+    Description: Implicit IAM Role created for Cache Loader Service function
+    Value: !GetAtt NotifyServiceFunctionRole.Arn

@@ -1,3 +1,5 @@
-module epa.com/notify_service
+module epa.com/cache_loader
 
-go 1.22.2
+go 1.19
+
+require github.com/aws/aws-lambda-go v1.36.1
