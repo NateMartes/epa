@@ -3,7 +3,8 @@
     {
       "name": "users",
       "indexes": [
-        { "field": "user_id", "unique": true }
+        { "field": "user_id", "unique": true},
+        {"field": "google_id", "unique": true}
       ]
     },
     {
@@ -15,6 +16,12 @@
     },
     {
       "name": "posts",
+      "indexes": [
+        {"field": "created_at"}
+      ]
+    },
+    {
+      "name": "categories",
       "indexes": [
         {"field": "created_at"}
       ]
