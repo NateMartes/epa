@@ -13,9 +13,9 @@ npm install -g @openapitools/openapi-generator-cli
 Then you can generate the API endpoints like such:
 ```bash
 openapi-generator-cli generate \
--i openapi.yml \
+-i openapi.yaml \
 -g python-fastapi \
--o ./api \ --additional-properties=packageName=epa_api,fastapiImplementationPackage=api_implementation
+-o . \ --additional-properties=packageName=epa_api,fastapiImplementationPackage=api_implementation
 ```
 
 The service methods (the actual logic of the API) is stored within the `./api/src/epa_api/api_implementation` directory.
@@ -75,3 +75,16 @@ ___
 
 ---
 ## The EPA Moblie App
+
+---
+## Useful Commands
+
+Set environment variables from `.env`:
+```bash
+export $(grep -v '^#' .env | xargs)
+```
+
+Unset environment variables from `.env`:
+```bash
+unset $(grep -v '^#' .env | sed -E 's/(.*)=.*/\1/' | xargs)
+```

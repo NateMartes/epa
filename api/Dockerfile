@@ -1,30 +1,17 @@
-FROM python:3.7 AS builder
-
-WORKDIR /usr/src/app
+FROM python:3.11 AS test_runner
 
 RUN python3 -m venv /venv
-ENV PATH="/venv/bin:$PATH"
-
-RUN pip install --upgrade pip
-
-COPY . .
-RUN pip install --no-cache-dir .
-
-
-FROM python:3.7 AS test_runner
-WORKDIR /tmp
-COPY --from=builder /venv /venv
-COPY --from=builder /usr/src/app/tests tests
 ENV PATH=/venv/bin:$PATH
 
-# install test dependencies
-RUN pip install pytest
+COPY . .
+RUN /venv/bin/pip install -r requirements.txt
+RUN /venv/bin/pip install --no-cache-dir .
 
-# run tests
-RUN pytest tests
+RUN /venv/bin/pip install pytest
 
+RUN /venv/bin/pytest tests
 
-FROM python:3.7 AS service
+FROM python:3.11-slim AS service
 WORKDIR /root/app/site-packages
 COPY --from=test_runner /venv /venv
 ENV PATH=/venv/bin:$PATH

@@ -29,7 +29,10 @@ try:
         db.create_collection(collection.get("name", ""))
         new_collection = db[collection.get("name", "")]
         for idx in collection.get("indexes", []):
-            new_collection.create_index(idx.get("field", ""), unique=idx.get("unique", False))
+            if idx.get("expireAfterSeconds", None):
+                new_collection.create_index(idx.get("field", ""), unique=idx.get("unique", False), expireAfterSeconds=idx.get("expireAfterSeconds", 0))
+            else:
+                new_collection.create_index(idx.get("field", ""), unique=idx.get("unique", False))
             
     print(f"MongoDB database at {hostname}:27017 initialized")
     

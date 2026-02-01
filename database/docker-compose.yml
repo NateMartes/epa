@@ -3,8 +3,8 @@ services:
      image: mongo:8.2.3-noble
      restart: always
      environment:
-       MONGO_INITDB_ROOT_USERNAME: test
-       MONGO_INITDB_ROOT_PASSWORD: test
+       MONGO_INITDB_ROOT_USERNAME: ${EPA_MONGODB_USERNAME}
+       MONGO_INITDB_ROOT_PASSWORD: ${EPA_MONGODB_PASSWORD}
      ports:
       - "27017:27017"
      hostname: epa-db
@@ -22,5 +22,5 @@ services:
        - epa_database
       environment:
        MONGO_DB_HOSTNAME: epa-db
-       MONGO_INITDB_ROOT_USERNAME: test
-       MONGO_INITDB_ROOT_PASSWORD: test
+       MONGO_INITDB_ROOT_USERNAME: ${EPA_MONGODB_USERNAME}
+       MONGO_INITDB_ROOT_PASSWORD: ${EPA_MONGODB_PASSWORD}

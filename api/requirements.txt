@@ -34,3 +34,5 @@ uvicorn==0.13.4
 uvloop==0.21.0
 watchgod==0.7
 websockets==10.0
+pymongo==4.16.0
+PyJWT==2.10.1

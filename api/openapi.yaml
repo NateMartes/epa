@@ -1,13 +1,20 @@
 openapi: 3.0.3
 info:
+  description: |
+    API for a mobile safety application that allows users to post and subscribe to local safety concerns.
   title: EPA (Event Posting App) API
   version: 1.0.0
 servers:
 - url: /
+tags:
+- description: Service health and metadata.
+  name: System
+- description: Identity management including native and social OAuth2 exchanges.
+  name: Authentication
 paths:
-  /status:
+  /v1/status:
     get:
-      operationId: get_status
+      operationId: get_api_status
       responses:
         "200":
           content:
@@ -16,18 +23,258 @@ paths:
                 $ref: "#/components/schemas/Status"
           description: API is healthy
       summary: Check API health
+      tags:
+      - System
+  /v1/auth/register:
+    post:
+      description: Creates a user account. Users must be authenticated via email to
+        avoid spam.
+      operationId: register_new_user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRegistration"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserCreated"
+          description: User created successfully
+      summary: Register a new user
+      tags:
+      - Authentication
+  /v1/auth/login:
+    post:
+      description: Returns a JWT for application access.
+      operationId: login_with_password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthToken"
+          description: Successful authentication returns access and a session token.
+      summary: Login with email/password
+      tags:
+      - Authentication
+  /v1/auth/social/web/google:
+    get:
+      description: Redirects the user to Google's OAuth 2.0 server to begin authentication.
+      operationId: authenticate_with_google_web
+      responses:
+        "302":
+          description: Redirect to Google Accounts.
+          headers:
+            Location:
+              description: The Google OAuth2 authorization URL.
+              explode: false
+              schema:
+                type: string
+              style: simple
+      summary: Initiate Google OAuth2 Flow
+      tags:
+      - Authentication
+  /v1/auth/social/web/google/callback:
+    get:
+      description: "The endpoint Google redirects to after user authorization. It\
+        \ exchanges the 'code' for a Google token, identifies the user, and issues\
+        \ an EPA session."
+      operationId: google_callback
+      parameters:
+      - description: The authorization code provided by Google.
+        explode: true
+        in: query
+        name: code
+        required: true
+        schema:
+          type: string
+        style: form
+      - description: A state string used to prevent CSRF.
+        explode: true
+        in: query
+        name: state
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Error message if the user denied the request.
+        explode: true
+        in: query
+        name: error
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthToken"
+          description: Authorize the user
+        "400":
+          description: Invalid code or state mismatch.
+        "401":
+          description: Authentication failed with Google.
+      summary: Google OAuth2 Callback
+      tags:
+      - Authentication
+  /v1/auth/social/web/apple:
+    post:
+      description: Exchanges an Apple Identity Token for an EPA-issued JWT.
+      operationId: authenticate_with_apple_web
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppleTokenExchange"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthToken"
+          description: Successful authentication returns access and session token.
+      summary: Apple Sign-In Exchange
+      tags:
+      - Authentication
+  /v1/auth/session:
+    post:
+      description: Uses a session token to generate a new short-lived access JWT.
+      operationId: renew_session_token
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthToken"
+          description: Successful authentication returns access and a session token.
+      security:
+      - BearerAuth: []
+      summary: Session Token Renewal
+      tags:
+      - Authentication
 components:
+  responses:
+    TokenResponse:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AuthToken"
+      description: Successful authentication returns access and a session token.
   schemas:
     Status:
       example:
-        version: version
-        status: status
+        status: healthy
+        version: 1.0.0
       properties:
         status:
-          title: status
           type: string
         version:
-          title: version
           type: string
       title: Status
       type: object
+    UserRegistration:
+      example:
+        password: password
+        email: email
+        username: username
+      properties:
+        email:
+          format: email
+          title: email
+          type: string
+        password:
+          format: password
+          title: password
+          type: string
+        username:
+          title: username
+          type: string
+      required:
+      - email
+      - password
+      - username
+      title: UserRegistration
+      type: object
+    LoginRequest:
+      example:
+        password: password
+        email: email
+      properties:
+        email:
+          title: email
+          type: string
+        password:
+          format: password
+          title: password
+          type: string
+      required:
+      - email
+      - password
+      title: LoginRequest
+      type: object
+    AppleTokenExchange:
+      example:
+        identity_token: identity_token
+        full_name: full_name
+      properties:
+        identity_token:
+          title: identity_token
+          type: string
+        full_name:
+          title: full_name
+          type: string
+      required:
+      - identityToken
+      title: AppleTokenExchange
+      type: object
+    UserCreated:
+      example:
+        user_id: some_user_id
+      properties:
+        user_id:
+          title: user_id
+          type: string
+      title: UserCreated
+      type: object
+    AuthToken:
+      example:
+        access_token: access_token
+        session_token: session_token
+        token_type: Bearer
+        expires_in: 3600
+      properties:
+        access_token:
+          title: access_token
+          type: string
+        session_token:
+          title: session_token
+          type: string
+        token_type:
+          example: Bearer
+          title: token_type
+          type: string
+        access_expires_in:
+          example: 3600
+          title: access_expires_in
+          type: integer
+      title: AuthToken
+      type: object
+  securitySchemes:
+    BearerAuth:
+      bearerFormat: JWT
+      description: |
+        Enter your JWT access token. This allows the RESTful API to verify your identity before allowing posts or subscriptions.
+      scheme: bearer
+      type: http

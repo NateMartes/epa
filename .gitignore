@@ -1,2 +1,3 @@
 openapitools.json
 .venv
+.env

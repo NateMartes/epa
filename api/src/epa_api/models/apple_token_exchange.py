@@ -27,13 +27,13 @@ try:
 except ImportError:
     from typing_extensions import Self
 
-class Status(BaseModel):
+class AppleTokenExchange(BaseModel):
     """
-    Status
+    AppleTokenExchange
     """ # noqa: E501
-    status: Optional[StrictStr] = None
-    version: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["status", "version"]
+    identity_token: Optional[StrictStr] = None
+    full_name: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["identity_token", "full_name"]
 
     model_config = {
         "populate_by_name": True,
@@ -53,7 +53,7 @@ class Status(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of Status from a JSON string"""
+        """Create an instance of AppleTokenExchange from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -76,7 +76,7 @@ class Status(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Dict) -> Self:
-        """Create an instance of Status from a dict"""
+        """Create an instance of AppleTokenExchange from a dict"""
         if obj is None:
             return None
 
@@ -84,8 +84,8 @@ class Status(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "status": obj.get("status"),
-            "version": obj.get("version")
+            "identity_token": obj.get("identity_token"),
+            "full_name": obj.get("full_name")
         })
         return _obj
 

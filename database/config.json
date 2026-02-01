@@ -3,13 +3,20 @@
     {
       "name": "users",
       "indexes": [
-        { "field": "userId", "unique": true }
+        { "field": "user_id", "unique": true }
+      ]
+    },
+    {
+      "name": "session_tokens",
+      "indexes": [
+        {"field": "session_token", "expireAfterSeconds": 604800},
+        {"field": "user_id", "unique": true}
       ]
     },
     {
       "name": "posts",
       "indexes": [
-        {"field": "createdAt"}
+        {"field": "created_at"}
       ]
     }
   ]

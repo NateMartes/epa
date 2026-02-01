@@ -20,20 +20,20 @@ import json
 
 
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, SecretStr, StrictStr
+from typing import Any, ClassVar, Dict, List
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class Status(BaseModel):
+class LoginRequest(BaseModel):
     """
-    Status
+    LoginRequest
     """ # noqa: E501
-    status: Optional[StrictStr] = None
-    version: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["status", "version"]
+    email: StrictStr
+    password: SecretStr
+    __properties: ClassVar[List[str]] = ["email", "password"]
 
     model_config = {
         "populate_by_name": True,
@@ -53,7 +53,7 @@ class Status(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of Status from a JSON string"""
+        """Create an instance of LoginRequest from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -76,7 +76,7 @@ class Status(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Dict) -> Self:
-        """Create an instance of Status from a dict"""
+        """Create an instance of LoginRequest from a dict"""
         if obj is None:
             return None
 
@@ -84,8 +84,8 @@ class Status(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "status": obj.get("status"),
-            "version": obj.get("version")
+            "email": obj.get("email"),
+            "password": obj.get("password")
         })
         return _obj
 
