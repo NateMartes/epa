@@ -22,6 +22,11 @@ type User struct {
 	Subscribed []string `bson:"subscribed,omitempty"`
 }
 
+// A list of posts, commonly used for user caches
+type PostList struct {
+	Posts []Post `json:"posts,omitempty"`
+}
+
 // A Post that would come from the Kafka queue
 type Post struct {
 	PostId int `json:"post_id,omitempty"`
@@ -188,47 +193,74 @@ func mongoCursorToSlice[T any](cursor *mongo.Cursor) []T {
 }
 
 /*
- * The getPostFromBase64 takes a base64 encoded strings and returns a Post object.
+ * The getFromBase64 takes a base64 encoded strings and returns an object of type Tas.
  * 
  * Args:
  * 	base64String (string): A base64 encoded string
  * 
  * Returns:
- * 	(Post, error): The resulting post, an error if an error occured 
+ * 	(T, error): The resulting object, an error if an error occured 
  */
-func getPostFromBase64(base64String string) (Post, error) {
+func getFromBase64[T any](base64String string) (T, error) {
 	
 	// Define a buffer to place the decoded base64 string
 	buf := make([]byte, base64.StdEncoding.DecodedLen(len(base64String)))
 	bytesWritten, err := base64.StdEncoding.Decode(buf, []byte(base64String))
 	decodedRecord := buf[:bytesWritten]
 	if err != nil {
-		return Post{}, err
+		var val T
+		return val, err
 	}
 	
 	// Parse the string into the Post struct
-	var post Post
-	if err := json.Unmarshal(decodedRecord, &post); err != nil {
-		return Post{}, err
+	var val T
+	if err := json.Unmarshal(decodedRecord, &val); err != nil {
+		return val, err
 	}
 	
-	return post, nil
+	return val, nil
 }
 
 func connectToRedis() *redis.Client {
 	return redis.NewClient(&redis.Options{
-		Addr:     "0.0.0.0:6379",
+		Addr:     "epa-redis:6379",
 		Password: "", // no password
 		DB:       0,  // use default DB
-		Protocol: 2,
 	})
 }
+
+func getUserCahceLineValue(userId string, rdb *redis.Client) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return rdb.Get(ctx, userId).Result()
+}
+
+func setUserCahceLineValue(userId string, val string, rdb *redis.Client) (error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return rdb.Set(ctx, userId, val, time.Hour).Err()
+}
+
 
 func updateCacheLine(userId string, post Post, rdb *redis.Client) error {
 	
 	// Get user cache line if it exists, if not, cache line is []
 	// append post to cache line
 	// insert update
+	
+	val, err := getUserCahceLineValue(userId, rdb)
+	if err == redis.Nil {
+		val = "eyJwb3N0cyI6W119" // {"posts":[]} in base64
+	} else if err != nil {
+		return err
+	}
+	postList, err := getFromBase64[PostList](val)
+	if err != nil {
+		return err
+	}
+	
+	log.Println(postList)
+	
 	return nil
 }
 
@@ -248,16 +280,15 @@ func updateUserCacheLines(records []events.KafkaRecord, users *[]User, wg *sync.
 	rdb := connectToRedis()
 	for _, record := range records {
 
-		post, err := getPostFromBase64(record.Value)
+		post, err := getFromBase64[Post](record.Value)
 		if err != nil {
 			log.Fatal(err)
 			continue
 		}
-		log.Println(post)
 		
 		for _, user := range *users {
-			for _, userCategoryName := range user.Subscribed {
-				if userCategoryName == post.CategoryName {
+			for _, userCategorySlug := range user.Subscribed {
+				if userCategorySlug == post.CategorySlug {
 					err := updateCacheLine(user.Id, post, rdb)
 					if err != nil { log.Fatal(err) }
 				}
