@@ -1,6 +1,6 @@
 module epa.com/cache_loader
 
-go 1.19
+go 1.22
 
 require github.com/aws/aws-lambda-go v1.36.1
 
