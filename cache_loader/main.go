@@ -6,17 +6,28 @@ import (
 	"runtime"
 	"time"
 	"log"
+	"encoding/base64"
+	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"github.com/redis/go-redis/v9"
 )
 
 // A User in the MongoDB database. We only include the fields we need
 type User struct {
 	Id string `bson:"user_id,omitempty"`
 	Subscribed []string `bson:"subscribed,omitempty"`
+}
+
+// A Post that would come from the Kafka queue
+type Post struct {
+	PostId int `json:"post_id,omitempty"`
+	Title string `json:"title,omitempty"`
+	CategoryName string `json:"category_name,omitempty"`
+	CategorySlug string `json:"category_slug,omitempty"`
 }
 
 /*
@@ -167,7 +178,6 @@ func mongoCursorToSlice[T any](cursor *mongo.Cursor) []T {
 			log.Fatal(err)
 		}
 		output = append(output, current)
-		log.Println(current)
 	}
 	
 	if err := cursor.Err(); err != nil {
@@ -175,6 +185,51 @@ func mongoCursorToSlice[T any](cursor *mongo.Cursor) []T {
 	}
 	
 	return output
+}
+
+/*
+ * The getPostFromBase64 takes a base64 encoded strings and returns a Post object.
+ * 
+ * Args:
+ * 	base64String (string): A base64 encoded string
+ * 
+ * Returns:
+ * 	(Post, error): The resulting post, an error if an error occured 
+ */
+func getPostFromBase64(base64String string) (Post, error) {
+	
+	// Define a buffer to place the decoded base64 string
+	buf := make([]byte, base64.StdEncoding.DecodedLen(len(base64String)))
+	bytesWritten, err := base64.StdEncoding.Decode(buf, []byte(base64String))
+	decodedRecord := buf[:bytesWritten]
+	if err != nil {
+		return Post{}, err
+	}
+	
+	// Parse the string into the Post struct
+	var post Post
+	if err := json.Unmarshal(decodedRecord, &post); err != nil {
+		return Post{}, err
+	}
+	
+	return post, nil
+}
+
+func connectToRedis() *redis.Client {
+	return redis.NewClient(&redis.Options{
+		Addr:     "0.0.0.0:6379",
+		Password: "", // no password
+		DB:       0,  // use default DB
+		Protocol: 2,
+	})
+}
+
+func updateCacheLine(userId string, post Post, rdb *redis.Client) error {
+	
+	// Get user cache line if it exists, if not, cache line is []
+	// append post to cache line
+	// insert update
+	return nil
 }
 
 /*
@@ -187,8 +242,28 @@ func mongoCursorToSlice[T any](cursor *mongo.Cursor) []T {
  * 	users (*[]User): A list of users that may have their cache lines update
  * 	wg (*sync.WaitGroup): A Waitgroup this fucntion is apart of
  */
-func UpdateUserCacheLines(records []events.KafkaRecord, users *[]User, wg *sync.WaitGroup) {
+func updateUserCacheLines(records []events.KafkaRecord, users *[]User, wg *sync.WaitGroup) {
 	defer wg.Done()
+
+	rdb := connectToRedis()
+	for _, record := range records {
+
+		post, err := getPostFromBase64(record.Value)
+		if err != nil {
+			log.Fatal(err)
+			continue
+		}
+		log.Println(post)
+		
+		for _, user := range *users {
+			for _, userCategoryName := range user.Subscribed {
+				if userCategoryName == post.CategoryName {
+					err := updateCacheLine(user.Id, post, rdb)
+					if err != nil { log.Fatal(err) }
+				}
+			}
+		}
+	}
 	
 	// Connect to Redis cache
 	// For each user:
@@ -215,7 +290,7 @@ func process_records(records []events.KafkaRecord) {
 	var wg sync.WaitGroup
 	for i := range usersChunked {
 		wg.Add(1)
-		go UpdateUserCacheLines(records, &usersChunked[i], &wg)
+		go updateUserCacheLines(records, &usersChunked[i], &wg)
 	}
 	wg.Wait()
 }
