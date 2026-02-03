@@ -6,6 +6,10 @@ import (
 	"runtime"
 	"time"
 	"log"
+	"os"
+	"fmt"
+	"errors"
+	"strings"
 	"encoding/base64"
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
@@ -77,7 +81,15 @@ func chunk[T any](k int, slice []T) [][]T {
  * 	(*mongo.Client, error): The MongoDB client, an error if an error occurs
  */
 func connectToMongoDB() (*mongo.Client, error) {
-	uri := "mongodb://test:test@epa-db:27017/"
+	hostname := os.Getenv("EPA_MONGODB_HOSTNAME")
+	port := os.Getenv("EPA_MONGODB_PORT")
+	username := os.Getenv("EPA_MONGODB_USERNAME")
+	password := os.Getenv("EPA_MONGODB_PASSWORD")
+	if hostname == "" || port == "" || username == "" || password == "" {
+		return nil, errors.New("Not all MongoDB environment variables set or are empty")
+	}
+	
+	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s/", username, password, hostname, port)
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
 	return mongo.Connect(opts)
@@ -94,11 +106,16 @@ func connectToMongoDB() (*mongo.Client, error) {
  * 	*mongo.Collection: The user collection on the MongoDB instance
  */
 func getUserCollection(client *mongo.Client) *mongo.Collection {
-	
-	epaDb := "epa_database"
-	db := client.Database(epaDb)
-	epaUsersCollection := "users"
-	return db.Collection(epaUsersCollection)
+	dbName := os.Getenv("EPA_MONGODB_DATABASE_NAME")
+	if dbName == "" {
+		panic("Environment variable EPA_MONGODB_DATABASE_NAME not set or is empty")
+	}
+	db := client.Database(dbName)
+	userCollection := os.Getenv("EPA_MONGODB_USER_COLLECTION")
+	if userCollection == "" {
+		panic("Environment variable EPA_MONGODB_USER_COLLECTION not set or is empty")
+	}
+	return db.Collection(userCollection)
 }
 
 /*
@@ -221,47 +238,100 @@ func getFromBase64[T any](base64String string) (T, error) {
 	return val, nil
 }
 
+/*
+ * The connectToRedis connects to a known redis instance
+ * 
+ * Returns:
+ * 	*redis.Client: The connection to the redis server
+ */
 func connectToRedis() *redis.Client {
+	hostname := os.Getenv("EPA_REDIS_HOSTNAME")
+	port := os.Getenv("EPA_REDIS_PORT")
+	password := os.Getenv("EPA_REDIS_PASSWORD")
+	if hostname == "" || port == "" || password == "" {
+		panic("Environment variables for Redis not all set or are empty")
+	}
 	return redis.NewClient(&redis.Options{
-		Addr:     "epa-redis:6379",
-		Password: "", // no password
-		DB:       0,  // use default DB
+		Addr:     hostname + ":" + port,
+		Password: password,
+		DB:       0,
 	})
 }
 
+/*
+ * The getUserCacheLineValue gets a cache line in a redis server using
+ * a user id as the key.
+ * 
+ * Args:
+ * 	userId (string): A user id
+ * 	rdb (*redis.Client): A connection to a redis instance
+ * 
+ * Returns:
+ * 	(string, error): The value of the cache line as a string, an error if an error occured
+ */
 func getUserCahceLineValue(userId string, rdb *redis.Client) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	return rdb.Get(ctx, userId).Result()
 }
 
-func setUserCahceLineValue(userId string, val string, rdb *redis.Client) (error) {
+/*
+ * The setUserCahceLineValue sets a cache line in a redis server using
+ * a user id as the key.
+ * 
+ * Args:
+ * 	userId (string): A user id
+ * 	val (string): The new value of the cache line
+ * 	exprAt (time.Duration): The time to live of the cache line
+ * 	rdb (*redis.Client): A connection to a redis instance
+ * 
+ * Returns:
+ * 	(string, error): The value of the cache line as a string, an error if an error occured
+ */
+func setUserCahceLineValue(userId string, val string, exprAt time.Duration, rdb *redis.Client) (error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	return rdb.Set(ctx, userId, val, time.Hour).Err()
+	return rdb.Set(ctx, userId, val, exprAt).Err()
 }
 
-
+/*
+ * The updateCacheLine function takes a user's cache line and adds a
+ * post struct to it in JSON format. This may either set the cache line of a
+ * user to just the new post, or append the post to the cache line.
+ * 
+ * Args:
+ * 	userId (string): The user id
+ * 	post (Post): The post to add to the cache line
+ * 	rdb (*redis.Client): A connection to a redis instance
+ * 
+ * Returns:
+ * 	error: If an error occured
+ */
 func updateCacheLine(userId string, post Post, rdb *redis.Client) error {
 	
-	// Get user cache line if it exists, if not, cache line is []
-	// append post to cache line
-	// insert update
-	
-	val, err := getUserCahceLineValue(userId, rdb)
+	// Get the cache line value, defaulting to "{"posts": []}" for cache lines that do not exist
+	valString, err := getUserCahceLineValue(userId, rdb)
 	if err == redis.Nil {
-		val = "eyJwb3N0cyI6W119" // {"posts":[]} in base64
+		valString = "{\"posts\": []}"
 	} else if err != nil {
 		return err
 	}
-	postList, err := getFromBase64[PostList](val)
+	
+	// Parse the cache line into a PostList object
+	var val PostList
+	err = json.Unmarshal([]byte(valString), &val)
 	if err != nil {
 		return err
 	}
+		
+	// Add the new post and insert into the cache line
+	val.Posts = append(val.Posts, post)
+	jsonEncoded, err := (json.Marshal(val))
+	if err != nil {
+		return nil
+	}
 	
-	log.Println(postList)
-	
-	return nil
+	return setUserCahceLineValue(userId, string(jsonEncoded), time.Hour, rdb)
 }
 
 /*
@@ -280,6 +350,7 @@ func updateUserCacheLines(records []events.KafkaRecord, users *[]User, wg *sync.
 	rdb := connectToRedis()
 	for _, record := range records {
 
+		// Decode the post from AWS
 		post, err := getFromBase64[Post](record.Value)
 		if err != nil {
 			log.Fatal(err)
@@ -295,10 +366,6 @@ func updateUserCacheLines(records []events.KafkaRecord, users *[]User, wg *sync.
 			}
 		}
 	}
-	
-	// Connect to Redis cache
-	// For each user:
-	// If the the user is subscribed to our record, add post to user cache line
 }
 
 /*
@@ -328,9 +395,12 @@ func process_records(records []events.KafkaRecord) {
 
 func handler(ctx context.Context, event events.KafkaEvent) error {
 	
-	expectedRecord := "cache_loader_consumer-0"
+	expectedTopic := os.Getenv("EPA_KAFKA_TOPIC_CACHELOADER_NAME")
+	if expectedTopic == "" {
+		return errors.New("Environment variable EPA_KAFKA_TOPIC_CACHELOADER_NAME not set or empty")
+	}
 	for topicParition, records := range event.Records {
-		if topicParition == expectedRecord {
+		if strings.Contains(topicParition, expectedTopic) {
 			process_records(records)
 		}
 	}

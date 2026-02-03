@@ -4,7 +4,7 @@
       "name": "users",
       "indexes": [
         { "field": "user_id", "unique": true},
-        {"field": "google_id", "unique": true}
+        {"field": "google_id", "unique": true, "sparse": true}
       ]
     },
     {
