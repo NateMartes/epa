@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  post_ingestor
+
+  SAM Template for post_ingestor
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 128
+    LoggingConfig:
+      LogFormat: JSON
+
+Resources:
+  PostIngestorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Architectures:
+        - x86_64
+
+      # Add MSK event later once you know the topic + cluster ARN
+      # Events:
+      #   MyMSKEvent:
+      #     Type: MSK
+      #     Properties:
+      #       StartingPosition: LATEST
+      #       Topics:
+      #         - post_ingestor_consumer
+      #       BatchSize: 100
+      #       MaximumBatchingWindowInSeconds: 5
+      #       Enabled: true
+
+      Environment:
+        Variables:
+          KAFKA_TOKEN: ""
+          MONGO_SECRET: ""
+          MONGO_URI: ""
+          MONGO_DB: ""
+          MONGO_COLLECTION: "posts"
+
+    Metadata:
+      DockerTag: python3.11-al2-v1
+      DockerContext: .
+      Dockerfile: Dockerfile

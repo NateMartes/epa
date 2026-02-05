@@ -1,0 +1,8 @@
+# MongoDB API
+pymongo[srv]==4.6.3
+
+# Kafka API (choose one client; confluent-kafka is common + fast)
+confluent-kafka==2.3.0
+
+# Optional: AWS logging / Lambda utils
+aws-lambda-powertools==2.34.0

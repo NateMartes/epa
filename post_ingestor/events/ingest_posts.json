@@ -1,0 +1,7 @@
+{
+  "event": "INGEST_POSTS",
+  "records": [
+    { "postId": "1", "content": "hello" },
+    { "postId": "2", "content": "world" }
+  ]
+}
