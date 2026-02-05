@@ -32,8 +32,16 @@ Resources:
             Enabled: true
       Environment:
         Variables:
-          PARAM1: VALUE
-          # fill later
+          EPA_REDIS_HOSTNAME: ""
+          EPA_REDIS_PORT: ""
+          EPA_REDIS_PASSWORD: ""
+          EPA_MONGODB_HOSTNAME: ""
+          EPA_MONGODB_PORT: ""
+          EPA_MONGODB_DATABASE_NAME: ""
+          EPA_MONGODB_USERNAME: ""
+          EPA_MONGODB_PASSWORD: ""
+          EPA_MONGODB_USER_COLLECTION: ""
+          EPA_KAFKA_TOPIC_CACHELOADER_NAME: ""
     Metadata:
       DockerTag: provided.al2-v1
       DockerContext: .

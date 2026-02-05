@@ -1,0 +1,26 @@
+{
+  "eventSource": "aws:kafka",
+  "eventSourceArn": "arn:aws:kafka:us-east-1:123456789012:cluster/vpc-msk-cluster/uuid",
+  "records": {
+    "cache_loader_consumer-0": [
+      {
+        "topic": "cache_loader_consumer",
+        "partition": 0,
+        "offset": 101,
+        "timestamp": 1645482000000,
+        "timestampType": "CREATE_TIME",
+        "key": "dXNlci0xMjM=",
+        "value": "eyJwb3N0X2lkIjogMTIzLCAidGl0bGUiOiAiSGVsbG8gV29ybGQhIiwgImNhdGVnb3J5X25hbWUiOiAiTm90IFRlc3QiLCAiY2F0ZWdvcnlfc2x1ZyI6ICJub3R0ZXN0In0="
+      },
+      {
+        "topic": "cache_loader_consumer",
+        "partition": 0,
+        "offset": 101,
+        "timestamp": 1645482000000,
+        "timestampType": "CREATE_TIME",
+        "key": "dXNlci0xMjM=",
+        "value": "eyJwb3N0X2lkIjogMTI0LCAidGl0bGUiOiAiSGVsbG8gV29ybGQhIiwgImNhdGVnb3J5X25hbWUiOiAiVGVzdCIsICJjYXRlZ29yeV9zbHVnIjogInRlc3QifQ=="
+      }
+    ]
+  }
+}
