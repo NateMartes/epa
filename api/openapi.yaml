@@ -164,6 +164,58 @@ paths:
       summary: Session Token Renewal
       tags:
       - Authentication
+  /v1/post:
+    get:
+      description: "Returns a list of posts. Supports filtering by ID, name, category,\
+        \ or time. \nResults are limited to a maximum of 10.\n"
+      operationId: get_posts
+      parameters:
+      - description: Filter by a specific post ID.
+        explode: true
+        in: query
+        name: post_id
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Filter by post title (case-insensitive search).
+        explode: true
+        in: query
+        name: name
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: "Filter by the URL-friendly category identifier (e.g., 'road-hazard')."
+        explode: true
+        in: query
+        name: category_slug
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Return posts created after this ISO 8601 timestamp.
+        explode: true
+        in: query
+        name: since
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Post"
+                maxItems: 10
+                type: array
+          description: A list of posts.
+      summary: Retrieve posts
+      tags:
+      - Posts
 components:
   responses:
     TokenResponse:
@@ -270,6 +322,50 @@ components:
           title: access_expires_in
           type: integer
       title: AuthToken
+      type: object
+    Post:
+      example:
+        post_id: post_789abc
+        created_at: 2026-02-06T19:00:00Z
+        title: Downed Power Line
+        created_by: user_123
+        content: High winds knocked down a line on 5th Ave. Avoid the area.
+        category_slug: electrical-hazard
+      properties:
+        post_id:
+          example: post_789abc
+          title: post_id
+          type: string
+        created_by:
+          description: The user ID of the author.
+          example: user_123
+          title: created_by
+          type: string
+        title:
+          example: Downed Power Line
+          title: title
+          type: string
+        content:
+          example: High winds knocked down a line on 5th Ave. Avoid the area.
+          title: content
+          type: string
+        category_slug:
+          description: URL-friendly identifier for the category.
+          example: electrical-hazard
+          title: category_slug
+          type: string
+        created_at:
+          example: 2026-02-06T19:00:00Z
+          format: date-time
+          title: created_at
+          type: string
+      required:
+      - category_slug
+      - content
+      - created_by
+      - post_id
+      - title
+      title: Post
       type: object
   securitySchemes:
     BearerAuth:
