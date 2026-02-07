@@ -17,7 +17,11 @@
     {
       "name": "posts",
       "indexes": [
-        {"field": "created_at"}
+        {"field": "created_at"},
+        {"compound": true, "fields": [
+          {"field": "created_at", "descending": true},
+          {"field": "category_slug", "ascending": true}
+        ]}
       ]
     },
     {
