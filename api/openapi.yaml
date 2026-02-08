@@ -219,7 +219,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/PostList"
           description: A list of posts.
+      security:
+      - BearerAuth: []
       summary: Retrieve posts
+      tags:
+      - Posts
+    post:
+      description: "Creates a post, returning the new post object"
+      operationId: create_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePost"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+          description: Successful creation of a post.
+      security:
+      - BearerAuth: []
+      summary: Create a post
       tags:
       - Posts
 components:
@@ -379,6 +402,28 @@ components:
       - title
       title: Post
       type: object
+    CreatePost:
+      example:
+        title: Downed Power Line
+        content: High winds knocked down a line on 5th Ave. Avoid the area.
+        category_slug: electrical-hazard
+      properties:
+        title:
+          description: The title of the post.
+          example: A Post Title
+          title: title
+          type: string
+        content:
+          description: The actual content of the post.
+          example: Some Content
+          title: content
+          type: string
+        category_slug:
+          description: Identifier for the category.
+          example: electrical-hazard
+          title: category_slug
+          type: string
+      title: CreatePost
     PostList:
       example:
         page_number: 1

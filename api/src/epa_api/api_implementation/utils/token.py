@@ -1,5 +1,7 @@
-from operator import le
-from pydantic_core.core_schema import int_schema
+from epa_api.api_implementation.utils.mongo import MongoUtils
+from epa_api.api_implementation.utils.context import current_token_data
+from fastapi.exceptions import HTTPException
+from fastapi import status
 from pymongo.collection import Collection
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
@@ -8,6 +10,45 @@ import os
 
 class TokenUtils:
     """A class with helpful methods to interact with API JWT Tokens"""
+    @staticmethod
+    def validate_session_token_with_db() -> str:
+        """
+        Validates the current token in context and determines if it is a valid session token.
+        This method should only be called by implementation API functions as it uses the database to verify
+        :return: The token string if and only if the token is valid, otherwise empty string
+        :rtype: str
+        """
+        token = current_token_data.get()
+        if not token:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Token lost")
+            
+        client, db = MongoUtils.get_mongodb_database_connection()
+        if not TokenUtils.is_session_token_in_db(token.sub, MongoUtils.get_user_collection(db)):
+            client.close()
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+            
+        client.close()
+        return token.sub
+        
+    @staticmethod
+    def validate_access_token_with_db() -> str:
+        """
+        Validates the current token in context and determines if it is a valid access token.
+        This method should only be called by implementation API functions as it uses the database to verify
+        :return: The token string if and only if the token is valid, otherwise empty string
+        :rtype: str
+        """
+        token = current_token_data.get()
+        if not token:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Token lost")
+            
+        client, db = MongoUtils.get_mongodb_database_connection()
+        if not TokenUtils.is_access_token_in_db(token.sub, MongoUtils.get_user_collection(db)):
+            client.close()
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+            
+        client.close()
+        return token.sub
             
     @staticmethod
     def is_access_token_in_db(token: str, user_collection: Collection) -> bool:

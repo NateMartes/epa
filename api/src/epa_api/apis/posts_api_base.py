@@ -6,8 +6,10 @@ from datetime import datetime
 from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
+from epa_api.models.create_post import CreatePost
+from epa_api.models.post import Post
 from epa_api.models.post_list import PostList
-
+from epa_api.security_api import get_token_BearerAuth
 
 class BasePostsApi:
     subclasses: ClassVar[Tuple] = ()
@@ -24,4 +26,12 @@ class BasePostsApi:
         since: Annotated[Optional[datetime], Field(description="Return posts created after this ISO 8601 timestamp.")],
     ) -> PostList:
         """Returns a list of posts. Supports filtering by ID, name, category, or time.  Results are limited to a maximum of 10. """
+        ...
+
+
+    async def create_post(
+        self,
+        create_post: CreatePost,
+    ) -> Post:
+        """Creates a post, returning the new post object"""
         ...

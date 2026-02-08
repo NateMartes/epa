@@ -1,6 +1,8 @@
 from typing import Tuple, Dict, Any
 from pydantic.types import SecretStr
 from pymongo.collection import Collection
+from datetime import datetime
+from datetime import timezone
 from epa_api.models.user_registration import UserRegistration
 import hashlib
 import uuid
@@ -81,6 +83,7 @@ class UserUtils:
             "email": user_registration.email,
             "password": hashed_password,
             "salt": salt,
+            "created_at": str(datetime.now())
         }
         
         user_collection.insert_one(user_object)
@@ -100,7 +103,8 @@ class UserUtils:
             "user_id": user_id,
             "username": user_info["email"],
             "email": user_info["email"],
-            "google_id": user_info["id"]
+            "google_id": user_info["id"],
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
         
         user_collection.insert_one(user_object)

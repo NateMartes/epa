@@ -14,6 +14,7 @@ src/epa_api/apis/system_api_base.py
 src/epa_api/models/__init__.py
 src/epa_api/models/apple_token_exchange.py
 src/epa_api/models/auth_token.py
+src/epa_api/models/create_post.py
 src/epa_api/models/extra_models.py
 src/epa_api/models/login_request.py
 src/epa_api/models/post.py

@@ -7,9 +7,7 @@ an operationId in the OpenAPI specification.
 
 from typing import Optional
 from pydantic import StrictStr
-
 from fastapi.exceptions import HTTPException
-from starlette.status import HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
 from epa_api.apis.authentication_api_base import BaseAuthenticationApi
 from epa_api.models.user_registration import UserRegistration
 from epa_api.models.user_created import UserCreated
@@ -19,7 +17,6 @@ from epa_api.api_implementation.utils.mongo import MongoUtils
 from epa_api.api_implementation.utils.user import UserUtils
 from epa_api.api_implementation.utils.token import TokenUtils
 from epa_api.api_implementation.utils.google import GoogleUtils
-from epa_api.api_implementation.utils.context import current_token_data
 from fastapi.responses import RedirectResponse
 from fastapi import status
 import urllib.parse
@@ -88,20 +85,16 @@ class AuthAPIImplementation(BaseAuthenticationApi):
         
     async def renew_session_token(self) -> AuthToken:
         
-        token = current_token_data.get()
-        
-        # Only executed if the context of this request is reset somehow
-        if not token:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Token lost")
+        token = TokenUtils.validate_session_token_with_db()
             
         # Make sure this session token was not invalidated early
         client, db = MongoUtils.get_mongodb_database_connection()
         session_token_collection = MongoUtils.get_session_tokens_collection(db)
-        if not TokenUtils.is_session_token_in_db(token.sub, session_token_collection):
+        if not TokenUtils.is_session_token_in_db(token, session_token_collection):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid Session")
             
         user_collection = MongoUtils.get_user_collection(db)
-        user = UserUtils.get_user_from_user_id(TokenUtils.get_user_id(token.sub), user_collection)
+        user = UserUtils.get_user_from_user_id(TokenUtils.get_user_id(token), user_collection)
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
             
@@ -110,7 +103,7 @@ class AuthAPIImplementation(BaseAuthenticationApi):
         
         return AuthToken(
             access_token=new_access_token,
-            session_token=token.sub,
+            session_token=token,
             token_type="Bearer",
             access_expires_in=TokenUtils.get_ttl_in_seconds(TokenUtils.get_expire_date(new_access_token))
         )        
@@ -124,12 +117,11 @@ class AuthAPIImplementation(BaseAuthenticationApi):
         
     async def google_callback(self, code: StrictStr, state: Optional[StrictStr], error: Optional[StrictStr]) -> AuthToken:
         if not code:
-            raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="Termination code missing")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Termination code missing")
     
         # Get the user's information
         token_data = GoogleUtils.exchange_code_for_token(code)
         user_info = GoogleUtils.get_google_user_info(token_data["access_token"])
-        
         
         # Connect to the database
         client, db = MongoUtils.get_mongodb_database_connection()
@@ -141,7 +133,7 @@ class AuthAPIImplementation(BaseAuthenticationApi):
             user_id = UserUtils.create_google_user(user_info, user_collection)
             user_object = UserUtils.get_user_from_user_id(user_id, user_collection)
         if user_object is None:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve user after creation.")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve user after creation.")
             
         # Authorize the user with a session token
         new_access_token = TokenUtils.generate_new_access_token(user_object, user_collection)
