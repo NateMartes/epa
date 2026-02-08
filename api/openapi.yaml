@@ -170,6 +170,15 @@ paths:
         \ or time. \nResults are limited to a maximum of 10.\n"
       operationId: get_posts
       parameters:
+      - description: "Start at a specfic page number (if not given, this is always\
+          \ 1)"
+        explode: true
+        in: query
+        name: page_num
+        required: false
+        schema:
+          type: string
+        style: form
       - description: Filter by a specific post ID.
         explode: true
         in: query
@@ -208,10 +217,7 @@ paths:
           content:
             application/json:
               schema:
-                items:
-                  $ref: "#/components/schemas/Post"
-                maxItems: 10
-                type: array
+                $ref: "#/components/schemas/PostList"
           description: A list of posts.
       summary: Retrieve posts
       tags:
@@ -330,6 +336,7 @@ components:
         title: Downed Power Line
         created_by: user_123
         content: High winds knocked down a line on 5th Ave. Avoid the area.
+        category: Electrical Hazard
         category_slug: electrical-hazard
       properties:
         post_id:
@@ -349,8 +356,13 @@ components:
           example: High winds knocked down a line on 5th Ave. Avoid the area.
           title: content
           type: string
-        category_slug:
+        category:
           description: URL-friendly identifier for the category.
+          example: electrical-hazard
+          title: category
+          type: string
+        category_slug:
+          description: Identifier for the category.
           example: electrical-hazard
           title: category_slug
           type: string
@@ -366,6 +378,32 @@ components:
       - post_id
       - title
       title: Post
+      type: object
+    PostList:
+      example:
+        page_number: 1
+        page_size: 1
+        posts:
+        - post_id: post_789abc
+          created_at: 2026-02-06T19:00:00Z
+          title: Downed Power Line
+          created_by: user_123
+          content: High winds knocked down a line on 5th Ave. Avoid the area.
+          category: Electrical Hazard
+          category_slug: electrical-hazard
+      properties:
+        page_number:
+          example: 1
+          type: integer
+        page_size:
+          example: 10
+          type: integer
+        posts:
+          items:
+            $ref: "#/components/schemas/Post"
+          maxItems: 10
+          type: array
+      title: PostList
       type: object
   securitySchemes:
     BearerAuth:

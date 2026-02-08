@@ -20,26 +20,23 @@ import json
 
 
 
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
+from epa_api.models.post import Post
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class Post(BaseModel):
+class PostList(BaseModel):
     """
-    Post
+    PostList
     """ # noqa: E501
-    post_id: StrictStr
-    created_by: StrictStr = Field(description="The user ID of the author.")
-    title: StrictStr
-    content: StrictStr
-    category: Optional[StrictStr] = Field(default=None, description="URL-friendly identifier for the category.")
-    category_slug: StrictStr = Field(description="Identifier for the category.")
-    created_at: Optional[datetime] = None
-    __properties: ClassVar[List[str]] = ["post_id", "created_by", "title", "content", "category", "category_slug", "created_at"]
+    page_number: Optional[StrictInt] = None
+    page_size: Optional[StrictInt] = None
+    posts: Optional[Annotated[List[Post], Field(max_length=10)]] = None
+    __properties: ClassVar[List[str]] = ["page_number", "page_size", "posts"]
 
     model_config = {
         "populate_by_name": True,
@@ -59,7 +56,7 @@ class Post(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of Post from a JSON string"""
+        """Create an instance of PostList from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -78,11 +75,18 @@ class Post(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in posts (list)
+        _items = []
+        if self.posts:
+            for _item in self.posts:
+                if _item:
+                    _items.append(_item.to_dict())
+            _dict['posts'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Dict) -> Self:
-        """Create an instance of Post from a dict"""
+        """Create an instance of PostList from a dict"""
         if obj is None:
             return None
 
@@ -90,13 +94,9 @@ class Post(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "post_id": obj.get("post_id"),
-            "created_by": obj.get("created_by"),
-            "title": obj.get("title"),
-            "content": obj.get("content"),
-            "category": obj.get("category"),
-            "category_slug": obj.get("category_slug"),
-            "created_at": obj.get("created_at")
+            "page_number": obj.get("page_number"),
+            "page_size": obj.get("page_size"),
+            "posts": [Post.from_dict(_item) for _item in obj.get("posts")] if obj.get("posts") is not None else None
         })
         return _obj
 

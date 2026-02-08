@@ -16,6 +16,7 @@ from fastapi import FastAPI, Request
 
 from epa_api.apis.authentication_api import router as AuthenticationApiRouter
 from epa_api.apis.system_api import router as SystemApiRouter
+from epa_api.apis.posts_api import router as PostsApiRouter
 from epa_api.api_implementation.utils.context import current_token_data
 from epa_api.models.extra_models import TokenModel
 
@@ -28,7 +29,6 @@ app = FastAPI(
 @app.middleware("http")
 async def persist_auth_context(request: Request, call_next):
     
-    print("tmp")
     auth_header = request.headers.get("Authorization")
     
     if auth_header and auth_header.lower().startswith("bearer "):
@@ -46,3 +46,4 @@ async def persist_auth_context(request: Request, call_next):
     
 app.include_router(AuthenticationApiRouter)
 app.include_router(SystemApiRouter)
+app.include_router(PostsApiRouter)

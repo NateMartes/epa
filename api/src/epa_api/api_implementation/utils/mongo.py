@@ -34,7 +34,8 @@ class MongoUtils:
         
         env_collection_vars = [
             "EPA_MONGODB_USER_COLLECTION",
-            "EPA_MONGODB_SESSION_TOKEN_COLLECTION"
+            "EPA_MONGODB_SESSION_TOKEN_COLLECTION",
+            "EPA_MONGODB_POSTS_COLLECTION"
         ]
         
         for var in env_vars:
@@ -101,7 +102,23 @@ class MongoUtils:
         collections_index = -1
         session_token_collection_index = 1
         session_token_collection_name =  MongoUtils.get_mongodb_env_variables()[collections_index][session_token_collection_index]
-        return db[session_token_collection_name]      
+        return db[session_token_collection_name]
+  
+    @staticmethod       
+    def get_post_collection(db: Database) -> Collection:
+        """
+        Get the post collection in the MongoDB database.
+        
+        :param db: The MongoDB Database
+        :type db: pymongo.database.Database
+        :return: A collection from the MongoDB database
+        :rtype: pymongo.collection.Collection
+        """
+        
+        collections_index = -1
+        post_collection_index = 2
+        post_collection_index_name =  MongoUtils.get_mongodb_env_variables()[collections_index][post_collection_index]
+        return db[post_collection_index_name]          
         
 
     
