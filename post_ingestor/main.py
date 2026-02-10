@@ -59,9 +59,6 @@ def parse_kafka_event(event: Dict[str, Any]) -> List[Dict[str, Any]]:
             try:
                 decoded = base64.b64decode(b64_value).decode("utf-8")
                 payload = json.loads(decoded)
-
-
-
                 posts.append(payload)
             except Exception:
                 # Passes any errors
