@@ -1,0 +1,33 @@
+{
+  "eventSource": "aws:kafka",
+  "eventSourceArn": "arn:aws:kafka:us-east-1:123456789012:cluster/example/abcd1234abcd1234-1",
+  "bootstrapServers": "b-1.example.kafka.us-east-1.amazonaws.com:9092",
+  "records": {
+    "posts_ingest-0": [
+      {
+        "topic": "post-ingestor-consumer",
+        "partition": 0,
+        "offset": 1,
+        "timestamp": 1700000000000,
+        "timestampType": "CREATE_TIME",
+        "key": "cG9zdF9rZXlfMQ==",
+        "value": "eyJwb3N0X2lkIjoxMjQsInRpdGxlIjoiSGVsbG8gV29ybGQhIiwiY2F0ZWdvcnlfbmFtZSI6IlRlc3QiLCJjYXRlZ29yeV9zbHVnIjoidGVzdCJ9",
+        "headers": [
+          {
+            "trace_id": "dHJhY2UtMQ=="
+          }
+        ]
+      },
+      {
+        "topic": "post-ingestor-consumer",
+        "partition": 0,
+        "offset": 2,
+        "timestamp": 1700000001000,
+        "timestampType": "CREATE_TIME",
+        "key": "cG9zdF9rZXlfMg==",
+        "value": "eyJwb3N0X2lkIjoxMjUsInRpdGxlIjoiU2Vjb25kIFBvc3QiLCJjYXRlZ29yeV9uYW1lIjoiVGVzdCIsImNhdGVnb3J5X3NsdWciOiJ0ZXN0In0=",
+        "headers": []
+      }
+    ]
+  }
+}
