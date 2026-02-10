@@ -23,10 +23,14 @@ class PostAPIImplementation(BasePostsApi):
         
         page_num_int = PostUtils.get_page_num_from_string(page_num)
         page_size = PostUtils.get_page_size()
+        
         client, db = MongoUtils.get_mongodb_database_connection()
         post_collection = MongoUtils.get_post_collection(db)
-        results = PostUtils.get_posts(post_collection, page_num=page_num_int, page_size=page_size)
+        
+        query = PostUtils.build_post_query(post_id=post_id, name=name, category_slug=category_slug, since=since)
+        results = PostUtils.get_posts(post_collection, query=query, page_num=page_num_int, page_size=page_size)
         results = list(results)
+        
         page_size = len(results)
         output = PostList(page_number=page_num_int, page_size=page_size, posts=[])
         for post in results:

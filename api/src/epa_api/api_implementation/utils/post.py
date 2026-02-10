@@ -11,6 +11,7 @@ from typing import Dict, Any
 import logging
 import os
 import uuid
+import re
 
 class PostUtils:
     @staticmethod
@@ -40,6 +41,26 @@ class PostUtils:
                 val = 10
 
         return val
+        
+    @staticmethod
+    def build_post_query(post_id: StrictStr | None = None,
+        name: StrictStr | None = None,
+        category_slug: StrictStr | None = None,
+        since: datetime | None = None
+    ) -> Dict[Any, Any]:
+        
+        output = {}
+        
+        if post_id:
+            output["post_id"] = post_id
+        if name:
+            output["title"] = {"$regex": f".*{re.escape(name)}.*"}
+        if category_slug:
+            output["category_slug"] = category_slug
+        if since:
+            output["since"] = {"$gte": since}
+            
+        return output
         
     @staticmethod
     def get_posts(post_collection: Collection, query: Dict[Any, Any] = {}, page_num: int = 0, page_size: int = 10) -> Cursor:

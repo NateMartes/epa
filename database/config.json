@@ -10,8 +10,7 @@
     {
       "name": "session_tokens",
       "indexes": [
-        {"field": "session_token", "expireAfterSeconds": 604800},
-        {"field": "user_id", "unique": true}
+        {"field": "session_token", "expireAfterSeconds": 604800}
       ]
     },
     {

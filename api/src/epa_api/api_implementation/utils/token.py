@@ -23,7 +23,7 @@ class TokenUtils:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Token lost")
             
         client, db = MongoUtils.get_mongodb_database_connection()
-        if not TokenUtils.is_session_token_in_db(token.sub, MongoUtils.get_user_collection(db)):
+        if not TokenUtils.is_session_token_in_db(token.sub, MongoUtils.get_session_tokens_collection(db)):
             client.close()
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
             
@@ -261,6 +261,8 @@ class TokenUtils:
             return True
         except jwt.DecodeError:
             return False
+        except jwt.ExpiredSignatureError:
+            return False
   
     @staticmethod              
     def get_token_payload(token: str) -> Dict[Any, Any]:
@@ -269,4 +271,6 @@ class TokenUtils:
             payload = jwt.decode(token, secret, algorithms=["HS256"])
             return payload
         except jwt.DecodeError as e:
+            raise e
+        except jwt.ExpiredSignatureError as e:
             raise e
