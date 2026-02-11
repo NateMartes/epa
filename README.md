@@ -43,6 +43,11 @@ Unset environment variables from `.env`:
 unset $(grep -v '^#' .env | sed -E 's/(.*)=.*/\1/' | xargs)
 ```
 
+Using .env file for `docker`:
+```bash
+docker compose --env-file /path/to/.env <more commands here>
+```
+
 Run AWS Lambda function locally:
 ```bash
 sudo sam build && sudo sam local invoke

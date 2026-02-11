@@ -7,18 +7,43 @@ class GoogleUtils:
     
     @staticmethod
     def get_auth_endpoint() -> str:
+        """
+        Gets the endpoint to interact with Google OAuth.
+        
+        :return: A str of the URL to send users for OAuth login.
+        :rtype: str
+        """
         return "https://accounts.google.com/o/oauth2/v2/auth"
         
     @staticmethod
     def get_token_endpoint() -> str:
+        """
+        Gets the endpoint to get Google OAuth token access.
+        
+        :return: A str of the URL for user token access for OAuth.
+        :rtype: str
+        """
         return "https://oauth2.googleapis.com/token"
     
     @staticmethod 
     def get_userinfo_endpoint() -> str:
+        """
+        Gets the endpoint to get user info via Google OAuth.
+        
+        :return: A str of the URL for user info access for OAuth.
+        :rtype: str
+        """
         return "https://www.googleapis.com/oauth2/v2/userinfo"
         
     @staticmethod
     def get_query_params_web_request() -> Dict[Any, Any]:
+        """
+        Gets the query parameters to interact with Google OAuth.
+        
+        :raises: ValueError if environment variables are not set
+        :return: A dictonary of the query parameters
+        :rtype: Dict[Any, Any]
+        """
         
         client_id = os.getenv("EPA_GOOGLE_WEB_CLIENT_ID", None)
         redirect_url = os.getenv("EPA_GOOGLE_WEB_REDIRECT_URI", None)
@@ -41,8 +66,17 @@ class GoogleUtils:
         
     @staticmethod
     def exchange_code_for_token(code: str) -> Dict[str, Any]:
-        token_url = GoogleUtils.get_token_endpoint()
+        """
+        Gets an access token from a given code provided by Google.
         
+        Args:
+        :param code: A access code from Google
+        :type code: str
+        :return: A JSON payload with the access token
+        :rtype: Dict[str, Any]
+        """
+        
+        token_url = GoogleUtils.get_token_endpoint()
         payload = {
             "code": code,
             "client_id": os.getenv("EPA_GOOGLE_WEB_CLIENT_ID"),
@@ -60,6 +94,15 @@ class GoogleUtils:
     
     @staticmethod
     def get_google_user_info(access_token: str) -> Dict[str, Any]:
+        """
+        Gets a user's info given a Google access token
+        
+        Args:
+        :param access_token: An access token from Google
+        :type access_token: str
+        :return: A JSON payload with the user info
+        :rtype: Dict[str, Any]
+        """
 
         user_info_url = GoogleUtils.get_userinfo_endpoint()
         headers = {"Authorization": f"Bearer {access_token}"}

@@ -1,5 +1,7 @@
-from operator import le
-from pydantic_core.core_schema import int_schema
+from epa_api.api_implementation.utils.mongo import MongoUtils
+from epa_api.api_implementation.utils.context import current_token_data
+from fastapi.exceptions import HTTPException
+from fastapi import status
 from pymongo.collection import Collection
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
@@ -8,6 +10,45 @@ import os
 
 class TokenUtils:
     """A class with helpful methods to interact with API JWT Tokens"""
+    @staticmethod
+    def validate_session_token_with_db() -> str:
+        """
+        Validates the current token in context and determines if it is a valid session token.
+        This method should only be called by implementation API functions as it uses the database to verify
+        :return: The token string if and only if the token is valid, otherwise empty string
+        :rtype: str
+        """
+        token = current_token_data.get()
+        if not token:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Token lost")
+            
+        client, db = MongoUtils.get_mongodb_database_connection()
+        if not TokenUtils.is_session_token_in_db(token.sub, MongoUtils.get_session_tokens_collection(db)):
+            client.close()
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+            
+        client.close()
+        return token.sub
+        
+    @staticmethod
+    def validate_access_token_with_db() -> str:
+        """
+        Validates the current token in context and determines if it is a valid access token.
+        This method should only be called by implementation API functions as it uses the database to verify
+        :return: The token string if and only if the token is valid, otherwise empty string
+        :rtype: str
+        """
+        token = current_token_data.get()
+        if not token:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Token lost")
+            
+        client, db = MongoUtils.get_mongodb_database_connection()
+        if not TokenUtils.is_access_token_in_db(token.sub, MongoUtils.get_user_collection(db)):
+            client.close()
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+            
+        client.close()
+        return token.sub
             
     @staticmethod
     def is_access_token_in_db(token: str, user_collection: Collection) -> bool:
@@ -190,6 +231,16 @@ class TokenUtils:
  
     @staticmethod               
     def get_token(data: Dict[Any, Any], exp_date: datetime) -> str:
+        """
+        Get a new JWT token.
+        
+        :param data: The data to store in the JWT token
+        :type data: Dict[Any, Any]
+        :param exp_date: The date this token expires
+        :type exp_date: datetime.datetime
+        :return: A JWT token
+        :rtype: str
+        """
         secret = TokenUtils.get_jwt_secret()
         data["exp"] = exp_date.timestamp()
         token = jwt.encode(data, secret, algorithm="HS256")
@@ -197,16 +248,40 @@ class TokenUtils:
     
     @staticmethod        
     def get_expire_date(token: str) -> datetime:
+        """
+        Get the expire time of a token.
+        
+        :param token: A JWT token
+        :type token: str
+        :return: The time the token expires
+        :rtype: datetime.datetime
+        """
         payload = TokenUtils.get_token_payload(token)
         return datetime.fromtimestamp(payload["exp"])
         
     @staticmethod        
     def get_user_id(token: str) -> str:
+        """
+        Get the user id of a token. This function assumes the token has the user_id field.
+        
+        :param token: A JWT token
+        :type token: str
+        :return: A user's id
+        :rtype: str
+        """
         payload = TokenUtils.get_token_payload(token)
         return payload["user_id"]
         
     @staticmethod        
     def get_ttl_in_seconds(date: datetime) -> int:
+        """
+        Get the time to live of a date in seconds.
+        
+        :param date: Some date
+        :type date: datetime.datetime
+        :return: The number of seconds until the given date
+        :rtype: int
+        """
         time_remaining =  date - datetime.now()
         if time_remaining.microseconds < 0:
             return 0
@@ -215,17 +290,37 @@ class TokenUtils:
    
     @staticmethod         
     def is_token_valid(token: str) -> bool:
+        """
+        Determines if a token is valid in this API.
+        
+        :param token: A possible token
+        :type token: str
+        :return: True if and only if the token is valid
+        :rtype: bool
+        """
         try:
             TokenUtils.get_token_payload(token)
             return True
         except jwt.DecodeError:
             return False
+        except jwt.ExpiredSignatureError:
+            return False
   
     @staticmethod              
     def get_token_payload(token: str) -> Dict[Any, Any]:
+        """
+        Get the data that is stored in a token.
+        
+        :param token: A JWT token
+        :type token: str
+        :return: The payload in the token
+        :rtype: Dict[Any, Any]
+        """
         secret = TokenUtils.get_jwt_secret()
         try:
             payload = jwt.decode(token, secret, algorithms=["HS256"])
             return payload
         except jwt.DecodeError as e:
+            raise e
+        except jwt.ExpiredSignatureError as e:
             raise e
