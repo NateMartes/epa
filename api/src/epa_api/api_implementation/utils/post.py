@@ -14,7 +14,7 @@ import os
 import uuid
 import re
 
-class PostUtils
+class PostUtils:
     """A class with helpful methods to interact with a posts in the database"""
 
     @staticmethod
