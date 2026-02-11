@@ -23,6 +23,7 @@ import urllib.parse
 
 class AuthAPIImplementation(BaseAuthenticationApi):
     async def register_new_user(self, user_registration: UserRegistration) -> UserCreated:
+        """Creates a user account. Users must be authenticated via email to avoid spam."""
         
         # Verify that payload is valid for user registration
         if not user_registration or not user_registration.model_validate:
@@ -57,7 +58,8 @@ class AuthAPIImplementation(BaseAuthenticationApi):
         return UserCreated(user_id=user_id)
         
     async def login_with_password(self, login_request: LoginRequest) -> AuthToken:
-        
+        """Returns a JWT for application access."""
+
         # Verify that payload is valid for user login
         if not login_request.model_validate:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
@@ -84,7 +86,8 @@ class AuthAPIImplementation(BaseAuthenticationApi):
         )
         
     async def renew_session_token(self) -> AuthToken:
-        
+        """Uses a session token to generate a new short-lived access JWT."""
+
         token = TokenUtils.validate_session_token_with_db()
             
         # Make sure this session token was not invalidated early
@@ -109,6 +112,8 @@ class AuthAPIImplementation(BaseAuthenticationApi):
         )        
         
     async def authenticate_with_google_web(self):
+        """Redirects the user to Google&#39;s OAuth 2.0 server to begin authentication."""
+
         # This will show errors since the open api generator cannot handle redirects
         
         # Send user to google login
@@ -116,6 +121,8 @@ class AuthAPIImplementation(BaseAuthenticationApi):
         return RedirectResponse(url)
         
     async def google_callback(self, code: StrictStr, state: Optional[StrictStr], error: Optional[StrictStr]) -> AuthToken:
+        """The endpoint Google redirects to after user authorization. It exchanges the &#39;code&#39; for a Google token, identifies the user, and issues an EPA session."""
+
         if not code:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Termination code missing")
     

@@ -19,7 +19,8 @@ class PostAPIImplementation(BasePostsApi):
         since: Optional[datetime],
         user_id: Optional[StrictStr],
     ) -> PostList:
-        
+        """Returns a list of posts. Supports filtering by ID, name, category, or time.  Results are limited to a maximum of 10. """
+
         TokenUtils.validate_access_token_with_db()
         
         page_num_int = PostUtils.get_page_num_from_string(page_num)
@@ -55,6 +56,7 @@ class PostAPIImplementation(BasePostsApi):
         self,
         create_post: CreatePost,
     ) -> Post:
+        """Creates a post, returning the new post object"""
 
         token = TokenUtils.validate_access_token_with_db()
         PostUtils.validate_post(create_post)
@@ -71,7 +73,8 @@ class PostAPIImplementation(BasePostsApi):
         self,
         post_id: StrictStr
     ) -> None:
-        
+        """Deletes a post"""
+
         token = TokenUtils.validate_access_token_with_db()
         
         client, db = MongoUtils.get_mongodb_database_connection()
