@@ -17,6 +17,7 @@ class PostAPIImplementation(BasePostsApi):
         name: Optional[StrictStr],
         category_slug: Optional[StrictStr],
         since: Optional[datetime],
+        user_id: Optional[StrictStr],
     ) -> PostList:
         
         TokenUtils.validate_access_token_with_db()
@@ -27,7 +28,7 @@ class PostAPIImplementation(BasePostsApi):
         client, db = MongoUtils.get_mongodb_database_connection()
         post_collection = MongoUtils.get_post_collection(db)
         
-        query = PostUtils.build_post_query(post_id=post_id, name=name, category_slug=category_slug, since=since)
+        query = PostUtils.build_post_query(post_id=post_id, name=name, category_slug=category_slug, since=since, user_id=user_id)
         results = PostUtils.get_posts(post_collection, query=query, page_num=page_num_int, page_size=page_size)
         results = list(results)
         
@@ -66,5 +67,18 @@ class PostAPIImplementation(BasePostsApi):
         
         return output
         
+    async def delete_post(
+        self,
+        post_id: StrictStr
+    ) -> None:
+        
+        token = TokenUtils.validate_access_token_with_db()
+        
+        client, db = MongoUtils.get_mongodb_database_connection()
+        post_collection = MongoUtils.get_post_collection(db)
+
+        PostUtils.delete_post(post_collection, post_id, TokenUtils.get_user_id(token))
+        
+        client.close()
             
         

@@ -25,7 +25,7 @@ from fastapi import (  # noqa: F401
 from epa_api.models.extra_models import TokenModel  # noqa: F401
 from datetime import datetime
 from pydantic import Field, StrictStr
-from typing import Optional
+from typing import Any, Optional
 from typing_extensions import Annotated
 from epa_api.models.create_post import CreatePost
 from epa_api.models.post import Post
@@ -54,6 +54,7 @@ async def get_posts(
     name: Annotated[Optional[StrictStr], Field(description="Filter by post title (case-insensitive search).")] = Query(None, description="Filter by post title (case-insensitive search).", alias="name"),
     category_slug: Annotated[Optional[StrictStr], Field(description="Filter by the URL-friendly category identifier (e.g., 'road-hazard').")] = Query(None, description="Filter by the URL-friendly category identifier (e.g., &#39;road-hazard&#39;).", alias="category_slug"),
     since: Annotated[Optional[datetime], Field(description="Return posts created after this ISO 8601 timestamp.")] = Query(None, description="Return posts created after this ISO 8601 timestamp.", alias="since"),
+    user_id: Annotated[Optional[StrictStr], Field(description="Return posts created by a specific user.")] = Query(None, description="Return posts created by a specific user.", alias="user_id"),
     token_BearerAuth: TokenModel = Security(
         get_token_BearerAuth
     ),
@@ -61,7 +62,7 @@ async def get_posts(
     """Returns a list of posts. Supports filtering by ID, name, category, or time.  Results are limited to a maximum of 10. """
     if not BasePostsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePostsApi.subclasses[0]().get_posts(page_num, post_id, name, category_slug, since)
+    return await BasePostsApi.subclasses[0]().get_posts(page_num, post_id, name, category_slug, since, user_id)
 
 
 @router.post(
@@ -83,3 +84,24 @@ async def create_post(
     if not BasePostsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BasePostsApi.subclasses[0]().create_post(create_post)
+
+
+@router.delete(
+    "/v1/post",
+    responses={
+        200: {"description": "Successful deletetion of a post."},
+    },
+    tags=["Posts"],
+    summary="Delete a post",
+    response_model_by_alias=True,
+)
+async def delete_post(
+    post_id: Annotated[StrictStr, Field(description="The ID of the post")] = Query(None, description="The ID of the post", alias="post_id"),
+    token_BearerAuth: TokenModel = Security(
+        get_token_BearerAuth
+    ),
+) -> None:
+    """Deletes a post"""
+    if not BasePostsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BasePostsApi.subclasses[0]().delete_post(post_id)

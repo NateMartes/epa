@@ -1,5 +1,6 @@
 from fastapi.exceptions import HTTPException
 from fastapi import status
+from starlette.types import HTTPExceptionHandler
 from epa_api.models.post import Post
 from epa_api.models.create_post import CreatePost
 from datetime import datetime
@@ -46,7 +47,8 @@ class PostUtils:
     def build_post_query(post_id: StrictStr | None = None,
         name: StrictStr | None = None,
         category_slug: StrictStr | None = None,
-        since: datetime | None = None
+        since: datetime | None = None,
+        user_id: StrictStr | None = None
     ) -> Dict[Any, Any]:
         
         output = {}
@@ -54,12 +56,15 @@ class PostUtils:
         if post_id:
             output["post_id"] = post_id
         if name:
-            output["title"] = {"$regex": f".*{re.escape(name)}.*"}
+            output["title"] = {"$regex": re.escape(name), "$options": "i"}
         if category_slug:
             output["category_slug"] = category_slug
         if since:
-            output["since"] = {"$gte": since}
+            output["created_at"] = {"$gte": since.isoformat()}
+        if user_id:
+            output["created_by"] = user_id
             
+        print(output)
         return output
         
     @staticmethod
@@ -102,4 +107,22 @@ class PostUtils:
             category=new_post["category"],
             category_slug=new_post["category_slug"]
         )
+        
+    @staticmethod
+    def delete_post(post_collection: Collection, post_id: str, user_id: str):
+        
+        query = PostUtils.build_post_query(post_id=post_id)
+        val = post_collection.count_documents(query)
+        if val != 1:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+        
+        res = PostUtils.get_posts(post_collection, query)
+        post = res.next()
+        
+        if post["created_by"] != user_id:
+            raise HTTPException(status_code=status.HTTP_401_NOT_FOUND, detail=f"This post does not belong to {user_id}")
+
+        res.close()
+        
+        post_collection.delete_one(query)
 

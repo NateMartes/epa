@@ -165,6 +165,26 @@ paths:
       tags:
       - Authentication
   /v1/post:
+    delete:
+      description: Deletes a post
+      operationId: delete_post
+      parameters:
+      - description: The ID of the post
+        explode: true
+        in: query
+        name: post_id
+        required: true
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          description: Successful deletetion of a post.
+      security:
+      - BearerAuth: []
+      summary: Delete a post
+      tags:
+      - Posts
     get:
       description: "Returns a list of posts. Supports filtering by ID, name, category,\
         \ or time. \nResults are limited to a maximum of 10.\n"
@@ -210,6 +230,14 @@ paths:
         required: false
         schema:
           format: date-time
+          type: string
+        style: form
+      - description: Return posts created by a specific user.
+        explode: true
+        in: query
+        name: user_id
+        required: false
+        schema:
           type: string
         style: form
       responses:
