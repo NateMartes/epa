@@ -1,6 +1,6 @@
+from epa_api.api_implementation.utils.category import CategoryUtils
 from fastapi.exceptions import HTTPException
 from fastapi import status
-from starlette.types import HTTPExceptionHandler
 from epa_api.models.post import Post
 from epa_api.models.create_post import CreatePost
 from datetime import datetime
@@ -42,21 +42,21 @@ class PostUtils:
     @staticmethod
     def get_page_size() -> int:
         """
-        Get the page size define for posts. This uses the environment variable EPA_API_PAGE_SIZE,
+        Get the page size define for posts. This uses the environment variable EPA_API_POST_PAGE_SIZE,
         which if not set, defaults to some int.
         
         :return: The page size
         :rtype: int
         """
-        val = os.getenv("EPA_API_PAGE_SIZE")
+        val = os.getenv("EPA_API_POST_PAGE_SIZE")
         if not val:
-            logging.getLogger(__name__).debug("Environment variable EPA_API_PAGE_SIZE not set. Defaulting to 10")
+            logging.getLogger(__name__).debug("Environment variable EPA_API_POST_PAGE_SIZE not set. Defaulting to 10")
             val = 10
         else:
             try:
                 val = int(val)
             except TypeError:
-                logging.getLogger(__name__).debug("Environment variable EPA_API_PAGE_SIZE not an int. Defaulting to 10")
+                logging.getLogger(__name__).debug("Environment variable EPA_API_POST_PAGE_SIZE not an int. Defaulting to 10")
                 val = 10
 
         return val
@@ -118,7 +118,7 @@ class PostUtils:
         return post_collection.find(query).skip(page_size * page_num).limit(page_size)
         
     @staticmethod
-    def validate_post(create_post_object: CreatePost) -> bool:
+    def validate_post(create_post_object: CreatePost, category_collection: Collection) -> bool:
         """
         Validates if a post object is semeantically correct.
         :param create_post_object: The object representing a new post to create
@@ -133,7 +133,9 @@ class PostUtils:
         if create_post_object.content == "":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Content cannot be empty")
             
-        # Add later if create_post_object.category_slug
+        if not CategoryUtils.is_category(category_collection, str(create_post_object.category_slug)):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+            
         return True
         
     @staticmethod

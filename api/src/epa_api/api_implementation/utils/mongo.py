@@ -35,7 +35,8 @@ class MongoUtils:
         env_collection_vars = [
             "EPA_MONGODB_USER_COLLECTION",
             "EPA_MONGODB_SESSION_TOKEN_COLLECTION",
-            "EPA_MONGODB_POSTS_COLLECTION"
+            "EPA_MONGODB_POSTS_COLLECTION",
+            "EPA_MONGODB_CATEGORIES_COLLECTION"
         ]
         
         for var in env_vars:
@@ -118,7 +119,23 @@ class MongoUtils:
         collections_index = -1
         post_collection_index = 2
         post_collection_index_name =  MongoUtils.get_mongodb_env_variables()[collections_index][post_collection_index]
-        return db[post_collection_index_name]          
+        return db[post_collection_index_name]
+        
+    @staticmethod       
+    def get_categories_collection(db: Database) -> Collection:
+        """
+        Get the categories collection in the MongoDB database.
+        
+        :param db: The MongoDB Database
+        :type db: pymongo.database.Database
+        :return: A collection from the MongoDB database
+        :rtype: pymongo.collection.Collection
+        """
+        
+        collections_index = -1
+        categories_collection_index = 3
+        post_collection_index_name =  MongoUtils.get_mongodb_env_variables()[collections_index][categories_collection_index]
+        return db[post_collection_index_name]      
         
 
     
