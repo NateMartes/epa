@@ -191,7 +191,7 @@ paths:
       operationId: get_posts
       parameters:
       - description: "Start at a specfic page number (if not given, this is always\
-          \ 1)"
+          \ 0)"
         explode: true
         in: query
         name: page_num
@@ -273,6 +273,40 @@ paths:
       summary: Create a post
       tags:
       - Posts
+  /v1/category:
+    get:
+      description: Gets a list of categories
+      operationId: get_categories
+      parameters:
+      - description: "Start at a specfic page number (if not given, this is always\
+          \ 0)"
+        explode: true
+        in: query
+        name: page_num
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Search for a specific category ID
+        explode: true
+        in: query
+        name: category_id
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryList"
+          description: Successful creation of a post.
+      security:
+      - BearerAuth: []
+      summary: Gets a list of categories
+      tags:
+      - Category
 components:
   responses:
     TokenResponse:
@@ -379,6 +413,47 @@ components:
           title: access_expires_in
           type: integer
       title: AuthToken
+      type: object
+    Category:
+      example:
+        category_id: electrical-hazard
+        category_name: Electrical Hazard
+        properties:
+          category_id:
+            description: "The ID of the category, also know as the category slug"
+            example: electrical-hazard
+            title: category_id
+            type: string
+          category_name:
+            description: The human readbale name of the category
+            example: Electrical Hazard
+            title: category_name
+            type: string
+      required:
+      - category_id
+      - category_name
+      title: Category
+      type: object
+    CategoryList:
+      example:
+        page_number: 1
+        page_size: 1
+        categories:
+        - category_id: electrical-hazard
+          category_name: Electrical Hazard
+      properties:
+        page_number:
+          example: 1
+          type: integer
+        page_size:
+          example: 10
+          type: integer
+        categories:
+          items:
+            $ref: "#/components/schemas/Category"
+          maxItems: 10
+          type: array
+      title: CategoryList
       type: object
     Post:
       example:

@@ -8,6 +8,9 @@ from datetime import datetime
 from epa_api.api_implementation.utils.mongo import MongoUtils
 from epa_api.api_implementation.utils.post import PostUtils
 from epa_api.api_implementation.utils.token import TokenUtils
+from epa_api.api_implementation.utils.category import CategoryUtils
+import logging
+
 
 class PostAPIImplementation(BasePostsApi):
     async def get_posts(
@@ -37,17 +40,20 @@ class PostAPIImplementation(BasePostsApi):
         output = PostList(page_number=page_num_int, page_size=page_size, posts=[])
         for post in results:
             if isinstance(output.posts, list):
-                output.posts.append(
-                    Post(
-                        post_id=post["post_id"],
-                        title=post["title"],
-                        content=post["content"],
-                        category=post["category"],
-                        category_slug=post["category_slug"],
-                        created_at=post["created_at"],
-                        created_by=post["created_by"]
+                try:
+                    output.posts.append(
+                        Post(
+                            post_id=post["post_id"],
+                            title=post["title"],
+                            content=post["content"],
+                            category=post["category"],
+                            category_slug=post["category_slug"],
+                            created_at=post["created_at"],
+                            created_by=post["created_by"]
+                        )
                     )
-                )
+                except KeyError:
+                    logging.getLogger(__name__).warning(f"Failed to get document {post}. Unexpected structure")
                 
         client.close()
         return output
@@ -59,12 +65,21 @@ class PostAPIImplementation(BasePostsApi):
         """Creates a post, returning the new post object"""
 
         token = TokenUtils.validate_access_token_with_db()
-        PostUtils.validate_post(create_post)
-        
         client, db = MongoUtils.get_mongodb_database_connection()
         post_collection = MongoUtils.get_post_collection(db)
+        category_collection = MongoUtils.get_categories_collection(db)
         
-        output = PostUtils.create_post(post_collection, TokenUtils.get_user_id(token), "test", "test", create_post)
+        PostUtils.validate_post(create_post, category_collection)
+        
+        output = PostUtils.create_post(post_collection, 
+            TokenUtils.get_user_id(token), 
+            list(CategoryUtils.get_categories(
+                category_collection, 
+                query=CategoryUtils.build_category_query(category_id=create_post.category_slug))
+            )[0]["category_name"],
+            str(create_post.category_slug), 
+            create_post
+        )
         client.close()
         
         return output

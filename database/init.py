@@ -70,6 +70,10 @@ try:
                 else:
                     create_standard_index(new_collection, idx)
                     
+        documents = collection.get("init", [])
+        if documents:
+            new_collection.insert_many(documents)
+                    
     print(f"MongoDB database at {hostname}:{port} initialized")
     
 except Exception as e:

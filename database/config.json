@@ -25,8 +25,22 @@
     },
     {
       "name": "categories",
+      "init": [
+        {
+          "category_id": "test-1",
+          "category_name": "Test"
+        },
+        {
+          "category_id": "test-2",
+          "category_name": "Test"
+        },
+        {
+          "category_id": "test-3",
+          "category_name": "Test"
+        }
+      ],
       "indexes": [
-        {"field": "created_at"}
+        {"field": "category_id", "unique": true}
       ]
     }
   ]

@@ -19,7 +19,7 @@ class BasePostsApi:
         BasePostsApi.subclasses = BasePostsApi.subclasses + (cls,)
     async def get_posts(
         self,
-        page_num: Annotated[Optional[StrictStr], Field(description="Start at a specfic page number (if not given, this is always 1)")],
+        page_num: Annotated[Optional[StrictStr], Field(description="Start at a specfic page number (if not given, this is always 0)")],
         post_id: Annotated[Optional[StrictStr], Field(description="Filter by a specific post ID.")],
         name: Annotated[Optional[StrictStr], Field(description="Filter by post title (case-insensitive search).")],
         category_slug: Annotated[Optional[StrictStr], Field(description="Filter by the URL-friendly category identifier (e.g., 'road-hazard').")],

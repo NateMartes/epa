@@ -49,7 +49,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
     response_model_by_alias=True,
 )
 async def get_posts(
-    page_num: Annotated[Optional[StrictStr], Field(description="Start at a specfic page number (if not given, this is always 1)")] = Query(None, description="Start at a specfic page number (if not given, this is always 1)", alias="page_num"),
+    page_num: Annotated[Optional[StrictStr], Field(description="Start at a specfic page number (if not given, this is always 0)")] = Query(None, description="Start at a specfic page number (if not given, this is always 0)", alias="page_num"),
     post_id: Annotated[Optional[StrictStr], Field(description="Filter by a specific post ID.")] = Query(None, description="Filter by a specific post ID.", alias="post_id"),
     name: Annotated[Optional[StrictStr], Field(description="Filter by post title (case-insensitive search).")] = Query(None, description="Filter by post title (case-insensitive search).", alias="name"),
     category_slug: Annotated[Optional[StrictStr], Field(description="Filter by the URL-friendly category identifier (e.g., 'road-hazard').")] = Query(None, description="Filter by the URL-friendly category identifier (e.g., &#39;road-hazard&#39;).", alias="category_slug"),
