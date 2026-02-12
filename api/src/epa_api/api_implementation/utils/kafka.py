@@ -1,6 +1,7 @@
 from kafka import KafkaProducer
 from typing import Dict, Any
 import os
+import json
 
 class KafkaUtils:
     """A class with helpful methods to interact with Apache Kafka"""
@@ -21,6 +22,21 @@ class KafkaUtils:
             raise ValueError("Environment variables for Kafka not set")
             
         return f"{hostname}:{port}"
+        
+    @staticmethod
+    def get_kafka_post_topic() -> str:
+        """
+        Gets the kafka topic name for new posts
+        
+        :return: The kafka topic name
+        :rtype: str
+        """
+        output = os.getenv("EPA_KAFKA_POST_TOPIC_NAME")
+        if not output:
+            raise ValueError("Environment variables for Kafka not set. EPA_KAFKA_POST_TOPIC_NAME not set")
+            
+        return output
+
         
     @staticmethod
     def connect_to_kafka_as_producer() -> KafkaProducer:
@@ -46,4 +62,9 @@ class KafkaUtils:
         :param message: The message to send
         :type message: Dict[Any, Any]
         """
-        ...
+        
+        
+        producer.send(
+            KafkaUtils.get_kafka_post_topic(),
+            json.dumps(message).encode("utf-8")
+        )

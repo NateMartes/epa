@@ -1,3 +1,4 @@
+from epa_api.api_implementation.utils.kafka import KafkaUtils
 from epa_api.api_implementation.utils.category import CategoryUtils
 from fastapi.exceptions import HTTPException
 from fastapi import status
@@ -166,6 +167,11 @@ class PostUtils:
         }
         
         # Push to kafka queue
+        producer = KafkaUtils.connect_to_kafka_as_producer()
+        KafkaUtils.send_message(producer, new_post)
+        producer.close()
+        
+        # FOR TESTING, REMOVE IN PRODUCTION
         post_collection.insert_one(new_post)
         
         return Post(
