@@ -395,9 +395,10 @@ func process_records(records []events.KafkaRecord) {
 
 func handler(ctx context.Context, event events.KafkaEvent) error {
 	
-	expectedTopic := os.Getenv("EPA_KAFKA_TOPIC_CACHELOADER_NAME")
+	expectedTopic := os.Getenv("EPA_KAFKA_POST_TOPIC_NAME")
+	fmt.Println(os.Environ())
 	if expectedTopic == "" {
-		return errors.New("Environment variable EPA_KAFKA_TOPIC_CACHELOADER_NAME not set or empty")
+		return errors.New("Environment variable EPA_KAFKA_POST_TOPIC_NAME not set or empty")
 	}
 	for topicParition, records := range event.Records {
 		if strings.Contains(topicParition, expectedTopic) {

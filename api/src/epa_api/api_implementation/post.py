@@ -80,6 +80,7 @@ class PostAPIImplementation(BasePostsApi):
             str(create_post.category_slug), 
             create_post
         )
+        
         client.close()
         
         return output

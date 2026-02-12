@@ -26,7 +26,8 @@ Resources:
             StartingPosition: LATEST
             # Stream: !Ref PUT MKS CLUSTER ARN HERE
             Topics:
-              - cache_loader_consumer
+              - new_posts
+            ConsumerGroupId: cache_loader_consumer_group
             BatchSize: 100
             MaximumBatchingWindowInSeconds: 5
             Enabled: true
@@ -41,7 +42,7 @@ Resources:
           EPA_MONGODB_USERNAME: ""
           EPA_MONGODB_PASSWORD: ""
           EPA_MONGODB_USER_COLLECTION: ""
-          EPA_KAFKA_TOPIC_CACHELOADER_NAME: ""
+          EPA_KAFKA_POST_TOPIC_NAME: ""
     Metadata:
       DockerTag: provided.al2-v1
       DockerContext: .

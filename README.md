@@ -155,9 +155,12 @@ The post queue uses Kafka to store posts for later consumers to pick up (e.g pos
 You can use `docker-compose` to spin up a local Kafka instance.
 
 The defined Kafka topics include:
-- `post-ingestor-consumer`
-- `cache-loader-consumer`
-- `notify-service-consumer`
+- `new_posts`
+
+The defined Kafka consumer groups include:
+- `post_ingestor_consumer`
+- `cache_loader_consumer`
+- `notify_service_consumer`
 
 More Kafka topics can be added to the local instance by updating the `init.sh` script:
 ```bash
