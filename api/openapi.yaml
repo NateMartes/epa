@@ -307,6 +307,67 @@ paths:
       summary: Gets a list of categories
       tags:
       - Category
+  /v1/category/subscribe:
+    delete:
+      description: Unsubscribe a user from a category
+      operationId: unsubcribed_user_from_category
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscribeCategoryRequest"
+        required: true
+      responses:
+        "200":
+          description: Successful unsubscribed a user from a category.
+      security:
+      - BearerAuth: []
+      summary: Unsubscribe user from category
+      tags:
+      - Category
+    get:
+      description: Get users subscribed categories
+      operationId: get_user_subscribed_categories
+      parameters:
+      - description: "Start at a specfic page number (if not given, this is always\
+          \ 0)"
+        explode: true
+        in: query
+        name: page_num
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryList"
+          description: Successful subscription of category. Returns the new list of
+            the user's subscribed categories
+      security:
+      - BearerAuth: []
+      summary: Get users subscribed categories
+      tags:
+      - Category
+    post:
+      description: Subscribe a user to a category
+      operationId: subscribe_to_category
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscribeCategoryRequest"
+        required: true
+      responses:
+        "200":
+          description: Successful subscription of category.
+      security:
+      - BearerAuth: []
+      summary: Subscribe a user to a category
+      tags:
+      - Category
 components:
   responses:
     TokenResponse:
@@ -433,6 +494,19 @@ components:
       - category_id
       - category_name
       title: Category
+      type: object
+    SubscribeCategoryRequest:
+      example:
+        category_id: electrical-hazard
+      properties:
+        category_id:
+          description: "The ID of the category, also know as the category slug"
+          example: electrical-hazard
+          title: category_id
+          type: string
+      required:
+      - category_id
+      title: SubscribeCategoryRequest
       type: object
     CategoryList:
       example:
