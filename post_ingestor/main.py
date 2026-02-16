@@ -35,13 +35,16 @@ def load_env() -> Dict[str, str]:
     Script will function fully once these are set.
     """
     return {
-        "KAFKA_TOKEN": os.getenv("KAFKA_TOKEN", ""),
-        "MONGO_SECRET": os.getenv("MONGO_SECRET", ""),
-        "MONGO_URI": os.getenv("MONGO_URI", ""),
-        "MONGO_DB": os.getenv("MONGO_DB", ""),
-        "MONGO_COLLECTION": os.getenv("MONGO_COLLECTION", "posts"),
+        "EPA_MONGODB_HOSTNAME": os.getenv("EPA_MONGODB_HOSTNAME", ""),
+        "EPA_MONGODB_PORT": os.getenv("EPA_MONGODB_PORT", ""),
+        "EPA_MONGODB_USERNAME": os.getenv("EPA_MONGODB_USERNAME", ""),
+        "EPA_MONGODB_PASSWORD": os.getenv("EPA_MONGODB_PASSWORD", ""),
+        "EPA_MONGODB_SESSION_TOKEN_COLLECTION": os.getenv("EPA_MONGODB_SESSION_TOKEN_COLLECTION", ""),
+        "EPA_MONGODB_DATABASE_NAME": os.getenv("EPA_MONGODB_DATABASE_NAME", ""),
+        "EPA_MONGODB_USER_COLLECTION": os.getenv("EPA_MONGODB_USER_COLLECTION", ""),
+        "EPA_MONGODB_POSTS_COLLECTION": os.getenv("EPA_MONGODB_POSTS_COLLECTION", ""),
+        "EPA_MONGO_URI": ("mongodb://"+os.getenv("EPA_MONGODB_USERNAME")+":"+os.getenv("EPA_MONGODB_PASSWORD")+"@"+os.getenv("EPA_MONGODB_HOSTNAME")+":"+os.getenv("EPA_MONGODB_PORT")+"/")
     }
-
 
 def parse_kafka_event(event: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
@@ -92,8 +95,8 @@ def get_mongo_collection(env_vars: Dict[str, str]):
     """
 
     mongo_uri = env_vars.get("MONGO_URI")
-    mongo_db = env_vars.get("MONGO_DB")
-    mongo_collection = env_vars.get("MONGO_COLLECTION")
+    mongo_db = env_vars.get("EPA_MONGODB_DATABASE_NAME")
+    mongo_collection = env_vars.get("EPA_MONGODB_POSTS_COLLECTION")
 
     if not mongo_uri or not mongo_db or not mongo_collection:
         raise ValueError(

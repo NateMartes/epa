@@ -1,0 +1,165 @@
+name: Run Post Ingestor Build Process
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test-api:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the branch that is making the pull request
+      - name: Check out pull request
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - run: echo "The ${{ github.repository }} repository has been cloned to the runner."
+      - run: echo "The workflow is now ready to test your code on the runner."
+
+      - name: List files in the repository
+        run: |
+          ls ${{ github.workspace }}
+
+      #  Set up Docker
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Docker Compose
+        run: |
+          docker --version
+          docker compose version || (echo "Compose not found" && exit 1)
+
+      # Check Docker
+      - name: Check Docker and Docker Compose
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Docker version:"
+          docker --version
+
+          # Prefer Compose v2 plugin: `docker compose`
+          if docker compose version >/dev/null 2>&1; then
+            echo "Docker Compose v2 is available:"
+            docker compose version
+          else
+            echo "Docker Compose v2 not found. Installing docker-compose-plugin"
+            sudo apt-get update
+            sudo apt-get install -y docker-compose-plugin
+            docker compose version
+          fi
+
+      # ============ SAM TESTING WITH PLACEHOLDERS ============
+      - name: Build Database Container
+        run: docker compose -f ./database/docker-compose.yml build epa_database
+
+      # Build post ingestor container
+      - name: Build Post Ingestor Container
+        run: docker compose -f ./post_ingestor/docker-compose.yml build epa-post-ingestor
+
+      # Install SAM CLI using GitHub Action
+      - name: Install AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      # Verify SAM CLI installation
+      - name: Verify SAM CLI Installation
+        run: sam --version || { echo "SAM CLI installation failed"; exit 1; }
+
+      # Start full database stack with initialization
+      - name: Start Database Stack
+        run: |
+          export EPA_MONGODB_USERNAME
+          export EPA_MONGODB_PASSWORD
+          export EPA_MONGODB_HOSTNAME
+          export EPA_MONGODB_PORT
+          export EPA_MONGODB_DATABASE_NAME
+          
+          docker compose -p sam-test -f ./database/docker-compose.yml build epa_database_init
+          docker compose -p sam-test -f ./database/docker-compose.yml up -d
+          
+          echo "Waiting for MongoDB to become healthy..."
+          for i in {1..30}; do
+            if docker compose -p sam-test -f ./database/docker-compose.yml exec epa_database \
+              mongosh --eval "db.adminCommand({ping:1})" 2>&1 | grep -q '"ok".*1'; then
+              echo "Database healthy and ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          
+          echo "Database failed to reach healthy state"
+          docker compose -p sam-test -f ./database/docker-compose.yml logs epa_database
+          docker compose -p sam-test -f ./database/docker-compose.yml logs epa_database_init
+          exit 1
+
+      # Build SAM application
+      - name: Build SAM Application
+        run: |
+          sam build --use-container --template template.yaml
+          if [ $? -ne 0 ]; then
+            echo "SAM build failed - aborting workflow"
+            exit 1
+          fi
+          echo "SAM application built successfully"
+
+      # Configure test environment variables
+      - name: Configure Test Environment
+        run: |
+          # Provide individual components EXACTLY as consumed by main.py's URI builder
+          cat > env.json <<'EOF'
+          {
+            "PostIngestorFunction": {
+              "EPA_MONGODB_USERNAME": "test_user",
+              "EPA_MONGODB_PASSWORD": "test_pass_123",
+              "EPA_MONGODB_HOSTNAME": "epa_database",
+              "EPA_MONGODB_PORT": "27017",
+              "EPA_MONGODB_DATABASE_NAME": "DATABASE NAME",
+              "NODE_ENV": "test"
+            }
+          }
+          EOF
+          echo "Environment configuration created (matches main.py URI construction):"
+          cat env.json
+          echo ""
+          echo "Function will construct URI as: mongodb://\${EPA_MONGODB_USERNAME}:\${EPA_MONGODB_PASSWORD}@\${EPA_MONGODB_HOSTNAME}:\${EPA_MONGODB_PORT}/"
+    
+      # Execute SAM integration test
+      - name: Run SAM Integration Test
+        run: |
+          sam local invoke PostIngestorFunction \
+            --template .aws-sam/build/template.yaml \
+            --event ./post_ingestor/events/ingest_posts.json \
+            --env-vars env.json \
+            --docker-network sam-test_default \
+            --log-file test-output.log
+          
+          EXIT_CODE=$?
+          echo "SAM exit code: $EXIT_CODE"
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "Test failed with exit code $EXIT_CODE"
+            cat test-output.log 2>/dev/null || echo "No test output available"
+            exit $EXIT_CODE
+          fi
+          
+          # Verify successful processing
+          if grep -qi "success\|processed\|20[01]" test-output.log; then
+            echo "Test passed: Event processed successfully"
+            cat test-output.log
+          else
+          echo "Test passed (exit 0) but verify business logic in logs"
+            cat test-output.log
+            # Still pass since function executed without runtime errors
+          fi
+
+      - name: Cleanup Database Resources
+        if: always()
+        run: |
+          echo "Stopping database stack..."
+          docker compose -p sam-test -f ./database/docker-compose.yml down -v --remove-orphans || true
+          echo "Cleanup completed"

@@ -25,13 +25,13 @@ Resources:
           Properties:
             StartingPosition: LATEST
             Topics:
-              - post-ingestor-consumer
+              - new_post
+            ConsumerGroupId: post_ingestor_consumer_group <<<<
             BatchSize: 100
             MaximumBatchingWindowInSeconds: 5
             Enabled: true
       Environment:
         Variables:
-          KAFKA_TOKEN: ""
           EPA_MONGODB_HOSTNAME: "epa-db"
           EPA_MONGODB_PORT: "27017"
           EPA_MONGODB_USERNAME: "test"
