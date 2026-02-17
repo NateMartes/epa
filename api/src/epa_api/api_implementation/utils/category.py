@@ -122,6 +122,32 @@ class CategoryUtils:
         return category_collection.find(query).skip(page_size * page_num).limit(page_size)
         
     @staticmethod
+    def get_all_user_subscribed_categories(user_id: str, user_collection: Collection, category_collection: Collection) -> Cursor | None:
+        """
+        Gets all categories for a specfic user.
+        
+        :param category_collection: The collection of categories to query
+        :type category_collection: pymongo.Collection
+        :param user_collection: The collection of users to query
+        :type user_collection: pymongo.Collection
+        :return: A cursor with the results, None if there are no categories the user has subscribed to
+        :rtype: pymongo.Cursor | None
+        """
+        
+        user = UserUtils.get_user_from_user_id(user_id, user_collection)
+        if not user:
+            return None
+            
+        subscribed_categories = user.get("subscribed", None)
+        if not subscribed_categories:
+            return None
+            
+        # Build query to get user categories from categories collection
+        query = {"category_id": {"$in": subscribed_categories}}
+            
+        return category_collection.find(query)
+        
+    @staticmethod
     def get_category_list(categories: list, page_num: int, page_size: int) -> CategoryList:
         """
         Get a CategoryList object from a list of raw categories.

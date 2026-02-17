@@ -101,6 +101,39 @@ class PostUtils:
         return output
         
     @staticmethod
+    def add_is_subscribed_field_to_post_query(
+        post_query: Dict[Any, Any],
+        is_subscribed: StrictStr,
+        subscribed_categories: Cursor | None
+    ):
+        """
+        Given a category_query, add the is_subscribed query parameter to it.
+        """
+            
+        if not subscribed_categories:
+            # Don't match any categories since the user is subscribed to no categories
+            post_query["category_slug"] = {"$in": []}
+        else:
+            category_list = list(subscribed_categories)
+            subscribed_ids = [cat["category_id"] for cat in category_list]
+            
+            # Handled for category_id already existing in the category_query
+            val = post_query.get("category_slug", None)
+            if val:
+                if val not in subscribed_ids:
+                    # The user is not subscribed to this category, so don't match any categories
+                    # This would be very bad way to check if a user was subscribed to a category
+                    post_query["category_slug"] = {"$in": []}
+            else:
+                # Ensure that all posts must reside in the user's subscribed_categories
+                post_query["category_slug"] = {"$in": subscribed_ids}   
+       
+        if is_subscribed == "false":
+            post_query["category_slug"] = {"$not": post_query["category_slug"]}
+            
+        print(post_query)
+            
+    @staticmethod
     def get_posts(post_collection: Collection, query: Dict[Any, Any] = {}, page_num: int = 0, page_size: int = 10) -> Cursor:
         """
         Gets posts from a given post collection table

@@ -21,10 +21,11 @@ class PostAPIImplementation(BasePostsApi):
         category_slug: Optional[StrictStr],
         since: Optional[datetime],
         user_id: Optional[StrictStr],
+        is_subscribed: Optional[StrictStr],
     ) -> PostList:
         """Returns a list of posts. Supports filtering by ID, name, category, or time.  Results are limited to a maximum of 10. """
 
-        TokenUtils.validate_access_token_with_db()
+        token = TokenUtils.validate_access_token_with_db()
         
         page_num_int = PostUtils.get_page_num_from_string(page_num)
         page_size = PostUtils.get_page_size()
@@ -32,7 +33,27 @@ class PostAPIImplementation(BasePostsApi):
         client, db = MongoUtils.get_mongodb_database_connection()
         post_collection = MongoUtils.get_post_collection(db)
         
-        query = PostUtils.build_post_query(post_id=post_id, name=name, category_slug=category_slug, since=since, user_id=user_id)
+        query = PostUtils.build_post_query(
+            post_id=post_id, name=name, 
+            category_slug=category_slug, 
+            since=since, 
+            user_id=user_id
+        )
+        
+        if is_subscribed:
+            
+            subscribed_categories = CategoryUtils.get_all_user_subscribed_categories(
+                user_id=TokenUtils.get_user_id(token),
+                user_collection=MongoUtils.get_user_collection(db),
+                category_collection=MongoUtils.get_categories_collection(db)
+            )
+            
+            PostUtils.add_is_subscribed_field_to_post_query(
+                post_query=query,
+                is_subscribed=is_subscribed,
+                subscribed_categories=subscribed_categories
+            )
+            
         results = PostUtils.get_posts(post_collection, query=query, page_num=page_num_int, page_size=page_size)
         results = list(results)
         
