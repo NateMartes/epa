@@ -52,6 +52,23 @@ Run AWS Lambda function locally:
 ```bash
 sudo sam build && sudo sam local invoke
 ```
+
+## The Client
+The Client uses React Native Expo to build an application for web and moblie. You can start the application
+using npm
+
+```bash
+npm install && npm start
+```
+
+This by default will generate a QR code for use on [Expo Go](https://expo.dev/go). If you would like to simulate a moblie device on your machine, you can use [Android Studio](https://developer.android.com/studio). Make Sure an Android Device Emulator is running with Expo Go installed and then run:
+
+```bash
+npm start --android
+```
+
+*Note*: Development is tested for web and moblie (specfically Android). We do not test for Apple devices but since Expo can complie to apple devices, it is expected to work.
+
 ## The API
 
 The EPA API uses a Contract-First approach, meaning endpoints are auto generated from an OpenAPI spec using the `openapi-generator-cli` tool:
