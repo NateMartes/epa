@@ -111,7 +111,7 @@ class PostAPIImplementation(BaseCategoryApi):
         else:
             results = list(results)
             
-        output = CategoryUtils.get_category_list(results, page_num=page_num_int, page_size=page_size)
+        output = CategoryUtils.get_category_list(results, page_num=page_num_int, page_size=len(results))
         
         client.close()
         return output

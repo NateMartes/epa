@@ -3,6 +3,7 @@ from epa_api.api_implementation.utils.category import CategoryUtils
 from fastapi.exceptions import HTTPException
 from fastapi import status
 from epa_api.models.post import Post
+from epa_api.models.post_list import PostList
 from epa_api.models.create_post import CreatePost
 from datetime import datetime
 from datetime import timezone
@@ -108,6 +109,13 @@ class PostUtils:
     ):
         """
         Given a category_query, add the is_subscribed query parameter to it.
+        
+        :param post_query: A query generated from PostUtils.build_post_query()
+        :type post_query: Dict[Any, Any]
+        :param is_subscribed: true if the post that would be return, the user would be subscribed to
+        :type is_subscribed: str
+        :param subscribed_categories: A cursor containing the categories a user is subscribed to
+        :type subscribed_categories: Cursor | None
         """
             
         if not subscribed_categories:
@@ -131,8 +139,29 @@ class PostUtils:
         if is_subscribed == "false":
             post_query["category_slug"] = {"$not": post_query["category_slug"]}
             
-        print(post_query)
+    @staticmethod
+    def add_post_exclusions_to_post_query(post_query: Dict[Any, Any], post_exclusion_list: PostList):
+        """
+        Given a list of posts, ensure that when this query is executed, the posts
+        in this list do not appear in the query list.
+        
+        :param post_query: A post query to alter
+        :type post_query: Dict[Any, Any]
+        :param post_exclusion_list: A list of posts to exclude
+        :type post_exclusion_list: PostList
+        """
+        
+        if not post_exclusion_list.posts:
+            return
             
+        post_ids = [p.post_id for p in post_exclusion_list.posts]
+        if "post_id" not in post_query:
+                post_query["post_id"] = {}
+        elif not isinstance(post_query["post_id"], Dict):
+            return
+            
+        post_query["post_id"]["$nin"] = post_ids
+                        
     @staticmethod
     def get_posts(post_collection: Collection, query: Dict[Any, Any] = {}, page_num: int = 0, page_size: int = 10) -> Cursor:
         """
@@ -149,7 +178,9 @@ class PostUtils:
         :return: A cursor with the results
         :rtype: pymongo.Cursor
         """
-        return post_collection.find(query).skip(page_size * page_num).limit(page_size)
+        
+        # A database index should be set to have the created_at fied be descending
+        return post_collection.find(query).sort("created_at", -1).skip(page_size * page_num).limit(page_size)
         
     @staticmethod
     def validate_post(create_post_object: CreatePost, category_collection: Collection) -> bool:
@@ -245,3 +276,37 @@ class PostUtils:
         res.close()
         post_collection.delete_one(query)
 
+
+    @staticmethod
+    def get_post_list(posts: list[Dict[Any, Any]], page_num: int, page_size: int) -> PostList:
+        """
+        Given a list of raw posts, convert into a PostList object.
+        
+        :param posts: A list of dictonaries representing raw posts, usually from the database
+        :type posts: list[Dict[Any, Any]]
+        :param page_num: The page number to set this post list as
+        :param page_num: int
+        :param page_num: The page size of this page, should match the length of posts
+        :type page_num: int
+        :return: A new PostLIst object
+        """
+        
+        output = PostList(page_number=page_num, page_size=page_size, posts=[])
+        for post in posts:
+            if isinstance(output.posts, list):
+                try:
+                    output.posts.append(
+                        Post(
+                            post_id=post["post_id"],
+                            title=post["title"],
+                            content=post["content"],
+                            category=post["category"],
+                            category_slug=post["category_slug"],
+                            created_at=post["created_at"],
+                            created_by=post["created_by"]
+                        )
+                    )
+                except KeyError:
+                    logging.getLogger(__name__).warning(f"Failed to get document {post}. Unexpected structure")
+                    
+        return output
