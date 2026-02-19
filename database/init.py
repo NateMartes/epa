@@ -10,7 +10,7 @@ hostname = os.getenv("EPA_MONGODB_HOSTNAME")
 port = os.getenv("EPA_MONGODB_PORT")
 username = os.getenv("EPA_MONGODB_USERNAME")
 password = os.getenv("EPA_MONGODB_PASSWORD")
-dbname = hostname = os.getenv("EPA_MONGODB_DATABASE_NAME")
+dbname = os.getenv("EPA_MONGODB_DATABASE_NAME")
 if not hostname or \
     not port or \
     not username or \
@@ -26,30 +26,35 @@ with open("config.json", "r") as file:
 uri = f"mongodb://{username}:{password}@{hostname}:{port}/?authSource=admin"
 client = pymongo.MongoClient(uri, serverSelectionTimeoutMS=5000)
 
+def get_index_defition(map):
+    
+    name = map.get("field", "")
+    index_type = pymongo.ASCENDING
+    if map.get("descending", None):
+        index_type = pymongo.DESCENDING
+    
+    return (name, index_type)
+    
 def create_compound_index(collection, fields):
     
     index_defition = []
-    for idx_part in idx.get("fields",[]):
-        name = idx_part.get("field", "")
-        ascending = idx_part.get("ascending", False)
-        descending = idx_part.get("descending", False)
-        if ascending:
-            index_defition.append((name, pymongo.ASCENDING))
-        elif descending:
-            index_defition.append((name, pymongo.DESCENDING))
-        else:
-            print(f"Warning: compound index part {name} needs either 'ascending' or 'descending'. Skipping part")
+    for idx_part in fields:
+        index_defition.append(get_index_defition(idx_part))
         
     collection.create_index(index_defition)
     
 def create_index_with_expire_time(collection, index):
-    collection.create_index(index.get("field", ""), 
+
+    index_defition = [get_index_defition(index)]
+    collection.create_index(index_defition, 
         unique=index.get("unique", False),
         sparse=index.get("sparse", False),
         expireAfterSeconds=index.get("expireAfterSeconds", 0))
     
 def create_standard_index(collection, index):
-    collection.create_index(index.get("field", ""), 
+    
+    index_defition = [get_index_defition(index)]
+    collection.create_index(index_defition, 
         unique=index.get("unique", False), 
         sparse=index.get("sparse", False))
 try:

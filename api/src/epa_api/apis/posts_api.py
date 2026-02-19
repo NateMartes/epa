@@ -24,7 +24,7 @@ from fastapi import (  # noqa: F401
 
 from epa_api.models.extra_models import TokenModel  # noqa: F401
 from datetime import datetime
-from pydantic import Field, StrictStr
+from pydantic import Field, StrictStr, field_validator
 from typing import Any, Optional
 from typing_extensions import Annotated
 from epa_api.models.create_post import CreatePost
@@ -55,6 +55,7 @@ async def get_posts(
     category_slug: Annotated[Optional[StrictStr], Field(description="Filter by the URL-friendly category identifier (e.g., 'road-hazard').")] = Query(None, description="Filter by the URL-friendly category identifier (e.g., &#39;road-hazard&#39;).", alias="category_slug"),
     since: Annotated[Optional[datetime], Field(description="Return posts created after this ISO 8601 timestamp.")] = Query(None, description="Return posts created after this ISO 8601 timestamp.", alias="since"),
     user_id: Annotated[Optional[StrictStr], Field(description="Return posts created by a specific user.")] = Query(None, description="Return posts created by a specific user.", alias="user_id"),
+    is_subscribed: Annotated[Optional[StrictStr], Field(description="If true, then return all posts that the user requesting is subscribed to.")] = Query(None, description="If true, then return all posts that the user requesting is subscribed to.", alias="is_subscribed"),
     token_BearerAuth: TokenModel = Security(
         get_token_BearerAuth
     ),
@@ -62,7 +63,7 @@ async def get_posts(
     """Returns a list of posts. Supports filtering by ID, name, category, or time.  Results are limited to a maximum of 10. """
     if not BasePostsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePostsApi.subclasses[0]().get_posts(page_num, post_id, name, category_slug, since, user_id)
+    return await BasePostsApi.subclasses[0]().get_posts(page_num, post_id, name, category_slug, since, user_id, is_subscribed)
 
 
 @router.post(
