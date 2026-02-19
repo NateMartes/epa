@@ -2,11 +2,13 @@ import { Text, View, StyleSheet } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
 import Button from '@/components/Button';
+import TextField from '@/components/TextField';
 
 export default function Index() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.footerContainer}>
+        <TextField/>
         <Button theme="primary" label="Make Post" />
       </View>
       <Text style={styles.text}>Home screen</Text>
