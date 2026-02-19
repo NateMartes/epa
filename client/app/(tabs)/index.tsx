@@ -1,10 +1,11 @@
 import { Text, View, StyleSheet } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
 import Button from '@/components/Button';
 
 export default function Index() {
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.footerContainer}>
         <Button theme="primary" label="Make Post" />
       </View>
@@ -12,7 +13,7 @@ export default function Index() {
       <Link href="/about" style={styles.button}>
         Go to About Screen
       </Link>
-    </View>
+    </SafeAreaView>
   );
 }
 
