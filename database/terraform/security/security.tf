@@ -100,6 +100,7 @@ resource "aws_iam_role_policy_attachment" "ecs_efs_access_policy_attachment" {
 variable vpc {}
 
 # --- SSH access to EC2's in cluster ---
+/* FOR TESTING
 resource "aws_security_group" "ec2_sg" {
   description = "Security group for EC2 instance"
   name_prefix = "epa-db-ecs-node-sg-"
@@ -118,7 +119,7 @@ resource "aws_security_group" "ec2_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-}
+} */
 
 # --- MongoDB access on default port ---
 resource "aws_security_group" "mongo_ecs_tasks_sg" {
@@ -130,7 +131,9 @@ resource "aws_security_group" "mongo_ecs_tasks_sg" {
     from_port       = 27017
     to_port         = 27017
     protocol        = "tcp"
-    security_groups = [aws_security_group.ec2_sg.id]
+    
+    # This should be changed to the CIDR block of a VPC for production
+    cidr_blocks      = ["0.0.0.0/0"] 
   }
   egress {
     from_port   = 0

@@ -31,6 +31,7 @@ resource "aws_ssm_parameter" "mongodb_secret_password" {
   name  = "/mongodb/MONGO_INITDB_ROOT_PASSWORD"
   type  = "SecureString"
   value = var.mongo_password
+  overwrite = true
 
   lifecycle {
     ignore_changes = [value]
@@ -126,7 +127,7 @@ resource "aws_ecs_service" "epa_mongo_service" {
 
 
 # --- Testing EC2 Container ---
-
+/* FOR TESTING
 # --- SSH Access to cluster
 resource "aws_key_pair" "ec2_keypair" {
   key_name   = "mongokey"
@@ -161,3 +162,4 @@ resource "aws_instance" "mongolab_ec2_instance" {
                 sudo yum install -y mongodb-mongosh
               EOF
 }
+*/
