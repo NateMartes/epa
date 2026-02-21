@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-  paths:
-    - ./database
 
 env:
   TF_CLOUD_ORGANIZATION: "epa-terraform"

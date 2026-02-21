@@ -3,8 +3,6 @@ name: "Terraform Plan Database"
 on:
   pull_request:
     "main"
-  paths:
-    - ./database
 
 env:
   TF_CLOUD_ORGANIZATION: "epa-terraform"
