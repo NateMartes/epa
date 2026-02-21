@@ -1,6 +1,5 @@
 provider "aws" {
   region = "us-east-1"
-  profile = "default"
 }
 
 module networking {
@@ -18,7 +17,7 @@ module compute {
   source = "./compute"
   subnet = module.networking.subnet
   mongo_discovery_service = module.networking.mongo_discovery_service
-  ec2_sg = module.security.ec2_sg
+  // ec2_sg = module.security.ec2_sg UNCOMMENT ME IF USING DEV EC2 INSTANCE
   efs_sg = module.security.efs_sg
   mongo_ecs_tasks_sg = module.security.mongo_ecs_tasks_sg
   ecs_mongo_task_role = module.security.ecs_mongo_task_role
