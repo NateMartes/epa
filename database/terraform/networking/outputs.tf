@@ -11,5 +11,5 @@ output "mongo_discovery_service" {
 }
 
 output "mongodb_cluster_dns_name" {
-  value = aws_eip.main.public_dns
+  value = aws_eip.main[0].public_dns
 }
