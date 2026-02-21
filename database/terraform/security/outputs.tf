@@ -1,6 +1,8 @@
+/* UNCOMMENT ME IF USING DEV EC2 INSTANCE
 output "ec2_sg" {
   value = aws_security_group.ec2_sg
 }
+*/
 
 output "efs_sg" {
   value = aws_security_group.efs_sg
