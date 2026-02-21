@@ -2,7 +2,8 @@ name: "Terraform Plan Database"
 
 on:
   pull_request:
-    "main"
+    branches:
+      - "main"
 
 env:
   TF_CLOUD_ORGANIZATION: "epa-terraform"
