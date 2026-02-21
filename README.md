@@ -236,6 +236,12 @@ Terraform is primarly used for deploying resources into the cloud. The process f
 You can use [this](https://developer.hashicorp.com/terraform/tutorials/automation/github-actions) document to ensure your workflows follows
 good standards.
 
+### When Failures Occur
+During a workflow failure, specifcally during deployment, some resources make exist in the cloud and others not.
+A user will need to enter the EPA HCP Terraform Dashboard to then run a Destory Plan:
+- EPA Workspace > Settings > Destruction and Deletion > Queue Destroy Plan
+- Then you must navigate to the Terraform runs and after the destroy plan is complete, apply the changes
+
 ## Technical Resources
 
 ### Frameworks & Languages
