@@ -47,27 +47,24 @@ jobs:
           comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
           
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-          pip-install: './database/requirements.txt'
-          
+
+      - name: Install Dependencies
+        run: pip install -r ./database/requirements.txt
+
       - name: Init Database
-        run:
-          script: |
-              
-              set -e
-              
-              // Add env
-              export EPA_MONGODB_USERNAME=${{ secrets.EPA_MONGODB_USERNAME }}
-              export EPA_MONGODB_PASSWORD=${{ secrets.EPA_MONGODB_PASSWORD }}
-              export EPA_MONGODB_DATBASE_NAME=${{ env.EPA_MONGODB_DATABASE_NAME }}
-              export EPA_MONGODB_USER_COLLECTION=${{ env.EPA_MONGODB_USER_COLLECTION }}
-              export EPA_MONGODB_SESSION_TOKEN_COLLECTION=${{ env.EPA_MONGODB_SESSION_TOKEN_COLLECTION }}
-              export EPA_MONGODB_POSTS_COLLECTION=${{ env.EPA_MONGODB_POSTS_COLLECTION }}
-              export EPA_MONGODB_CATEGORIES_COLLECTION=${{ env.EPA_EPA_MONGODB_CATEGORIES_COLLECTION }}
-              export EPA_MONGODB_HOSTNAME=$(terraform output mongo_db_cluster_dns_name)
-              export EPA_MONGODB_PORT=27017
-              
-              // Run
-              python3 init.py
+        run: |
+            export EPA_MONGODB_USERNAME=${{ secrets.EPA_MONGODB_USERNAME }}
+            export EPA_MONGODB_PASSWORD=${{ secrets.EPA_MONGODB_PASSWORD }}
+            export EPA_MONGODB_DATBASE_NAME=${{ vars.EPA_MONGODB_DATABASE_NAME }}
+            export EPA_MONGODB_USER_COLLECTION=${{ vars.EPA_MONGODB_USER_COLLECTION }}
+            export EPA_MONGODB_SESSION_TOKEN_COLLECTION=${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }}
+            export EPA_MONGODB_POSTS_COLLECTION=${{ vars.EPA_MONGODB_POSTS_COLLECTION }}
+            export EPA_MONGODB_CATEGORIES_COLLECTION=${{ vars.EPA_EPA_MONGODB_CATEGORIES_COLLECTION }}
+            export EPA_MONGODB_HOSTNAME=$(terraform output mongo_db_cluster_dns_name)
+            export EPA_MONGODB_PORT=27017
+            
+            // Run
+            python3 ./database/init.py
