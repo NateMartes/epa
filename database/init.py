@@ -1,6 +1,7 @@
 """
 Init script for a MongoDB database from a JSON configuration file
 """
+from pymongo import errors
 import pymongo
 import json
 import sys
@@ -23,9 +24,22 @@ config_file = {}
 with open("config.json", "r") as file:
     config_file = json.loads(file.read())
     
-uri = f"mongodb://{username}:{password}@{hostname}:{port}/?authSource=admin"
-client = pymongo.MongoClient(uri, serverSelectionTimeoutMS=5000)
+uri = f"mongodb://{username}:{password}@{hostname}:{port}/"
+client = None
 
+tries = 10
+while True:
+    try:
+        print(f"Waiting for response from {hostname}:{port} ...")
+        client = pymongo.MongoClient(uri, serverSelectionTimeoutMS=10000)
+        break
+    except errors.ConnectionFailure:
+        tries -= 1
+        if tries == 0:
+            print(f"Failed to connect to {hostname}:{port} after 10 tries", file=sys.stderr)
+            sys.exit(1)
+            
+print("Connected.")
 def get_index_defition(map):
     
     name = map.get("field", "")
@@ -59,6 +73,11 @@ def create_standard_index(collection, index):
         sparse=index.get("sparse", False))
 try:
     client.admin.command('ping')
+    dbs = client.list_database_names()
+    for name in dbs:
+        if name == dbname:
+            print("Database already exists, aborting")
+            sys.exit(0)
     
     db = client[dbname]
     for collection in config_file.get("collections", []):
@@ -84,6 +103,7 @@ try:
 except Exception as e:
     
     print(f"error: Failed to initialize MongoDB at {hostname}:{port}, {e}", file=sys.stderr)
+    sys.exit(1)
     
 finally:
     client.close()
