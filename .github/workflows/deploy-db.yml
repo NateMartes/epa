@@ -53,9 +53,20 @@ jobs:
 
       - name: Install Dependencies
         run: pip install -r ./database/requirements.txt
-
+        
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.EPA_TF_API_TOKEN }}
+          
       - name: Init Database
         run: |
+            cd ${{ env.CONFIG_DIRECTORY }}
+            
+            terraform init
+
+            export EPA_MONGODB_HOSTNAME=$(terraform output -raw mongo_db_cluster_dns_name)
+            export EPA_MONGODB_PORT=27017
             export EPA_MONGODB_USERNAME=${{ secrets.EPA_MONGODB_USERNAME }}
             export EPA_MONGODB_PASSWORD=${{ secrets.EPA_MONGODB_PASSWORD }}
             export EPA_MONGODB_DATBASE_NAME=${{ vars.EPA_MONGODB_DATABASE_NAME }}
@@ -63,8 +74,7 @@ jobs:
             export EPA_MONGODB_SESSION_TOKEN_COLLECTION=${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }}
             export EPA_MONGODB_POSTS_COLLECTION=${{ vars.EPA_MONGODB_POSTS_COLLECTION }}
             export EPA_MONGODB_CATEGORIES_COLLECTION=${{ vars.EPA_EPA_MONGODB_CATEGORIES_COLLECTION }}
-            export EPA_MONGODB_HOSTNAME=$(terraform output mongo_db_cluster_dns_name)
-            export EPA_MONGODB_PORT=27017
+
+            cd ../
             
-            // Run
-            python3 ./database/init.py
+            python3 init.py
