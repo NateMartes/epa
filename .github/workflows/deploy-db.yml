@@ -45,7 +45,8 @@ jobs:
         with:
           run: ${{ steps.apply-run.outputs.run_id }}
           comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
-  init-db:    
+  init-db:
+    needs: terraform-apply
     name: "Init the Database"
     runs-on: ubuntu-latest
     environment: production
@@ -78,7 +79,7 @@ jobs:
         sudo apt update && sudo apt install -y unzip curl
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
         unzip awscliv2.zip
-        ./aws/install
+        ./aws/install --update
         rm -rf awscliv2.zip aws
         
     - name: Configure AWS CLI Credentials
