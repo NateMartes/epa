@@ -144,11 +144,14 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
         }
       ],
       healthcheck = {
-        command     = ["CMD-SHELL", "echo 'db.runCommand(\\\"ping\\\").ok' | mongosh mongodb://localhost:27017/test"]
+        command     = [
+                  "CMD-SHELL", 
+                  "mongosh --quiet --eval 'db.hello().ok ? quit(0) : quit(1)'"
+                ]
         interval    = 30
         timeout     = 15
         retries     = 3
-        startPeriod = 15
+        startPeriod = 60
       },
       logConfiguration = {
         logDriver = "awslogs"
