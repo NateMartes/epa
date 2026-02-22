@@ -65,9 +65,15 @@ jobs:
             
             terraform init
             
-            echo dns namespace = $(terraform output -raw mongo_db_cluster_dns_namespace_name)
-            echo dns discovery service = $(terraform output -json mongo_db_cluster_dns_discovery_service)
-            echo replica set name = $(terraform output -raw replica_set_name)
+            sudo apt install -y jq
+            replica_set_name=$(terraform output -raw replica_set_name)
+            dns_namespace=$(terraform output -raw mongo_db_cluster_dns_namespace_name)
+            
+            # Format hostnames from dns_namespace and AWS dns_discovery_service object
+            node_hostnames=$(
+              terraform output -json mongo_db_cluster_dns_discovery_service | 
+              jq -r --arg suffix "$dns_namespace" 'map(.name + "." + $suffix) | join(",")'
+            )
             
             export EPA_MONGODB_HOSTNAME=$(terraform output -raw mongo_db_cluster_dns_name)
             export EPA_MONGODB_PORT=27017
@@ -80,4 +86,4 @@ jobs:
             export EPA_MONGODB_CATEGORIES_COLLECTION=${{ vars.EPA_MONGODB_CATEGORIES_COLLECTION }}
             cd ../
             
-            python3 init.py
+            python3 init.py --is-replica-set -r $replica_set_name -n $node_hostnames

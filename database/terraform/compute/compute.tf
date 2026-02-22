@@ -63,6 +63,16 @@ variable ecs_task_execution_role {}
 variable ecs_mongo_task_role {}
 variable mongo_username { sensitive = true }
 variable mongo_password { sensitive = true }
+resource "random_password" "mongo_replica_key" {
+  length  = 700
+  special = false 
+}
+resource "aws_ssm_parameter" "mongodb_secret_keyfile" {
+  name  = "/mongodb/REPLICA_SET_KEY"
+  type  = "SecureString"
+  value = random_password.mongo_replica_key.result
+  overwrite = true
+}
 resource "aws_ssm_parameter" "mongodb_secret_password" {
   name  = "/mongodb/MONGO_INITDB_ROOT_PASSWORD"
   type  = "SecureString"
@@ -90,7 +100,19 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
       cpu       = 256,
       memory    = 512,
       essential = true,
-      command   = ["mongod", "--replSet", "prodReplicaSet", "--bind_ip", "localhost,${var.mongo_discovery_service[count.index].name}.${var.mongo_dns_namespace.name}"]
+      command = [
+        "sh",
+        "-c",
+        <<-EOT
+          echo "$MONGO_REPLICA_KEY" > /tmp/mongo.key
+          chmod 400 /tmp/mongo.key
+          
+          exec mongod \
+            --replSet ${var.replica_set_name} \
+            --bind_ip localhost,${var.mongo_discovery_service[count.index].name}.${var.mongo_dns_namespace.name} \
+            --keyFile /tmp/mongo.key
+        EOT
+      ],
       portMappings = [
         {
           protocol      = "tcp"
@@ -115,6 +137,10 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
         {
           name      = "MONGO_INITDB_ROOT_PASSWORD"
           valueFrom = aws_ssm_parameter.mongodb_secret_password.name
+        },
+        {
+          name      = "MONGO_REPLICA_KEY"
+          valueFrom = aws_ssm_parameter.mongodb_secret_keyfile.name
         }
       ],
       healthcheck = {

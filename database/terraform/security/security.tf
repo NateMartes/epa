@@ -12,7 +12,8 @@ data "aws_iam_policy_document" "ecs_task_execution_role_policy" {
   }
 }
 
-# --- Allow access to MongoDB password for ECS ---
+# --- Allow access to MongoDB password and replica set key for ECS ---
+variable replica_set_key { sensitive = true }
 variable mongodb_secret_password { sensitive = true }
 resource "aws_iam_policy" "ecs_ssm_parameter_access" {
   name        = "ssm_parameter_access"
@@ -29,7 +30,10 @@ resource "aws_iam_policy" "ecs_ssm_parameter_access" {
           "ssm:GetParametersByPath",
           "kms:Decrypt"
         ]
-        Resource = var.mongodb_secret_password.arn
+        Resource = [
+          var.mongodb_secret_password.arn,
+          var.replica_set_key.arn
+        ]
       }
     ]
   })

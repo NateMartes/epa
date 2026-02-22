@@ -11,6 +11,7 @@ module security {
   vpc = module.networking.vpc
   mongo_file_system = module.compute.mongo_file_system
   mongodb_secret_password = module.compute.mongodb_secret_password
+  replica_set_key = module.compute.replica_set_key
 }
 
 variable "replica_set_name" { default = "prodReplicaSet" }

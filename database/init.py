@@ -2,6 +2,7 @@
 Init script for a MongoDB database from a JSON configuration file
 """
 from pymongo import errors
+import argparse
 import pymongo
 import json
 import sys
@@ -40,7 +41,60 @@ def create_standard_index(collection, index):
         unique=index.get("unique", False), 
         sparse=index.get("sparse", False))
     
-def main():
+def init_replica_set(client, replica_set_name, hosts):
+    members = []
+    count = 0
+    
+    for _ in hosts:
+        members.append({
+            '_id': count, 'host': hosts[count]
+        })
+        count += 1
+        
+    config = {
+        '_id': replica_set_name,
+        'members': members
+    }
+    
+    # Make sure replica set does not already exist
+    try:
+        status = client.admin.command('replSetGetStatus')
+        print("Replica set status:", status['ok'])
+        if status['ok'] == 1.0:
+            print("Replica set already exists")
+            return
+    except errors.OperationFailure as e:
+        print(f"Failed to get replica set status: {e}")
+   
+    # Make replica set
+    try:
+        client.admin.command('replSetInitiate', config)
+        print(f"Replica set '{replica_set_name}' initiated successfully")
+    except errors.OperationFailure as e:
+        print(f"Failed to initiate replica set: {e}", file=sys.stderr)
+       
+    # Wait for set to be ready
+    tries = 5
+    while True:
+        try:
+            print("Waiting for replica set to be ready...")
+            status = client.admin.command('replSetGetStatus')
+            print("Replica set status:", status['ok'])
+            if status['ok'] == 1.0:
+                return
+            else:
+                tries -= 1
+                if tries == 0:
+                    print("Failed to wait for replica set to be ready, aborting...", file=sys.stderr)
+                    sys.exit(1)
+                else:
+                    time.sleep(5)
+                    continue
+        except errors.OperationFailure as e:
+            print(f"Failed to get replica set status: {e}")
+            sys.exit(1)
+    
+def main(is_replica_set = False, replica_set_name = "", nodes = []):
     
     hostname = os.getenv("EPA_MONGODB_HOSTNAME")
     port = os.getenv("EPA_MONGODB_PORT")
@@ -57,7 +111,7 @@ def main():
             EPA_MONGODB_PORT={port}\n \
             EPA_MONGODB_USERNAME={username}\n \
             EPA_MONGODB_PASSWORD={password}\n \
-            EPA_MONGODB_DATABASE_NAME={dbname}\n \
+            EPA_MONGODB_DATABASE_NAME={dbname} \
         ", file=sys.stderr)
         sys.exit(1)
         
@@ -82,6 +136,10 @@ def main():
             time.sleep(10)
                 
     print("Connected.")
+    
+    if is_replica_set:
+        print(f"Setting up replica set '{replica_set_name}'")
+        init_replica_set(client, replica_set_name, nodes)
     
     try:
         dbs = client.list_database_names()
@@ -119,5 +177,22 @@ def main():
         client.close()
         
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(prog="init", description="MongoDB init script", usage="%(prog)s [options]")
+    parser.add_argument("-c", "--is-replica-set", action="store_true", default=False, help="True if the MongoDB instance runs as a cluster")
+    parser.add_argument("-r", "--replica-set-name", type=str, default="", help="The name of the replica set for the MongoDB cluster")
+    parser.add_argument("-n", "--nodes", type=str, default="", help="A comma seperated list of hostnames for the nodes in the cluster")
+    args = parser.parse_args()
+    
+    if args.is_replica_set:
+        if args.replica_set_name == "" or args.nodes == "":
+            print("init: error: if replica set, set name and nodes must be given", file=sys.stderr)
+            parser.print_help()
+            sys.exit(1)
+        
+    nodes_split = args.nodes.split(",")
+    main(
+        is_replica_set=True,
+        replica_set_name=args.replica_set_name, 
+        nodes=nodes_split
+    )
     
