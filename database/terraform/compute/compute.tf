@@ -46,6 +46,15 @@ resource "aws_ecs_cluster" "epa_mongo_db_cluster" {
   name = "epa-mongo-db-cluster"
 }
 
+# --- Logging for the Cluser ---
+resource "aws_cloudwatch_log_group" "ecs_log_group" {
+  name = "MongoDB-Nodes"
+  tags = {
+    Environment = "production"
+    Application = "mongodb"
+  }
+}
+
 # --- ECS Task Definition (Bascially, what should a EC2 machine do) ---
 variable ecs_task_execution_role {}
 variable ecs_mongo_task_role {}
@@ -111,13 +120,12 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
         retries     = 3
         startPeriod = 15
       },
-      logConfiguration: {
-        logDriver = "awslogs",
+      logConfiguration = {
+        logDriver = "awslogs"
         options = {
-            "awslogs-group" = "/ecs/epa-mongodb-nodes",
-            "awslogs-region" = "us-east-1",
-            "awslogs-stream-prefix" = "mongo",
-            "awslogs-create-group" = "true"
+          awslogs-group = aws_cloudwatch_log_group.ecs_log_group.name
+          awslogs-region = "us-east-1"
+          awslogs-stream-prefix = "epa-db"
         }
       },
     }
