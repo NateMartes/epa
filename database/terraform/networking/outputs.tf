@@ -6,6 +6,10 @@ output "subnet" {
   value = aws_subnet.private_mongo_subnet
 }
 
+output "private_dns_namespace" {
+  value = aws_service_discovery_private_dns_namespace.mongo_monitoring
+}
+
 output "mongo_discovery_service" {
   value = aws_service_discovery_service.mongo_discovery_service
 }

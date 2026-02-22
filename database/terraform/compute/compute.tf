@@ -56,6 +56,9 @@ resource "aws_cloudwatch_log_group" "ecs_log_group" {
 }
 
 # --- ECS Task Definition (Bascially, what should a EC2 machine do) ---
+variable mongo_dns_namespace {}
+variable mongo_discovery_service {}
+variable replica_set_name {}
 variable ecs_task_execution_role {}
 variable ecs_mongo_task_role {}
 variable mongo_username { sensitive = true }
@@ -87,6 +90,7 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
       cpu       = 256,
       memory    = 512,
       essential = true,
+      command   = ["mongod", "--replSet", "prodReplicaSet", "--bind_ip", "localhost,${mongo_discovery_service[count.index].name}.${mongo_dns_namespace.name}"]
       portMappings = [
         {
           protocol      = "tcp"
@@ -145,9 +149,8 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
 }
 
 # --- The Actual ECS service running MongoDB ---
-variable "mongo_discovery_service" {}
-variable "mongo_ecs_tasks_sg" {}
-variable "mongo_tg" {}
+variable mongo_ecs_tasks_sg {}
+variable mongo_tg {}
 resource "aws_ecs_service" "epa_mongo_service" {
   count           = var.node_count
   name            = "epa-ecs-mongodb-node-${count.index}"
