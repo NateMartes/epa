@@ -10,6 +10,14 @@ output "mongo_db_cluster_dns_discovery_service" {
   value = module.networking.mongo_discovery_service
 }
 
+output "mongo_db_cluster_name" {
+  value = module.compute.mongo_db_cluster.name
+}
+
+output "first_mongodb_service" {
+  value = module.compute.first_mongodb_service
+}
+
 output "replica_set_name" {
   value = var.replica_set_name
 }

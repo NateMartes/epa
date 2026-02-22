@@ -184,6 +184,7 @@ resource "aws_ecs_service" "epa_mongo_service" {
   task_definition = aws_ecs_task_definition.mongo_task_definition[count.index].id
   desired_count   = 1
   launch_type     = "EC2"
+  enable_execute_command = true # For automated database setup
 
   network_configuration {
     subnets          = var.subnet[*].id
