@@ -54,6 +54,7 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
       cpu       = 256,
       memory    = 512,
       essential = true,
+      command   = ["tail", "-f", "/dev/null"]
       portMappings = [
         {
           protocol      = "tcp"
@@ -110,13 +111,13 @@ resource "aws_ecs_service" "epa_mongo_service" {
   name            = "epa-ecs-mongodb-service"
   cluster         = aws_ecs_cluster.epa_mongo_db_cluster.id
   task_definition = aws_ecs_task_definition.mongo_task_definition.id
-  desired_count   = 2
+  desired_count   = 3
   launch_type     = "FARGATE"
 
   network_configuration {
     subnets          = var.subnet[*].id
     security_groups  = [var.mongo_ecs_tasks_sg.id]
-  assign_public_ip = true
+    assign_public_ip = true
   }
   
   load_balancer {
