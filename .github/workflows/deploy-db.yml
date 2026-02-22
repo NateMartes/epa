@@ -100,6 +100,7 @@ jobs:
         sudo apt install -y jq
         replica_set_name=$(terraform output -raw replica_set_name)
         dns_namespace=$(terraform output -raw mongo_db_cluster_dns_namespace_name)
+        
         # Generate a valid JSON array of members
         replica_set_members=$(
           terraform output -json mongo_db_cluster_dns_discovery_service | 
@@ -114,7 +115,7 @@ jobs:
           try {
             rs.initiate({
               _id: '${replica_set_name}',
-              members: '${replica_set_members}'
+              members: ${replica_set_members}
             });
             print('Github Action: Initiate command sent.');
           } catch (e) {
@@ -142,14 +143,21 @@ jobs:
         for i in $(seq 1 10); do
           echo "Trying to connect to MongoDB cluster instances (Attempt $i/10)..."
           
-          # Get Task ARN for one of the nodes in the cluster
+          # Get Task ARN for one of the nodes in the cluster (Added quotes)
           task_arn=$(aws ecs list-tasks \
-            --cluster $cluster_name \
-            --service-name $service_name \
+            --cluster "$cluster_name" \
+            --service-name "$service_name" \
             --desired-status RUNNING \
             --query 'taskArns[0]' --output text)
             
-          echo Target Task ARN: $task_arn
+          echo "Target Task ARN: $task_arn"
+        
+          # Safely handle the "None" state if the container is still pending
+          if [ "$task_arn" == "None" ] || [ -z "$task_arn" ]; then
+            echo "No RUNNING task found yet. Retrying in 10 seconds..."
+            sleep 10
+            continue
+          fi
         
           # Connect directly to the mongosh to setup the replica set
           if aws ecs execute-command \
@@ -158,17 +166,13 @@ jobs:
             --container "mongo" \
             --interactive \
             --command "mongosh --quiet --eval \"$MONGO_INIT_SCRIPT\""; then
-          
-          EXIT_CODE=$?
-          
-          if [ $EXIT_CODE -eq 0 ]; then
             echo "Replica set established successfully"
             success=1
             break
+          else   
+            echo "Connection failed or SSM tunnel not ready. Retrying in 10 seconds..."
+            sleep 10
           fi
-          
-          echo "Connection failed or container not ready. Retrying in 10 seconds..."
-          sleep 10
         done
         
         if [ $success -ne 1 ]; then
