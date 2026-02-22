@@ -23,6 +23,7 @@ module compute {
   mongo_ecs_tasks_sg = module.security.mongo_ecs_tasks_sg
   ecs_mongo_task_role = module.security.ecs_mongo_task_role
   ecs_task_execution_role = module.security.ecs_task_execution_role
+  ec2_instance_profile = module.security.ec2_instance_profile
   mongo_username = var.EPA_MONGODB_USERNAME
   mongo_password = var.EPA_MONGODB_PASSWORD
   node_count = 3
