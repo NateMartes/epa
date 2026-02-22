@@ -65,8 +65,9 @@ jobs:
             
             terraform init
             
-            echo dns namespace = $(terraform output -raw private_dns_namespace)
-            echo dns discovery service = $(terraform output -raw mongo_db_cluster_dns_discovery_service)
+            echo dns namespace = $(terraform output -raw mongo_db_cluster_dns_namespace_name)
+            echo dns discovery service = $(terraform output -json mongo_db_cluster_dns_discovery_service)
+            echo replica set name = $(terraform output -raw replica_set_name)
             
             export EPA_MONGODB_HOSTNAME=$(terraform output -raw mongo_db_cluster_dns_name)
             export EPA_MONGODB_PORT=27017
