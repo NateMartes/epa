@@ -142,7 +142,6 @@ resource "aws_ecs_service" "epa_mongo_service" {
   network_configuration {
     subnets          = var.subnet[*].id
     security_groups  = [var.mongo_ecs_tasks_sg.id]
-    assign_public_ip = true
   }
   
   load_balancer {
