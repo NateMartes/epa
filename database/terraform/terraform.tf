@@ -6,9 +6,9 @@ terraform {
     }
   }
   cloud {
-      organization = "your-terraform-org-name"
+      organization = "epa-terraform"
       workspaces {
-        name = "epa-workspace-name"
+        name = "terraform-github-actions"
       }
     }
   required_version = ">= 1.2"
