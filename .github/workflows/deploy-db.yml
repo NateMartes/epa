@@ -90,12 +90,11 @@ jobs:
         aws-region: "us-east-1"
         
     - name: Init terraform CLI
-      run: |
-          cd ${{ env.CONFIG_DIRECTORY }}
-          
-          terraform init
+      working-directory: ${{ env.CONFIG_DIRECTORY }}
+      run: terraform init
           
     - name: Setup Replica Set on MongoDB Cluster
+      working-directory: ${{ env.CONFIG_DIRECTORY }}
       run: |
         
         sudo apt install -y jq
@@ -152,9 +151,11 @@ jobs:
           --command "mongosh --quiet --eval \"$MONGO_INIT_SCRIPT\""
         
     - name: Install Dependencies
+      working-directory: ${{ env.CONFIG_DIRECTORY }}
       run: pip install -r ./database/requirements.txt
       
-    - name: Init Database and Collections 
+    - name: Init Database and Collections
+      working-directory: ${{ env.CONFIG_DIRECTORY }}   
       run: |
           
           export EPA_MONGODB_HOSTNAME=$(terraform output -raw mongo_db_cluster_dns_name)
