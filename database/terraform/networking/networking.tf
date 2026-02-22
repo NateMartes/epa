@@ -19,8 +19,7 @@ resource "aws_subnet" "mongo_subnet" {
   vpc_id                  = aws_vpc.mongo_vpc.id
   availability_zone       = local.azs_names[count.index]
   cidr_block              = "10.0.${count.index}.0/24"
-  map_public_ip_on_launch = true
-  tags                    = { Name = "epa-db-public-${local.azs_names[count.index]}" }
+  tags                    = { Name = "epa-db-${local.azs_names[count.index]}" }
 }
 
 # --- Internet Gateway ---
