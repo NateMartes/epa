@@ -65,6 +65,8 @@ jobs:
             
             terraform init
 
+            echo Cluster Location: $(terraform output -raw mongo_db_cluster_dns_name)
+            echo Running Init Script...
             export EPA_MONGODB_HOSTNAME=$(terraform output -raw mongo_db_cluster_dns_name)
             export EPA_MONGODB_PORT=27017
             export EPA_MONGODB_USERNAME=${{ secrets.EPA_MONGODB_USERNAME }}

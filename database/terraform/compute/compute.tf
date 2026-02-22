@@ -84,7 +84,7 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
           containerPort = 27017
           hostPort      = 27017
         }
-      ]
+      ],
       mountPoints = [
         {
           sourceVolume  = "mongoEfsVolume"
@@ -110,7 +110,16 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
         timeout     = 15
         retries     = 3
         startPeriod = 15
-      }
+      },
+      logConfiguration: {
+        logDriver = "awslogs",
+        options = {
+            "awslogs-group" = "/ecs/epa-mongodb-nodes",
+            "awslogs-region" = "us-east-1",
+            "awslogs-stream-prefix" = "mongo",
+            "awslogs-create-group" = "true"
+        }
+      },
     }
   ])
   volume {
@@ -177,6 +186,11 @@ resource "aws_launch_template" "epa_ecs_lt" {
   iam_instance_profile {
     name = var.ec2_instance_profile.name
   }
+  
+  network_interfaces {
+      associate_public_ip_address = true
+  }
+  
 }
 
 # --- Auto Scaling Group ---
