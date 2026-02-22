@@ -36,6 +36,58 @@ resource "aws_eip" "main" {
   tags       = { Name = "epa-eip-${local.azs_names[count.index]}" }
 }
 
+# --- Load Balancer for the internet gateway ---
+resource "aws_lb" "mongo_lb" {
+  name               = "epa-mongo-lb"
+  internal           = false
+  load_balancer_type = "network"
+
+  # (us-east-1a)
+  subnet_mapping {
+    subnet_id     = aws_subnet.mongo_subnet[0].id
+    allocation_id = aws_eip.main[0].id
+  }
+
+  # (us-east-1b)
+  subnet_mapping {
+    subnet_id     = aws_subnet.mongo_subnet[1].id
+    allocation_id = aws_eip.main[1].id
+  }
+
+  tags = {
+    Name = "epa-mongo-lb"
+  }
+}
+
+# --- Route Load Balancer traffic to the VPC ---
+resource "aws_lb_target_group" "mongo_tg" {
+  name        = "epa-mongo-tg"
+  port        = 27017
+  protocol    = "TCP"
+  target_type = "ip"
+  vpc_id      = aws_vpc.mongo_vpc.id
+
+  health_check {
+    protocol            = "TCP"
+    port                = "traffic-port"
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    interval            = 30
+  }
+}
+
+# --- Listen for traffic on the load balancer
+resource "aws_lb_listener" "mongo_listener" {
+  load_balancer_arn = aws_lb.mongo_lb.arn
+  port              = 27017
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.mongo_tg.arn
+  }
+}
+
 # --- Public Route Table ---
 
 resource "aws_route_table" "mongo_route_table" {

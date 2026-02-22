@@ -10,6 +10,10 @@ output "mongo_discovery_service" {
   value = aws_service_discovery_service.mongo_discovery_service
 }
 
-output "mongodb_cluster_dns_name" {
-  value = aws_eip.main[0].public_dns
+output "mongo_tg" {
+  value = aws_lb_target_group.mongo_tg
+}
+
+output "mongo_lb" {
+  value = aws_lb.mongo_lb
 }

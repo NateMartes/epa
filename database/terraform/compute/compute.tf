@@ -105,17 +105,23 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
 # --- The Actual ECS service running MongoDB ---
 variable "mongo_discovery_service" {}
 variable "mongo_ecs_tasks_sg" {}
+variable "mongo_tg" {}
 resource "aws_ecs_service" "epa_mongo_service" {
   name            = "epa-ecs-mongodb-service"
   cluster         = aws_ecs_cluster.epa_mongo_db_cluster.id
   task_definition = aws_ecs_task_definition.mongo_task_definition.id
-  desired_count   = 1
+  desired_count   = 2
   launch_type     = "FARGATE"
 
   network_configuration {
     subnets          = var.subnet[*].id
     security_groups  = [var.mongo_ecs_tasks_sg.id]
-    assign_public_ip = true
+  }
+  
+  load_balancer {
+    target_group_arn = var.mongo_tg.arn
+    container_name = "mongo"
+    container_port = 27017
   }
 
   service_registries {

@@ -17,6 +17,7 @@ module compute {
   source = "./compute"
   subnet = module.networking.subnet
   mongo_discovery_service = module.networking.mongo_discovery_service
+  mongo_tg = module.networking.mongo_tg
   // ec2_sg = module.security.ec2_sg UNCOMMENT ME IF USING DEV EC2 INSTANCE
   efs_sg = module.security.efs_sg
   mongo_ecs_tasks_sg = module.security.mongo_ecs_tasks_sg
