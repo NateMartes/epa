@@ -63,7 +63,7 @@ resource "aws_ssm_parameter" "mongodb_secret_password" {
 }
 resource "aws_ecs_task_definition" "mongo_task_definition" {
   count                    = var.node_count
-  family                   = "mongolab-mongodb-node[${count.index}]"
+  family                   = "mongolab-mongodb-node${count.index}"
   requires_compatibilities = ["EC2"]
   network_mode             = "awsvpc"
   cpu                      = "256"
