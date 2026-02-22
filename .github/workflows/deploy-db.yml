@@ -45,126 +45,126 @@ jobs:
         with:
           run: ${{ steps.apply-run.outputs.run_id }}
           comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
-    init-db:    
-      name: "Init the Database"
-      runs-on: ubuntu-latest
-      environment: production
+  init-db:    
+    name: "Init the Database"
+    runs-on: ubuntu-latest
+    environment: production
+  
+    env:
+      TF_CLOUD_ORGANIZATION: "epa-terraform"
+      TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
+      TF_WORKSPACE: "terraform-github-actions"
+      CONFIG_DIRECTORY: "./database/terraform"
     
-      env:
-        TF_CLOUD_ORGANIZATION: "epa-terraform"
-        TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
-        TF_WORKSPACE: "terraform-github-actions"
-        CONFIG_DIRECTORY: "./database/terraform"
+    permissions: # granular permissions
+      # so GitHub can check out this repo using the default github.token
+      contents: read
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
       
-      permissions: # granular permissions
-        # so GitHub can check out this repo using the default github.token
-        contents: read
-      steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+      
+    - name: Setup Terraform CLI
+      uses: hashicorp/setup-terraform@v3
+      with:
+        cli_config_credentials_token: ${{ secrets.EPA_TF_API_TOKEN }}
         
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
+    - name: Install AWS CLI
+      run: |
+        sudo apt update && sudo apt install -y unzip curl
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        ./aws/install
+        rm -rf awscliv2.zip aws
         
-      - name: Setup Terraform CLI
-        uses: hashicorp/setup-terraform@v3
-        with:
-          cli_config_credentials_token: ${{ secrets.EPA_TF_API_TOKEN }}
+    - name: Configure AWS CLI Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
+        aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
+        aws-region: "us-east-1"
+        
+    - name: Init terraform CLI
+      run: |
+          cd ${{ env.CONFIG_DIRECTORY }}
           
-      - name: Install AWS CLI
-        run: |
-          sudo apt update && sudo apt install -y unzip curl
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          ./aws/install
-          rm -rf awscliv2.zip aws
+          terraform init
           
-      - name: Configure AWS CLI Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
-          aws-region: "us-east-1"
-          
-      - name: Init terraform CLI
-        run: |
-            cd ${{ env.CONFIG_DIRECTORY }}
-            
-            terraform init
-            
-      - name: Setup Replica Set on MongoDB Cluster
-        run: |
-          
-          sudo apt install -y jq
-          replica_set_name=$(terraform output -raw replica_set_name)
-          dns_namespace=$(terraform output -raw mongo_db_cluster_dns_namespace_name)
-          # Generate a valid JSON array of members
-          replica_set_members=$(
-            terraform output -json mongo_db_cluster_dns_discovery_service | 
-            jq -c --arg suffix "$dns_namespace" 'to_entries | map({
-              _id: .key, 
-              host: (.value.name + "." + $suffix + ":27017")
-            })'
-          )
-          
-          # Script to setup replica set in mongosh
-          MONGO_INIT_SCRIPT="
-            try {
-              rs.initiate({
-                _id: '${replica_set_name}',
-                members: '${replica_set_members}'
-              });
-              print('Github Action: Initiate command sent.');
-            } catch (e) {
-              print('Github Action: Replica set may already be initiated: ' + e.message);
-            }
-          
-            print('Waiting for node to become PRIMARY...');
-            while (!db.hello().isWritablePrimary) {
-              sleep(2000);
-            }
-            print('Github Action: Node is now PRIMARY. Creating user...');
-          
-            db.getSiblingDB('admin').createUser({
-              user: '${{ secrets.EPA_MONGODB_USERNAME }}',
-              pwd: '${{ secrets.EPA_MONGODB_PASSWORD }}',
-              roles: [ { role: 'root', db: 'admin' } ]
+    - name: Setup Replica Set on MongoDB Cluster
+      run: |
+        
+        sudo apt install -y jq
+        replica_set_name=$(terraform output -raw replica_set_name)
+        dns_namespace=$(terraform output -raw mongo_db_cluster_dns_namespace_name)
+        # Generate a valid JSON array of members
+        replica_set_members=$(
+          terraform output -json mongo_db_cluster_dns_discovery_service | 
+          jq -c --arg suffix "$dns_namespace" 'to_entries | map({
+            _id: .key, 
+            host: (.value.name + "." + $suffix + ":27017")
+          })'
+        )
+        
+        # Script to setup replica set in mongosh
+        MONGO_INIT_SCRIPT="
+          try {
+            rs.initiate({
+              _id: '${replica_set_name}',
+              members: '${replica_set_members}'
             });
-            print('Github Action: Admin user created successfully.');
-          "
-          
-          cluster_name=$(terraform output -raw mongo_db_cluster_name)
-          service_name=$(terraform output -raw first_mongodb_service)
-          # Get Task ARN for one of the nodes in the cluster
-          task_arn=$(aws ecs list-tasks \
-            --cluster $cluster_name \
-            --service-name $service_name \
-            --query 'taskArns[0]' --output text)
-          
-          # Connect directly to the mongosh to setup the replica set
-          aws ecs execute-command \
-            --cluster "$CLUSTER_NAME" \
-            --task "$TASK_ARN" \
-            --container "mongo" \
-            --command "mongosh --quiet --eval \"$MONGO_INIT_SCRIPT\""
-          
-      - name: Install Dependencies
-        run: pip install -r ./database/requirements.txt
+            print('Github Action: Initiate command sent.');
+          } catch (e) {
+            print('Github Action: Replica set may already be initiated: ' + e.message);
+          }
         
-      - name: Init Database and Collections 
-        run: |
-            
-            export EPA_MONGODB_HOSTNAME=$(terraform output -raw mongo_db_cluster_dns_name)
-            export EPA_MONGODB_PORT=27017
-            export EPA_MONGODB_USERNAME=${{ secrets.EPA_MONGODB_USERNAME }}
-            export EPA_MONGODB_PASSWORD=${{ secrets.EPA_MONGODB_PASSWORD }}
-            export EPA_MONGODB_DATABASE_NAME=${{ vars.EPA_MONGODB_DATABASE_NAME }}
-            export EPA_MONGODB_USER_COLLECTION=${{ vars.EPA_MONGODB_USER_COLLECTION }}
-            export EPA_MONGODB_SESSION_TOKEN_COLLECTION=${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }}
-            export EPA_MONGODB_POSTS_COLLECTION=${{ vars.EPA_MONGODB_POSTS_COLLECTION }}
-            export EPA_MONGODB_CATEGORIES_COLLECTION=${{ vars.EPA_MONGODB_CATEGORIES_COLLECTION }}
-            cd ../
-            
-            python3 init.py
+          print('Waiting for node to become PRIMARY...');
+          while (!db.hello().isWritablePrimary) {
+            sleep(2000);
+          }
+          print('Github Action: Node is now PRIMARY. Creating user...');
+        
+          db.getSiblingDB('admin').createUser({
+            user: '${{ secrets.EPA_MONGODB_USERNAME }}',
+            pwd: '${{ secrets.EPA_MONGODB_PASSWORD }}',
+            roles: [ { role: 'root', db: 'admin' } ]
+          });
+          print('Github Action: Admin user created successfully.');
+        "
+        
+        cluster_name=$(terraform output -raw mongo_db_cluster_name)
+        service_name=$(terraform output -raw first_mongodb_service)
+        # Get Task ARN for one of the nodes in the cluster
+        task_arn=$(aws ecs list-tasks \
+          --cluster $cluster_name \
+          --service-name $service_name \
+          --query 'taskArns[0]' --output text)
+        
+        # Connect directly to the mongosh to setup the replica set
+        aws ecs execute-command \
+          --cluster "$CLUSTER_NAME" \
+          --task "$TASK_ARN" \
+          --container "mongo" \
+          --command "mongosh --quiet --eval \"$MONGO_INIT_SCRIPT\""
+        
+    - name: Install Dependencies
+      run: pip install -r ./database/requirements.txt
+      
+    - name: Init Database and Collections 
+      run: |
+          
+          export EPA_MONGODB_HOSTNAME=$(terraform output -raw mongo_db_cluster_dns_name)
+          export EPA_MONGODB_PORT=27017
+          export EPA_MONGODB_USERNAME=${{ secrets.EPA_MONGODB_USERNAME }}
+          export EPA_MONGODB_PASSWORD=${{ secrets.EPA_MONGODB_PASSWORD }}
+          export EPA_MONGODB_DATABASE_NAME=${{ vars.EPA_MONGODB_DATABASE_NAME }}
+          export EPA_MONGODB_USER_COLLECTION=${{ vars.EPA_MONGODB_USER_COLLECTION }}
+          export EPA_MONGODB_SESSION_TOKEN_COLLECTION=${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }}
+          export EPA_MONGODB_POSTS_COLLECTION=${{ vars.EPA_MONGODB_POSTS_COLLECTION }}
+          export EPA_MONGODB_CATEGORIES_COLLECTION=${{ vars.EPA_MONGODB_CATEGORIES_COLLECTION }}
+          cd ../
+          
+          python3 init.py
