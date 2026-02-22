@@ -145,8 +145,8 @@ jobs:
         
         # Connect directly to the mongosh to setup the replica set
         aws ecs execute-command \
-          --cluster "$CLUSTER_NAME" \
-          --task "$TASK_ARN" \
+          --cluster "$cluster_name" \
+          --task "$task_arn" \
           --container "mongo" \
           --interactive \
           --command "mongosh --quiet --eval \"$MONGO_INIT_SCRIPT\""
