@@ -152,7 +152,7 @@ resource "aws_ecs_service" "epa_mongo_service" {
   }
 
   service_registries {
-    registry_arn = var.mongo_discovery_service.arn
+    registry_arn = var.mongo_discovery_service[count.index].arn
   }
 
 }
