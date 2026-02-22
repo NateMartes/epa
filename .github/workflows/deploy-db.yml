@@ -148,6 +148,7 @@ jobs:
           --cluster "$CLUSTER_NAME" \
           --task "$TASK_ARN" \
           --container "mongo" \
+          --interactive \
           --command "mongosh --quiet --eval \"$MONGO_INIT_SCRIPT\""
         
     - name: Install Dependencies
