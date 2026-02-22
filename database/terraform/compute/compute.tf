@@ -212,7 +212,7 @@ data "aws_ssm_parameter" "ecs_node_ami" {
 resource "aws_launch_template" "epa_ecs_lt" {
   name_prefix   = "epa-ecs-node-"
   image_id      = data.aws_ssm_parameter.ecs_node_ami.value
-  instance_type = "t3.micro" # Adjust based on your DB requirements
+  instance_type = "t3.small"
 
   # Make sure the EC2 instance knows it is part of a cluster
   user_data = base64encode(<<-EOF
