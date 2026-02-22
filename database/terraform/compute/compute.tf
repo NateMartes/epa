@@ -90,7 +90,7 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
       cpu       = 256,
       memory    = 512,
       essential = true,
-      command   = ["mongod", "--replSet", "prodReplicaSet", "--bind_ip", "localhost,${mongo_discovery_service[count.index].name}.${mongo_dns_namespace.name}"]
+      command   = ["mongod", "--replSet", "prodReplicaSet", "--bind_ip", "localhost,${var.mongo_discovery_service[count.index].name}.${var.mongo_dns_namespace.name}"]
       portMappings = [
         {
           protocol      = "tcp"
