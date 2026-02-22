@@ -138,6 +138,7 @@ jobs:
         cluster_name=$(terraform output -raw mongo_db_cluster_name)
         service_name=$(terraform output -raw first_mongodb_service)
         
+        success=0
         for i in $(seq 1 10); do
           echo "Trying to connect to MongoDB cluster instances (Attempt $i/10)..."
           
@@ -151,12 +152,12 @@ jobs:
           echo Target Task ARN: $task_arn
         
           # Connect directly to the mongosh to setup the replica set
-          aws ecs execute-command \
+          if aws ecs execute-command \
             --cluster "$cluster_name" \
             --task "$task_arn" \
             --container "mongo" \
             --interactive \
-            --command "mongosh --quiet --eval \"$MONGO_INIT_SCRIPT\""
+            --command "mongosh --quiet --eval \"$MONGO_INIT_SCRIPT\""; then
           
           EXIT_CODE=$?
           
