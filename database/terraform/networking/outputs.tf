@@ -3,7 +3,7 @@ output "vpc" {
 }
 
 output "subnet" {
-  value = aws_subnet.mongo_subnet
+  value = aws_subnet.private_mongo_subnet
 }
 
 output "mongo_discovery_service" {

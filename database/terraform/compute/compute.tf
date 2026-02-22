@@ -187,10 +187,6 @@ resource "aws_launch_template" "epa_ecs_lt" {
     name = var.ec2_instance_profile.name
   }
   
-  network_interfaces {
-      associate_public_ip_address = true
-  }
-  
 }
 
 # --- Auto Scaling Group ---
