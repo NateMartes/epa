@@ -137,15 +137,19 @@ jobs:
         
         cluster_name=$(terraform output -raw mongo_db_cluster_name)
         service_name=$(terraform output -raw first_mongodb_service)
-        # Get Task ARN for one of the nodes in the cluster
-        task_arn=$(aws ecs list-tasks \
-          --cluster $cluster_name \
-          --service-name $service_name \
-          --query 'taskArns[0]' --output text)
         
         for i in $(seq 1 10); do
           echo "Trying to connect to MongoDB cluster instances (Attempt $i/10)..."
           
+          # Get Task ARN for one of the nodes in the cluster
+          task_arn=$(aws ecs list-tasks \
+            --cluster $cluster_name \
+            --service-name $service_name \
+            --desired-status RUNNING \
+            --query 'taskArns[0]' --output text)
+            
+          echo Target Task ARN: $task_arn
+        
           # Connect directly to the mongosh to setup the replica set
           aws ecs execute-command \
             --cluster "$cluster_name" \
