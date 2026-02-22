@@ -25,4 +25,5 @@ module compute {
   ecs_task_execution_role = module.security.ecs_task_execution_role
   mongo_username = var.EPA_MONGODB_USERNAME
   mongo_password = var.EPA_MONGODB_PASSWORD
+  node_count = 3
 }

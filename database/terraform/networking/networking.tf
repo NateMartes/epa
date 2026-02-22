@@ -112,7 +112,8 @@ resource "aws_service_discovery_private_dns_namespace" "mongo_monitoring" {
 }
 
 resource "aws_service_discovery_service" "mongo_discovery_service" {
-  name = "mongodb"
+  count = 3
+  name = "mongodb-${count.index}"
   dns_config {
     namespace_id = aws_service_discovery_private_dns_namespace.mongo_monitoring.id
     dns_records {

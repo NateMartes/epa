@@ -1,3 +1,6 @@
+# --- MongoDB EC2 node count ---
+variable node_count {}
+
 # --- EFS File System for MongoDB ---
 resource "aws_efs_file_system" "mongo_file_system" {
  creation_token = "mongoefs"
@@ -7,7 +10,28 @@ resource "aws_efs_file_system" "mongo_file_system" {
   }
 }
 
-# --- Tell EFS where to mount the File System
+# Access points for nodes into the EFS
+resource "aws_efs_access_point" "epa_mongo_ap" {
+  count          = var.node_count
+  file_system_id = aws_efs_file_system.mongo_file_system.id
+
+  # MongoDB user/group premissions
+  posix_user {
+    gid = 999 
+    uid = 999
+  }
+
+  root_directory {
+    path = "/mongo-node-${count.index}" 
+    creation_info {
+      owner_gid   = 999
+      owner_uid   = 999
+      permissions = "0755"
+    }
+  }
+}
+
+# --- Tell EFS where to mount the File System ---
 variable subnet {}
 variable efs_sg {}
 resource "aws_efs_mount_target" "efs_mount_target" {
@@ -22,7 +46,7 @@ resource "aws_ecs_cluster" "epa_mongo_db_cluster" {
   name = "epa-mongo-db-cluster"
 }
 
-# --- ECS Task Definition (Bascially, what should fargate do for the EC2 nodes) ---
+# --- ECS Task Definition (Bascially, what should a EC2 machine do) ---
 variable ecs_task_execution_role {}
 variable ecs_mongo_task_role {}
 variable mongo_username { sensitive = true }
@@ -38,9 +62,9 @@ resource "aws_ssm_parameter" "mongodb_secret_password" {
   }
 }
 resource "aws_ecs_task_definition" "mongo_task_definition" {
-  
+  count                    = var.node_count
   family                   = "mongolab-mongodb"
-  requires_compatibilities = ["FARGATE"]
+  requires_compatibilities = ["EC2"]
   network_mode             = "awsvpc"
   cpu                      = "256"
   memory                   = "512"
@@ -54,7 +78,6 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
       cpu       = 256,
       memory    = 512,
       essential = true,
-      command   = ["tail", "-f", "/dev/null"]
       portMappings = [
         {
           protocol      = "tcp"
@@ -97,6 +120,7 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
         file_system_id     = aws_efs_file_system.mongo_file_system.id
         transit_encryption = "ENABLED"
         authorization_config {
+          access_point_id = aws_efs_access_point.epa_mongo_ap[count.index].id
           iam = "ENABLED"
         }
       }
@@ -108,11 +132,12 @@ variable "mongo_discovery_service" {}
 variable "mongo_ecs_tasks_sg" {}
 variable "mongo_tg" {}
 resource "aws_ecs_service" "epa_mongo_service" {
-  name            = "epa-ecs-mongodb-service"
+  count           = var.node_count
+  name            = "epa-ecs-mongodb-node-${count.index}"
   cluster         = aws_ecs_cluster.epa_mongo_db_cluster.id
-  task_definition = aws_ecs_task_definition.mongo_task_definition.id
-  desired_count   = 3
-  launch_type     = "FARGATE"
+  task_definition = aws_ecs_task_definition.mongo_task_definition[count.index].id
+  desired_count   = 1
+  launch_type     = "EC2"
 
   network_configuration {
     subnets          = var.subnet[*].id
@@ -133,6 +158,54 @@ resource "aws_ecs_service" "epa_mongo_service" {
 }
 
 
+# --- EC2 Launch Template ---
+data "aws_ssm_parameter" "ecs_node_ami" {
+  name = "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id"
+}
+resource "aws_launch_template" "epa_ecs_lt" {
+  name_prefix   = "epa-ecs-node-"
+  image_id      = data.aws_ssm_parameter.ecs_node_ami.value
+  instance_type = "t3.micro" # Adjust based on your DB requirements
+
+  # Make sure the EC2 instance knows it is part of a cluster
+  user_data = base64encode(<<-EOF
+              #!/bin/bash
+              echo "ECS_CLUSTER=${aws_ecs_cluster.epa_mongo_db_cluster.name}" >> /etc/ecs/ecs.config
+              EOF
+  )
+}
+
+# --- Auto Scaling Group ---
+resource "aws_autoscaling_group" "epa_ecs_asg" {
+  name                = "epa-mongo-ecs-asg"
+  vpc_zone_identifier = var.subnet[*].id
+  min_size            = var.node_count
+  max_size            = var.node_count
+  desired_capacity    = var.node_count
+
+  launch_template {
+    id      = aws_launch_template.epa_ecs_lt.id
+    version = "$Latest"
+  }
+}
+
+# --- Capacity Provider for the cluster ---
+resource "aws_ecs_capacity_provider" "epa_mongo_cp" {
+  name = "epa-mongo-capacity-provider"
+
+  auto_scaling_group_provider {
+    auto_scaling_group_arn = aws_autoscaling_group.epa_ecs_asg.arn
+    managed_scaling {
+      status          = "ENABLED"
+      target_capacity = 100
+    }
+  }
+}
+
+resource "aws_ecs_cluster_capacity_providers" "epa_cluster_cp" {
+  cluster_name       = aws_ecs_cluster.epa_mongo_db_cluster.name
+  capacity_providers = [aws_ecs_capacity_provider.epa_mongo_cp.name]
+}
 
 # --- Testing EC2 Container ---
 /* FOR TESTING
