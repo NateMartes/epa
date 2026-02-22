@@ -41,11 +41,6 @@ resource "aws_efs_mount_target" "efs_mount_target" {
   security_groups = [var.efs_sg.id]
 }
 
-# --- ECS Cluster ---
-resource "aws_ecs_cluster" "epa_mongo_db_cluster" {
-  name = "epa-mongo-db-cluster"
-}
-
 # --- Logging for the Cluser ---
 resource "aws_cloudwatch_log_group" "ecs_log_group" {
   name = "MongoDB-Nodes"
@@ -54,6 +49,24 @@ resource "aws_cloudwatch_log_group" "ecs_log_group" {
     Application = "mongodb"
   }
 }
+
+# --- ECS Cluster ---
+resource "aws_ecs_cluster" "epa_mongo_db_cluster" {
+  name = "epa-mongo-db-cluster"
+  # --- Logging for the Cluser ---
+  configuration {
+      execute_command_configuration {
+        logging = "OVERRIDE"
+  
+        log_configuration {
+          cloud_watch_encryption_enabled = false
+          cloud_watch_log_group_name     = aws_cloudwatch_log_group.ecs_log_group.name
+        }
+      }
+  }
+}
+
+
 
 # --- ECS Task Definition (Bascially, what should a EC2 machine do) ---
 variable mongo_dns_namespace {}
