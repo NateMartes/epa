@@ -218,10 +218,6 @@ jobs:
               --container "mongo" \
               --interactive \
               --command "sh -c '
-                  # Map the container IP to the primary Cloud Map DNS name
-                  echo \"\$(hostname -i) $TARGET_PRIVATE_HOSTNAME\" >> /etc/hosts
-                  
-                  # Decode and run the script
                   echo $B64_SCRIPT | base64 -d > /tmp/init.js
                   mongosh --quiet /tmp/init.js
                 '" 2>&1)
@@ -233,12 +229,9 @@ jobs:
             echo "Replica set established successfully"
             success=1
             break
-          elif echo "$EXEC_OUTPUT" | grep -q "TargetNotConnectedException" || echo "$EXEC_OUTPUT" | grep -q "Cannot perform start session: EOF"; then
+          elif echo "$EXEC_OUTPUT"; then
             echo "Connection failed or SSM tunnel not ready. Retrying in 10 seconds..."
             sleep 10
-          else   
-            echo "Database script failed to execute properly."
-            break 
           fi
         done
         

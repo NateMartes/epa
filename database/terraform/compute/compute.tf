@@ -122,7 +122,7 @@ resource "aws_ecs_task_definition" "mongo_task_definition" {
           
           exec mongod \
             --replSet ${var.replica_set_name} \
-            --bind_ip localhost,${var.mongo_discovery_service[count.index].name}.${var.mongo_dns_namespace.name} \
+            --bind_ip_all \
             --keyFile /tmp/mongo.key
         EOT
       ],
