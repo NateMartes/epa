@@ -136,6 +136,28 @@ jobs:
             attempts++;
           }
         
+        // Create the admin user
+          try {
+            adminDb.createUser({
+              user: '${{ secrets.EPA_MONGODB_USERNAME }}',
+              pwd: '${{ secrets.EPA_MONGODB_PASSWORD }}',
+              roles: [ { role: 'root', db: 'admin' } ]
+            });
+            print('Admin user created.');
+          } catch (e) {
+            if (e.codeName !== 'DuplicateKey' && e.message.indexOf('already exists') === -1) {
+              print('FATAL ERROR: Failed to create user: ' + e.message); quit(1);
+            }
+          }
+        
+          // Authenticate
+          try {
+            adminDb.auth('${{ secrets.EPA_MONGODB_USERNAME }}', '${{ secrets.EPA_MONGODB_PASSWORD }}');
+            print('Phase 3: Successfully authenticated as admin.');
+          } catch (e) {
+            print('FATAL ERROR authenticating: ' + e.message); quit(1);
+          }
+          
           // Overwrite the internal ec2 names with the Cloud Map DNS names
           try {
             let cfg = rs.conf();
@@ -160,22 +182,6 @@ jobs:
             }
           } catch(e) {
             print('FATAL ERROR adding members: ' + e.message); quit(1);
-          }
-        
-          // Create the admin user
-          try {
-            db.getSiblingDB('admin').createUser({
-              user: '${{ secrets.EPA_MONGODB_USERNAME }}',
-              pwd: '${{ secrets.EPA_MONGODB_PASSWORD }}',
-              roles: [ { role: 'root', db: 'admin' } ]
-            });
-            print('SUCCESS_TOKEN: Admin user created.');
-          } catch (e) {
-            if (e.codeName === 'DuplicateKey' || e.message.indexOf('already exists') !== -1) {
-              print('SUCCESS_TOKEN: Admin user already exists.');
-            } else {
-              print('FATAL ERROR: Failed to create user: ' + e.message); quit(1);
-            }
           }
         EOF
         )
