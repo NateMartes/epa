@@ -246,7 +246,7 @@ jobs:
               --interactive \
               --command "sh -c '
                   # Map the container IP to the primary Cloud Map DNS name
-                  echo \"\$(hostname -i) $TARGET_HOSTNAME\" >> /etc/hosts
+                  echo \"\$(hostname -i) $TARGET_PRIVATE_HOSTNAME\" >> /etc/hosts
                   
                   # Decode and run the script
                   echo $B64_SCRIPT | base64 -d > /tmp/init.js
