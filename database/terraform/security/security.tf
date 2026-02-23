@@ -105,6 +105,38 @@ resource "aws_iam_role_policy_attachment" "ecs_efs_access_policy_attachment" {
   policy_arn = aws_iam_policy.ecs_efs_access_policy.arn
 }
 
+# --- For ECS Exec Access ---
+resource "aws_iam_role_policy" "ecs_exec_ssm_policy" {
+  name = "ecs-exec-ssm-and-logging-policy"  
+  role = aws_iam_role.ecs_mongo_task_role.name 
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:DescribeLogGroups",
+          "logs:CreateLogStream",
+          "logs:DescribeLogStreams",
+          "logs:PutLogEvents"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # --- EC2 Instance Role ---
 resource "aws_iam_role" "ecs_node_role" {
   name = "epa-ecs-node-role"
