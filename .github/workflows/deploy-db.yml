@@ -131,8 +131,9 @@ jobs:
           let adminDb = db.getSiblingDB('admin');
           
           // Bootstrap empty to bypass OS hostname validation
+          // Assume we are on the first node (why would we be on any other?)
           try {
-            rs.initiate({_id: '$replica_set_name', members: [{_id: 0, host: 'localhost:27017'}]});
+            rs.initiate({_id: '$replica_set_name', members: [{_id: 0, host: members[0].host}]});
             print('Bootstrap initiated empty.');
           } catch(e) {
             // Replaced !e.message with indexOf to prevent Bash history errors
@@ -149,7 +150,7 @@ jobs:
             attempts++;
           }
         
-        // Create the admin user
+          // Create the admin user
           try {
             adminDb.createUser({
               user: '${{ secrets.EPA_MONGODB_USERNAME }}',
@@ -171,34 +172,6 @@ jobs:
             print('FATAL ERROR authenticating: ' + e.message); quit(1);
           }
           
-          // Dynamically discover the correct Cloud Map DNS name
-          let cfg = rs.conf();
-          let currentInternalHost = cfg.members[0].host; 
-          let myMappedHost = null;
-          
-          print('Current internal node name is: ' + currentInternalHost);
-        
-          for (let i = 0; i < members.length; i++) {
-            print('Testing Cloud Map name: ' + members[i].host);
-            
-            // We update the config with the candidate name
-            cfg.members[0].host = members[i].host;
-            
-            try {
-              rs.reconfig(cfg, { force: true }); 
-              myMappedHost = members[i].host;
-              print('Node accepted Cloud Map DNS -> ' + myMappedHost);
-              break; 
-            } catch(e) {
-              print('Rejected ' + members[i].host + ': ' + e.message);
-              // Reset config for the next attempt in the loop
-              cfg = rs.conf(); 
-            }
-          }
-        
-          if (myMappedHost === null) {
-            print('FATAL ERROR: Node rejected all Cloud Map names in the array.'); quit(1);
-          }
         
           // Add the sibling nodes
           for (let i = 0; i < members.length; i++) {
