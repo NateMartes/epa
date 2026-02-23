@@ -239,7 +239,7 @@ jobs:
         
           echo "Injecting encoded mongosh payload..."
           TARGET_PRIVATE_HOSTNAME=$(echo "$raw_json_members" | jq -r '.[0].host' | cut -d: -f1)
-          EXEC_OUTPUT=$(aws ecs execute-command \
+          EXEC_OUTPUT=$(unbuffer aws ecs execute-command \
               --cluster "$cluster_name" \
               --task "$task_arn" \
               --container "mongo" \
