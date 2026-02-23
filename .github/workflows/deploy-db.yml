@@ -228,12 +228,22 @@ jobs:
           fi
         
           echo "Injecting encoded mongosh payload..."
-          EXEC_OUTPUT=$(unbuffer aws ecs execute-command \
-            --cluster "$cluster_name" \
-            --task "$task_arn" \
-            --container "mongo" \
-            --interactive \
-            --command "sh -c 'echo $B64_SCRIPT | base64 -d > /tmp/init.js && mongosh --quiet /tmp/init.js'" 2>&1)
+          EXEC_OUTPUT=$(aws ecs execute-command \
+              --cluster "$cluster_name" \
+              --task "$task_arn" \
+              --container "mongo" \
+              --interactive \
+              --command "sh -c '
+                # Set IP to private DNS name
+                MY_IP=\$(hostname -i)
+                for host in \$(echo \"$raw_json_members\" | jq -r \".[].host\" | cut -d: -f1); do
+                  echo \"\$MY_IP \$host\" >> /etc/hosts
+                done
+          
+                # Decode and run init script
+                echo $B64_SCRIPT | base64 -d > /tmp/init.js
+                mongosh --quiet /tmp/init.js
+              '" 2>&1)
           
           echo "$EXEC_OUTPUT"
         
