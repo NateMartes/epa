@@ -113,35 +113,55 @@ jobs:
         replica_set_members=$(echo "$raw_json_members" | tr '"' "'")
         
         # Script to setup replica set in mongosh
-        MONGO_INIT_SCRIPT="
-        try {
-            rs.initiate({
-              _id: '${replica_set_name}',
-              members: ${replica_set_members}
-            });
-            print('Github Action: Initiate command sent.');
-          } catch (e) {
-            // Safely ignore if it's already setup, otherwise crash
-            if (e.codeName === 'AlreadyInitialized' || e.message.includes('already')) {
-              print('Github Action: Replica set already initiated.');
-            } else {
-              print('FATAL ERROR: Failed to initiate: ' + e.message);
-              quit(1);
+        MONGO_INIT_SCRIPT=$(cat << EOF
+          let members = ${replica_set_members};
+        
+          // Bootstrap empty to bypass OS hostname validation
+          try {
+            rs.initiate();
+            print('Bootstrap initiated empty.');
+          } catch(e) {
+            // Replaced !e.message with indexOf to prevent Bash history errors
+            if (e.message.indexOf('already') === -1) {
+              print('FATAL ERROR during initiate: ' + e.message); quit(1);
             }
           }
         
-          print('Waiting for node to become PRIMARY...');
+          print('Waiting to become PRIMARY...');
           let attempts = 0;
-          while (!db.hello().isWritablePrimary) {
-            if (attempts > 30) {
-              print('FATAL ERROR: Timeout waiting for PRIMARY election.');
-              quit(1);
-            }
+          while (db.hello().isWritablePrimary === false) {
+            if (attempts > 30) { print('FATAL ERROR: Timeout waiting for PRIMARY election.'); quit(1); }
             sleep(2000);
             attempts++;
           }
-          print('Github Action: Node is now PRIMARY.');
         
+          // Overwrite the internal ec2 names with the Cloud Map DNS names
+          try {
+            let cfg = rs.conf();
+            if (cfg.members[0].host !== members[0].host) {
+              cfg.members[0].host = members[0].host;
+              rs.reconfig(cfg);
+              print('Reconfigured primary to use Cloud Map DNS.');
+            }
+          } catch(e) {
+             print('FATAL ERROR reconfiguring: ' + e.message); quit(1);
+          }
+        
+          // Add the other nodes dynamically
+          try {
+            for (let i = 1; i < members.length; i++) {
+              try {
+                rs.add(members[i].host);
+                print('Invited ' + members[i].host + ' to the cluster.');
+              } catch(addErr) {
+                // rs.add throws an error if the node is already in the cluster
+              }
+            }
+          } catch(e) {
+             print('FATAL ERROR adding members: ' + e.message); quit(1);
+          }
+        
+          // Create the admin user
           try {
             db.getSiblingDB('admin').createUser({
               user: '${{ secrets.EPA_MONGODB_USERNAME }}',
@@ -150,14 +170,14 @@ jobs:
             });
             print('SUCCESS_TOKEN: Admin user created.');
           } catch (e) {
-            if (e.codeName === 'DuplicateKey' || e.message.includes('already exists')) {
+            if (e.codeName === 'DuplicateKey' || e.message.indexOf('already exists') !== -1) {
               print('SUCCESS_TOKEN: Admin user already exists.');
             } else {
-              print('FATAL ERROR: Failed to create user: ' + e.message);
-              quit(1);
+              print('FATAL ERROR: Failed to create user: ' + e.message); quit(1);
             }
           }
-        "
+        EOF
+        )
         
         cluster_name=$(terraform output -raw mongo_db_cluster_name)
         service_name=$(terraform output -raw first_mongodb_service)
@@ -188,7 +208,7 @@ jobs:
             --task "$task_arn" \
             --container "mongo" \
             --interactive \
-            --command "mongosh --quiet --eval \"$MONGO_INIT_SCRIPT\""; then
+            --command "mongosh --eval \"$MONGO_INIT_SCRIPT\""; then
             echo "Replica set established successfully"
             success=1
             break
