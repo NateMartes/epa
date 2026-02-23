@@ -116,7 +116,8 @@ jobs:
         # Script to setup replica set in mongosh
         MONGO_INIT_SCRIPT=$(cat << EOF
           let members = $replica_set_members;
-        
+          let adminDb = db.getSiblingDB('admin');
+          
           // Bootstrap empty to bypass OS hostname validation
           try {
             rs.initiate({_id: '$replica_set_name', members: [{_id: 0, host: 'localhost:27017'}]});
@@ -153,7 +154,7 @@ jobs:
           // Authenticate
           try {
             adminDb.auth('${{ secrets.EPA_MONGODB_USERNAME }}', '${{ secrets.EPA_MONGODB_PASSWORD }}');
-            print('Phase 3: Successfully authenticated as admin.');
+            print('Successfully authenticated as admin.');
           } catch (e) {
             print('FATAL ERROR authenticating: ' + e.message); quit(1);
           }
