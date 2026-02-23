@@ -101,8 +101,7 @@ jobs:
         replica_set_name=$(terraform output -raw replica_set_name)
         dns_namespace=$(terraform output -raw mongo_db_cluster_dns_namespace_name)
         
-        # Generate a valid JSON array of members
-        replica_set_members=$(
+        raw_json_members=$(
           terraform output -json mongo_db_cluster_dns_discovery_service | 
           jq -c --arg suffix "$dns_namespace" 'to_entries | map({
             _id: .key, 
@@ -110,30 +109,54 @@ jobs:
           })'
         )
         
+        # Swap double quotes for single quotes so the shell doesn't strip them
+        replica_set_members=$(echo "$raw_json_members" | tr '"' "'")
+        
         # Script to setup replica set in mongosh
         MONGO_INIT_SCRIPT="
-          try {
+        try {
             rs.initiate({
               _id: '${replica_set_name}',
               members: ${replica_set_members}
             });
             print('Github Action: Initiate command sent.');
           } catch (e) {
-            print('Github Action: Replica set may already be initiated: ' + e.message);
+            // Safely ignore if it's already setup, otherwise crash
+            if (e.codeName === 'AlreadyInitialized' || e.message.includes('already')) {
+              print('Github Action: Replica set already initiated.');
+            } else {
+              print('FATAL ERROR: Failed to initiate: ' + e.message);
+              quit(1);
+            }
           }
         
           print('Waiting for node to become PRIMARY...');
+          let attempts = 0;
           while (!db.hello().isWritablePrimary) {
+            if (attempts > 30) {
+              print('FATAL ERROR: Timeout waiting for PRIMARY election.');
+              quit(1);
+            }
             sleep(2000);
+            attempts++;
           }
-          print('Github Action: Node is now PRIMARY. Creating user...');
+          print('Github Action: Node is now PRIMARY.');
         
-          db.getSiblingDB('admin').createUser({
-            user: '${{ secrets.EPA_MONGODB_USERNAME }}',
-            pwd: '${{ secrets.EPA_MONGODB_PASSWORD }}',
-            roles: [ { role: 'root', db: 'admin' } ]
-          });
-          print('Github Action: Admin user created successfully.');
+          try {
+            db.getSiblingDB('admin').createUser({
+              user: '${{ secrets.EPA_MONGODB_USERNAME }}',
+              pwd: '${{ secrets.EPA_MONGODB_PASSWORD }}',
+              roles: [ { role: 'root', db: 'admin' } ]
+            });
+            print('SUCCESS_TOKEN: Admin user created.');
+          } catch (e) {
+            if (e.codeName === 'DuplicateKey' || e.message.includes('already exists')) {
+              print('SUCCESS_TOKEN: Admin user already exists.');
+            } else {
+              print('FATAL ERROR: Failed to create user: ' + e.message);
+              quit(1);
+            }
+          }
         "
         
         cluster_name=$(terraform output -raw mongo_db_cluster_name)
