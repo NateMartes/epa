@@ -114,7 +114,7 @@ jobs:
         
         # Script to setup replica set in mongosh
         MONGO_INIT_SCRIPT=$(cat << EOF
-          let members = ${replica_set_members};
+          let members = $replica_set_members;
         
           // Bootstrap empty to bypass OS hostname validation
           try {
@@ -178,7 +178,7 @@ jobs:
           }
         EOF
         )
-        
+        B64_SCRIPT=$(echo "$MONGO_INIT_SCRIPT" | base64 -w 0)
         cluster_name=$(terraform output -raw mongo_db_cluster_name)
         service_name=$(terraform output -raw first_mongodb_service)
         
@@ -208,7 +208,7 @@ jobs:
             --task "$task_arn" \
             --container "mongo" \
             --interactive \
-            --command "mongosh --eval \"$MONGO_INIT_SCRIPT\""; then
+            --command "sh -c 'echo $B64_SCRIPT | base64 -d > /tmp/init.js && mongosh /tmp/init.js'" 2>&1); then
             echo "Replica set established successfully"
             success=1
             break
