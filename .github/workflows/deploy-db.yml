@@ -159,30 +159,36 @@ jobs:
             print('FATAL ERROR authenticating: ' + e.message); quit(1);
           }
           
-          // Overwrite the internal ec2 names with the Cloud Map DNS names
-          try {
-            let cfg = rs.conf();
-            if (cfg.members[0].host !== members[0].host) {
-              cfg.members[0].host = members[0].host;
+          // Dynamically discover the correct Cloud Map DNS name
+          let cfg = rs.conf();
+          let myMappedHost = null;
+          
+          for (let i = 0; i < members.length; i++) {
+            cfg.members[0].host = members[i].host;
+            try {
               rs.reconfig(cfg);
-              print('Reconfigured primary to use Cloud Map DNS.');
+              myMappedHost = members[i].host;
+              print('Node recognized its own Cloud Map DNS -> ' + myMappedHost);
+              break;
+            } catch(e) {
+              // This Cloud Map name belongs to a sibling.
             }
-          } catch(e) {
-            print('FATAL ERROR reconfiguring: ' + e.message); quit(1);
           }
         
-          // Add the other nodes dynamically
-          try {
-            for (let i = 1; i < members.length; i++) {
+          if (myMappedHost === null) {
+            print('FATAL ERROR: Node rejected all Cloud Map names in the array.'); quit(1);
+          }
+        
+          // Add the sibling nodes
+          for (let i = 0; i < members.length; i++) {
+            if (members[i].host !== myMappedHost) {
               try {
                 rs.add(members[i].host);
-                print('Invited ' + members[i].host + ' to the cluster.');
+                print('Invited sibling ' + members[i].host + ' to the cluster.');
               } catch(addErr) {
-                // rs.add throws an error if the node is already in the cluster
+                // Ignore errors if the sibling is already in the cluster
               }
             }
-          } catch(e) {
-            print('FATAL ERROR adding members: ' + e.message); quit(1);
           }
         EOF
         )
