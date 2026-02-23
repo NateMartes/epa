@@ -181,8 +181,8 @@ jobs:
         fi
         
     - name: Install Dependencies
-      working-directory: ${{ env.CONFIG_DIRECTORY }}
-      run: pip install -r ./database/requirements.txt
+      working-directory: ./database
+      run: pip install -r ./requirements.txt
       
     - name: Init Database and Collections
       working-directory: ${{ env.CONFIG_DIRECTORY }}   
@@ -197,6 +197,7 @@ jobs:
           export EPA_MONGODB_SESSION_TOKEN_COLLECTION=${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }}
           export EPA_MONGODB_POSTS_COLLECTION=${{ vars.EPA_MONGODB_POSTS_COLLECTION }}
           export EPA_MONGODB_CATEGORIES_COLLECTION=${{ vars.EPA_MONGODB_CATEGORIES_COLLECTION }}
+          
           cd ../
           
           python3 init.py
