@@ -119,7 +119,7 @@ jobs:
         
           // Bootstrap empty to bypass OS hostname validation
           try {
-            rs.initiate();
+            rs.initiate({'_id': $replica_set_name, members: [{_id: 0, host: 'localhost:27017'}]);
             print('Bootstrap initiated empty.');
           } catch(e) {
             // Replaced !e.message with indexOf to prevent Bash history errors
