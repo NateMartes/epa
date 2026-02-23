@@ -97,8 +97,8 @@ jobs:
       working-directory: ${{ env.CONFIG_DIRECTORY }}
       run: |
         
-        apt install -y jq
-        apt install -y expect # For ECS Exec
+        sudo apt install -y jq
+        sudo apt install -y expect # For ECS Exec
         replica_set_name=$(terraform output -raw replica_set_name)
         dns_namespace=$(terraform output -raw mongo_db_cluster_dns_namespace_name)
         
