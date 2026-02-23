@@ -134,10 +134,10 @@ jobs:
           // Assume we are on the first node (why would we be on any other?)
           try {
             rs.initiate({_id: '$replica_set_name', members: [{_id: 0, host: members[0].host}]});
-            print('Bootstrap initiated empty.');
+            print('Created inital replica set');
           } catch(e) {
             // Replaced !e.message with indexOf to prevent Bash history errors
-            if (e.message.indexOf('already') === -1) {
+            if (e.message.indexOf('already') === -1 && e.message.indexOf('authentication')) {
               print('FATAL ERROR during initiate: ' + e.message); quit(1);
             }
           }
