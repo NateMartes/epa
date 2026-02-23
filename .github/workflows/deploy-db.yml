@@ -117,6 +117,16 @@ jobs:
         
         # Script to setup replica set in mongosh
         MONGO_INIT_SCRIPT=$(cat << EOF
+        
+          // DEBUG
+          const fs = require('fs');
+          try {
+            const data = fs.readFileSync('/etc/hosts', 'utf8');
+            console.log(data);
+          } catch (err) {
+            console.error(err);
+          }
+          
           let members = $replica_set_members;
           let adminDb = db.getSiblingDB('admin');
           
@@ -228,22 +238,20 @@ jobs:
           fi
         
           echo "Injecting encoded mongosh payload..."
+          TARGET_PRIVATE_HOSTNAME=$(echo "$raw_json_members" | jq -r '.[0].host' | cut -d: -f1)
           EXEC_OUTPUT=$(aws ecs execute-command \
               --cluster "$cluster_name" \
               --task "$task_arn" \
               --container "mongo" \
               --interactive \
               --command "sh -c '
-                # Set IP to private DNS name
-                MY_IP=\$(hostname -i)
-                for host in \$(echo \"$raw_json_members\" | jq -r \".[].host\" | cut -d: -f1); do
-                  echo \"\$MY_IP \$host\" >> /etc/hosts
-                done
-          
-                # Decode and run init script
-                echo $B64_SCRIPT | base64 -d > /tmp/init.js
-                mongosh --quiet /tmp/init.js
-              '" 2>&1)
+                  # Map the container IP to the primary Cloud Map DNS name
+                  echo \"\$(hostname -i) $TARGET_HOSTNAME\" >> /etc/hosts
+                  
+                  # Decode and run the script
+                  echo $B64_SCRIPT | base64 -d > /tmp/init.js
+                  mongosh --quiet /tmp/init.js
+                '" 2>&1)
           
           echo "$EXEC_OUTPUT"
         
