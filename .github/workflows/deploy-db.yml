@@ -113,6 +113,8 @@ jobs:
         # Swap double quotes for single quotes so the shell doesn't strip them
         replica_set_members=$(echo "$raw_json_members" | tr '"' "'")
         
+        echo "Generated members are: $replica_set_members"
+        
         # Script to setup replica set in mongosh
         MONGO_INIT_SCRIPT=$(cat << EOF
           let members = $replica_set_members;
@@ -161,19 +163,28 @@ jobs:
           
           // Dynamically discover the correct Cloud Map DNS name
           let cfg = rs.conf();
-          let myMappedHost = null;
+            let currentInternalHost = cfg.members[0].host; 
+            let myMappedHost = null;
+            
+            print('Current internal node name is: ' + currentInternalHost);
           
-          for (let i = 0; i < members.length; i++) {
-            cfg.members[0].host = members[i].host;
-            try {
-              rs.reconfig(cfg);
-              myMappedHost = members[i].host;
-              print('Node recognized its own Cloud Map DNS -> ' + myMappedHost);
-              break;
-            } catch(e) {
-              // This Cloud Map name belongs to a sibling.
+            for (let i = 0; i < members.length; i++) {
+              print('Testing Cloud Map name: ' + members[i].host);
+              
+              // We update the config with the candidate name
+              cfg.members[0].host = members[i].host;
+              
+              try {
+                rs.reconfig(cfg, { force: true }); 
+                myMappedHost = members[i].host;
+                print('Node accepted Cloud Map DNS -> ' + myMappedHost);
+                break; 
+              } catch(e) {
+                print('Rejected ' + members[i].host + ': ' + e.message);
+                // Reset config for the next attempt in the loop
+                cfg = rs.conf(); 
+              }
             }
-          }
         
           if (myMappedHost === null) {
             print('FATAL ERROR: Node rejected all Cloud Map names in the array.'); quit(1);
