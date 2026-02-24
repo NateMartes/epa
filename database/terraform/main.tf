@@ -2,7 +2,6 @@ provider "aws" {
   region = "us-east-1"
 }
 
-
 variable node_count {default = 3}
 variable replica_set_name {default = "prodReplicaSet"}
 
@@ -20,7 +19,6 @@ module security {
   replica_set_key = module.compute.replica_set_key
 }
 
-variable "replica_set_name" { default = "prodReplicaSet" }
 module compute {
   source = "./compute"
   subnet = module.networking.subnet

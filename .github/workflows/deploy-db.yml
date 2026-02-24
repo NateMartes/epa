@@ -118,72 +118,81 @@ jobs:
         # Script to setup replica set in mongosh
         MONGO_INIT_SCRIPT=$(cat << EOF
         
-          // DEBUG
-          const fs = require('fs');
-          try {
-            const data = fs.readFileSync('/etc/hosts', 'utf8');
-            console.log(data);
-          } catch (err) {
-            console.error(err);
+        // Try to authenticate with admin login
+        let adminDb = db.getSiblingDB('admin');
+        try {
+          // Use a variable to check if auth works
+          let isAuthed = adminDb.auth('${{ secrets.EPA_MONGODB_USERNAME }}', '${{ secrets.EPA_MONGODB_PASSWORD }}');
+          if (isAuthed) {
+            print('SUCCESS_TOKEN: Already authenticated as admin, skipping setup.');
+            quit();
           }
-          
-          let members = $replica_set_members;
-          let adminDb = db.getSiblingDB('admin');
-          
-          // Bootstrap empty to bypass OS hostname validation
-          // Assume we are on the first node (why would we be on any other?)
-          try {
-            rs.initiate({_id: '$replica_set_name', members: [{_id: 0, host: members[0].host}]});
-            print('Created inital replica set');
-          } catch(e) {
-            // Replaced !e.message with indexOf to prevent Bash history errors
-            if (e.message.indexOf('already') === -1 && e.message.indexOf('authentication')) {
-              print('FATAL ERROR during initiate: ' + e.message); quit(1);
-            }
-          }
+        } catch (e) {
+          print('Not authenticated yet, proceeding with setup...');
+        }
         
-          print('Waiting to become PRIMARY...');
-          let attempts = 0;
-          while (db.hello().isWritablePrimary === false) {
-            if (attempts > 30) { print('FATAL ERROR: Timeout waiting for PRIMARY election.'); quit(1); }
-            sleep(2000);
-            attempts++;
-          }
+        let members = $replica_set_members;
         
-          // Create the admin user
+        // Bootstrap with the first member
+        try {
+          rs.initiate({
+            _id: '$replica_set_name', 
+            members: [{ _id: 0, host: members[0].host }]
+          });
+          print('Created initial replica set');
+        } catch(e) {
+          if (e.message.indexOf('already') === -1 && e.message.indexOf('auth') === -1) {
+            print('FATAL ERROR during initiate: ' + e.message); 
+            quit(1);
+          }
+        }
+        
+        print('Waiting to become PRIMARY...');
+        let attempts = 0;
+        while (db.hello().isWritablePrimary === false) {
+          if (attempts > 30) { 
+            print('FATAL ERROR: Timeout waiting for PRIMARY election.'); 
+            quit(1); 
+          }
+          sleep(2000);
+          attempts++;
+        }
+        
+        // Create the admin user
+        try {
+          adminDb.createUser({
+            user: '${{ secrets.EPA_MONGODB_USERNAME }}',
+            pwd: '${{ secrets.EPA_MONGODB_PASSWORD }}',
+            roles: [ { role: 'root', db: 'admin' } ]
+          });
+          print('Admin user created.');
+        } catch (e) {
+          if (e.codeName !== 'DuplicateKey' && e.message.indexOf('already exists') === -1) {
+            print('FATAL ERROR: Failed to create user: ' + e.message); 
+            quit(1);
+          }
+        }
+        
+        // Authenticate to add remaining nodes
+        try {
+          adminDb.auth('${{ secrets.EPA_MONGODB_USERNAME }}', '${{ secrets.EPA_MONGODB_PASSWORD }}');
+          print('Successfully authenticated as admin.');
+        } catch (e) {
+          print('FATAL ERROR authenticating: ' + e.message); 
+          quit(1);
+        }
+        
+        // Add the sibling nodes
+        for (let i = 1; i < members.length; i++) {
           try {
-            adminDb.createUser({
-              user: '${{ secrets.EPA_MONGODB_USERNAME }}',
-              pwd: '${{ secrets.EPA_MONGODB_PASSWORD }}',
-              roles: [ { role: 'root', db: 'admin' } ]
-            });
-            print('Admin user created.');
-          } catch (e) {
-            if (e.codeName !== 'DuplicateKey' && e.message.indexOf('already exists') === -1) {
-              print('FATAL ERROR: Failed to create user: ' + e.message); quit(1);
-            }
+            rs.add(members[i].host);
+            print('Invited sibling ' + members[i].host + ' to the cluster.');
+          } catch(addErr) {
+            // Already in cluster or other non-fatal error
           }
+        }
         
-          // Authenticate
-          try {
-            adminDb.auth('${{ secrets.EPA_MONGODB_USERNAME }}', '${{ secrets.EPA_MONGODB_PASSWORD }}');
-            print('Successfully authenticated as admin.');
-          } catch (e) {
-            print('FATAL ERROR authenticating: ' + e.message); quit(1);
-          }
-          
-        
-          // Add the sibling nodes
-          for (let i = 0; i < members.length; i++) {
-            if (members[i].host !== myMappedHost) {
-              try {
-                rs.add(members[i].host);
-                print('Invited sibling ' + members[i].host + ' to the cluster.');
-              } catch(addErr) {
-                // Ignore errors if the sibling is already in the cluster
-              }
-            }
-          }
+        print(\`SUCCESS_TOKEN: MongoDB Replica Set $replica_set_name created with \${members.length} nodes\`);
         EOF
         )
         
@@ -219,7 +228,7 @@ jobs:
               --command "sh -c '
                   echo $B64_SCRIPT | base64 -d > /tmp/init.js
                   mongosh --quiet /tmp/init.js
-                '" 2>&1)
+                '" 2>&1) || true
           
           echo "$EXEC_OUTPUT"
         

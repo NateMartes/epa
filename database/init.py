@@ -119,7 +119,7 @@ def main(is_replica_set = False, replica_set_name = "", nodes = []):
     with open("config.json", "r") as file:
         config_file = json.loads(file.read())
         
-    uri = f"mongodb://{username}:{password}@{hostname}:{port}/"
+    uri = f"mongodb://{username}:{password}@{hostname}:{port}/?directConnection=true"
     client = pymongo.MongoClient(uri, serverSelectionTimeoutMS=2000)
     
     tries = 10
@@ -191,7 +191,7 @@ if __name__ == "__main__":
         
     nodes_split = args.nodes.split(",")
     main(
-        is_replica_set=True,
+        is_replica_set=args.is_replica_set,
         replica_set_name=args.replica_set_name, 
         nodes=nodes_split
     )
