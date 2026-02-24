@@ -158,7 +158,7 @@ resource "aws_route53_zone" "mongo_cluster" {
   name = "epa-mongodb-cluster"
 
   vpc {
-    vpc_id = aws_vpc.mongo_vpc
+    vpc_id = aws_vpc.mongo_vpc.id
   }
 }
 
