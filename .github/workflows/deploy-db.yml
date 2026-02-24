@@ -117,15 +117,6 @@ jobs:
         
         # Script to setup replica set in mongosh
         MONGO_INIT_SCRIPT=$(cat << EOF
-        
-          // DEBUG
-          const fs = require('fs');
-          try {
-            const data = fs.readFileSync('/etc/hosts', 'utf8');
-            console.log(data);
-          } catch (err) {
-            console.error(err);
-          }
           
           let members = $replica_set_members;
           let adminDb = db.getSiblingDB('admin');
@@ -172,16 +163,13 @@ jobs:
             print('FATAL ERROR authenticating: ' + e.message); quit(1);
           }
           
-        
           // Add the sibling nodes
           for (let i = 0; i < members.length; i++) {
-            if (members[i].host !== myMappedHost) {
-              try {
-                rs.add(members[i].host);
-                print('Invited sibling ' + members[i].host + ' to the cluster.');
-              } catch(addErr) {
-                // Ignore errors if the sibling is already in the cluster
-              }
+            try {
+              rs.add(members[i].host);
+              print('Invited sibling ' + members[i].host + ' to the cluster.');
+            } catch(addErr) {
+              // Ignore errors if the sibling is already in the cluster
             }
           }
         EOF
@@ -220,7 +208,7 @@ jobs:
               --command "sh -c '
                   echo $B64_SCRIPT | base64 -d > /tmp/init.js
                   mongosh --quiet /tmp/init.js
-                '" 2>&1)
+                '" 2>&1) || true
           
           echo "$EXEC_OUTPUT"
         
