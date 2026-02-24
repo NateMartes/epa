@@ -210,8 +210,7 @@ jobs:
             continue
           fi
         
-          echo "Injecting encoded mongosh payload..."
-          TARGET_PRIVATE_HOSTNAME=$(echo "$raw_json_members" | jq -r '.[0].host' | cut -d: -f1)
+          echo "Running Init Replica Set Script..."
           EXEC_OUTPUT=$(unbuffer aws ecs execute-command \
               --cluster "$cluster_name" \
               --task "$task_arn" \

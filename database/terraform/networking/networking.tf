@@ -152,3 +152,36 @@ resource "aws_service_discovery_service" "mongo_discovery_service" {
     }
   }
 }
+
+# --- DNS Setup for MongoDB SRV and TXT records (needed for clustering) ---
+resource "aws_route53_zone" "mongo_cluster" {
+  name = "epa-mongodb-cluster"
+
+  vpc {
+    vpc_id = aws_vpc.mongo_vpc
+  }
+}
+
+# Replica set txt record
+variable replica_set_name {}
+resource "aws_route53_record" "mongo_txt" {
+  zone_id = aws_route53_zone.mongo_cluster.zone_id
+  name    = "epa-mongodb-cluster"
+  type    = "TXT"
+  ttl     = 300
+  
+  records = ["\"authSource=admin&replicaSet=${var.replica_set_name}\""]
+}
+
+# SRV record for mongodb+srv://
+variable node_count {}
+resource "aws_route53_record" "mongo_srv" {
+  zone_id = aws_route53_zone.mongo_cluster.zone_id
+  name    = "_mongodb._tcp.epa-mongodb-cluster"
+  type    = "SRV"
+  ttl     = 300
+
+  records = [
+    for i in range(var.node_count) : "0 0 27017 mongodb-${i}.${aws_service_discovery_private_dns_namespace.mongo_monitoring.name}"
+  ]
+}
