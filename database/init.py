@@ -119,7 +119,7 @@ def main(is_replica_set = False, replica_set_name = "", nodes = []):
     with open("config.json", "r") as file:
         config_file = json.loads(file.read())
         
-    uri = f"mongodb://{username}:{password}@{hostname}:{port}/"
+    uri = f"mongodb://{username}:{password}@{hostname}:{port}/?directConnection=true"
     client = pymongo.MongoClient(uri, serverSelectionTimeoutMS=2000)
     
     tries = 10
