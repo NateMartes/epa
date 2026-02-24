@@ -152,3 +152,35 @@ resource "aws_service_discovery_service" "mongo_discovery_service" {
     }
   }
 }
+
+# --- The MongoDB Seed List (So that clients can find cluster nodes) ---
+variable epa_mongo_db_cluster_name {}
+variable node_count {}
+resource "aws_route53_record" "mongo_srv" {
+  zone_id = aws_service_discovery_private_dns_namespace.mongo_monitoring.hosted_zone
+  
+  # Format: _mongodb._tcp.<clustername>.<domain>
+  name    = "_mongodb._tcp.${var.epa_mongo_db_cluster_name}.${aws_service_discovery_private_dns_namespace.mongo_monitoring.name}"
+  type    = "SRV"
+  ttl     = 60
+
+  # Format: [Priority] [Weight] [Port] [Target]
+  records = [
+    for i in range(var.node_count) : "0 0 27017 mongodb-${i}.${aws_service_discovery_private_dns_namespace.mongo_monitoring.name}"
+  ]
+  
+  depends_on = [aws_service_discovery_service.mongo_discovery_service]
+}
+
+# TXT Record for Replica Set Configuration
+variable replica_set_name {}
+resource "aws_route53_record" "mongo_txt" {
+  zone_id = aws_service_discovery_private_dns_namespace.mongo_monitoring.hosted_zone
+  
+  # Must match the <clustername>.<domain> from the SRV record
+  name    = "${var.epa_mongo_db_cluster_name}.${aws_service_discovery_private_dns_namespace.mongo_monitoring.name}"
+  type    = "TXT"
+  ttl     = 60
+
+  records = ["\"replicaSet=${var.replica_set_name}&authSource=admin\""]
+}
