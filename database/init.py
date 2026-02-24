@@ -191,7 +191,7 @@ if __name__ == "__main__":
         
     nodes_split = args.nodes.split(",")
     main(
-        is_replica_set=True,
+        is_replica_set=args.is_replica_set,
         replica_set_name=args.replica_set_name, 
         nodes=nodes_split
     )
