@@ -12,7 +12,8 @@ data "aws_iam_policy_document" "ecs_task_execution_role_policy" {
   }
 }
 
-# --- Allow access to MongoDB password for ECS ---
+# --- Allow access to MongoDB password and replica set key for ECS ---
+variable replica_set_key { sensitive = true }
 variable mongodb_secret_password { sensitive = true }
 resource "aws_iam_policy" "ecs_ssm_parameter_access" {
   name        = "ssm_parameter_access"
@@ -29,7 +30,10 @@ resource "aws_iam_policy" "ecs_ssm_parameter_access" {
           "ssm:GetParametersByPath",
           "kms:Decrypt"
         ]
-        Resource = var.mongodb_secret_password.arn
+        Resource = [
+          var.mongodb_secret_password.arn,
+          var.replica_set_key.arn
+        ]
       }
     ]
   })
@@ -43,6 +47,11 @@ resource "aws_iam_role" "ecs_task_execution_role" {
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_node_ssm_policy" {
+  role       = aws_iam_role.ecs_node_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_ssm_access_policy" {
@@ -94,6 +103,61 @@ resource "aws_iam_role" "ecs_mongo_task_role" {
 resource "aws_iam_role_policy_attachment" "ecs_efs_access_policy_attachment" {
   role       = aws_iam_role.ecs_mongo_task_role.name
   policy_arn = aws_iam_policy.ecs_efs_access_policy.arn
+}
+
+# --- For ECS Exec Access ---
+resource "aws_iam_role_policy" "ecs_exec_ssm_policy" {
+  name = "ecs-exec-ssm-and-logging-policy"  
+  role = aws_iam_role.ecs_mongo_task_role.name 
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:DescribeLogGroups",
+          "logs:CreateLogStream",
+          "logs:DescribeLogStreams",
+          "logs:PutLogEvents"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# --- EC2 Instance Role ---
+resource "aws_iam_role" "ecs_node_role" {
+  name = "epa-ecs-node-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_node_role_policy" {
+  role       = aws_iam_role.ecs_node_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role" 
+}
+
+resource "aws_iam_instance_profile" "ecs_node_profile" {
+  name = "epa-ecs-node-profile"
+  role = aws_iam_role.ecs_node_role.name
 }
 
 # --- Security Groups ---
