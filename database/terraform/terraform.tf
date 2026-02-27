@@ -8,7 +8,7 @@ terraform {
   cloud {
       organization = "epa-terraform"
       workspaces {
-        name = "terraform-github-actions"
+        name = "terraform-github-actions-database"
       }
     }
   required_version = ">= 1.2"
