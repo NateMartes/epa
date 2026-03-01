@@ -188,6 +188,10 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
         {
           name  = "KAFKA_LOG_DIRS",
           value = "/kafka-data"
+        },
+        {
+          name  = "KAFKA_REGISTRATION_TIMEOUT_MS"
+          value = 60000
         }
       ],
       healthCheck = {
