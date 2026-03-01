@@ -60,3 +60,7 @@ for GROUP in "${TARGET_GROUPS[@]}"; do
 done
 
 echo "Done."
+
+if [[ $is_running -eq 0 ]]; then
+    wait $PID
+fi

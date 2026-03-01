@@ -2,6 +2,8 @@ services:
   epa_kakfa_broker:
     build:
       context: .
+      args:
+        EPA_KAFKA_ADMIN_PASSWORD: ${EPA_KAFKA_ADMIN_PASSWORD}
     container_name: epa_kakfa_broker
     hostname: epa-kafka-broker
     ports:
@@ -10,9 +12,11 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://epa-kafka-broker:9092,EXTERNAL://localhost:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,EXTERNAL://localhost:9094
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT # All are plaintext since no security in testing
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:SASL_PLAINTEXT # All are plaintext since no security in testing
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_OPTS: -Djava.security.auth.login.config=/opt/kafka/config/jaas.conf
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@epa-kafka-broker:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
