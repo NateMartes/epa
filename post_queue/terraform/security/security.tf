@@ -154,8 +154,8 @@ resource "aws_security_group" "kafka_ecs_tasks_sg" {
   vpc_id      = var.vpc.id
   
   ingress {
-    from_port       = 9092
-    to_port         = 9092
+    from_port       = 9093
+    to_port         = 9093
     protocol        = "tcp"
     
     # This should be changed to the CIDR block of a VPC for production
@@ -170,16 +170,6 @@ resource "aws_security_group" "kafka_ecs_tasks_sg" {
   tags = {
     Name = "kafka-ecs-tasks-sg"
   }
-}
-
-resource "aws_security_group_rule" "kafka_internal_communication_9093" {
-  type                     = "ingress"
-  from_port                = 9093
-  to_port                  = 9093
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.kafka_ecs_tasks_sg.id
-  source_security_group_id = aws_security_group.kafka_ecs_tasks_sg.id
-  description              = "Allow Kafka KRaft internal controller traffic"
 }
 
 resource "aws_security_group_rule" "kafka_external_communication_9094" {

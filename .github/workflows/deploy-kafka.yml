@@ -137,7 +137,7 @@ jobs:
                   chmod +x /tmp/init.sh
                   
                   # Run
-                  /tmp/init.sh --is-started --broker localhost --port 9092
+                  /tmp/init.sh --is-started
                   
                   # Finish
                   echo SUCCESS_TOKEN: Kafka initialized

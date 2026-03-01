@@ -71,6 +71,9 @@ variable kafka_dns_namespace {}
 variable kafka_discovery_service {}
 variable ecs_task_execution_role {}
 variable ecs_kafka_task_role {}
+variable kafka_admin_password { sensitive = true }
+variable kafka_producer_password { sensitive = true }
+variable kafka_consumer_password { sensitive = true }
 resource "random_uuid" "cluster_id" {}
 resource "aws_ecs_task_definition" "kafka_task_definition" {
   count                    = var.node_count
@@ -92,7 +95,22 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
       command = [
               "sh", 
               "-c",
-              "echo 'Waiting for DNS...' && sleep 60 && /etc/kafka/docker/run"
+              <<-EOT
+              echo 'Waiting for DNS...'
+              sleep 60
+              
+              echo 'Generating jaas.config file...'
+              cat <<EOF > /opt/kafka/config/jaas.conf
+              KafkaServer {
+                  org.apache.kafka.common.security.plain.PlainLoginModule required
+                  user_admin=\"${var.kafka_admin_password}\"
+                  user_post_producer=\"${var.kafka_producer_password}\"
+                  user_post_consumer=\"${var.kafka_consumer_password}\";
+              };
+              EOF
+              
+              /etc/kafka/docker/run
+              EOT
       ]
       portMappings = [
         {
@@ -137,11 +155,27 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
         },
         {
           name  = "KAFKA_CFG_ADVERTISED_LISTENERS"
-          value = "PLAINTEXT://${var.kafka_discovery_service[count.index].name}.${var.kafka_dns_namespace.name}:9092,EXTERNAL://${var.kafka_discovery_service[count.index].name}.${var.kafka_dns_namespace.name}:9094"
+          value = "PLAINTEXT://localhost:9092,EXTERNAL://${var.kafka_discovery_service[count.index].name}.${var.kafka_dns_namespace.name}:9094"
+        },
+        {
+          name = "KAFKA_SASL_ENABLED_MECHANISMS"
+          value = "PLAIN"
+        },
+        {
+          name = "KAFKA_SUPER_USERS"
+          value = "User:ANONYMOUS;User:admin"
+        },
+        {
+          name = "KAFKA_AUTHORIZER_CLASS_NAME"
+          value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+        },
+        {
+          name = "KAFKA_OPTS"
+          value = "-Djava.security.auth.login.config=/opt/kafka/config/jaas.conf"
         },
         {
           name  = "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"
-          value = "CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+          value = "CONTROLLER:PLAINTEXT,EXTERNAL:SASL_PLAINTEXT,PLAINTEXT:PLAINTEXT"
         },
         {
           name  = "KAFKA_CONTROLLER_LISTENER_NAMES"
