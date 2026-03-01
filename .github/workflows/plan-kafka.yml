@@ -1,4 +1,4 @@
-name: "Terraform Plan Database"
+name: "Terraform Plan Kafka"
 
 on:
   pull_request:
@@ -9,15 +9,15 @@ jobs:
   terraform-plan:
     if: github.event.pull_request.head.repo.full_name == github.repository
     
-    name: "Terraform Plan Database"
+    name: "Terraform Plan Kafka"
     runs-on: ubuntu-latest
     environment: development
     
     env:
       TF_CLOUD_ORGANIZATION: "epa-terraform"
       TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
-      TF_WORKSPACE: "terraform-github-actions-database"
-      CONFIG_DIRECTORY: "./database/terraform"
+      TF_WORKSPACE: "terraform-github-actions-kafka"
+      CONFIG_DIRECTORY: "./post_queue/terraform"
 
     permissions:
       # so GitHub can check out this repo using the default github.token
@@ -66,7 +66,7 @@ jobs:
             });
             const output = `#### Terraform Cloud Plan Output
                \`\`\`
-               Database Plan: ${{ steps.plan-output.outputs.add }} to add, ${{ steps.plan-output.outputs.change }} to change, ${{ steps.plan-output.outputs.destroy }} to destroy.
+               Kafka Plan: ${{ steps.plan-output.outputs.add }} to add, ${{ steps.plan-output.outputs.change }} to change, ${{ steps.plan-output.outputs.destroy }} to destroy.
                \`\`\`
                [Terraform Cloud Plan](${{ steps.plan-run.outputs.run_link }})
                `;
