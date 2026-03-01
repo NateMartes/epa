@@ -16,4 +16,4 @@ RUN sed -i "s/user_post_consumer=\"\"/user_post_consumer=\"${EPA_KAFKA_CONSUMER_
 
 USER 1000
 
-CMD ["./init.sh", "--broker", "epa-kafka-broker", "--port", "9092"]
+CMD ["./init.sh"]
