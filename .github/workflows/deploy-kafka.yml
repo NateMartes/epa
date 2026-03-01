@@ -140,14 +140,14 @@ jobs:
                   /tmp/init.sh --is-started --broker localhost --port 9092
                   
                   # Finish
-                  echo SUCCESS_TOKEN: Database initialized
+                  echo SUCCESS_TOKEN: Kafka initialized
                   '" 2>&1) || true
             
             echo "$EXEC_OUTPUT"
           
             # Validate the actual container output
             if echo "$EXEC_OUTPUT" | grep -q "SUCCESS_TOKEN"; then
-              echo "Database initialize successfully"
+              echo "Kafka initialize successfully"
               success=1
               break
             elif echo "$EXEC_OUTPUT"; then
