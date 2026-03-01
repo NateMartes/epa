@@ -96,8 +96,8 @@ jobs:
           sudo apt install -y expect
 
           # Get variables for ecs command
-          cluster_name=$(terraform output -raw terraform output -raw kafka_cluster_name)
-          service_name=$(terraform output -raw terraform output -raw first_kafka_service)
+          cluster_name=$(terraform output -raw kafka_cluster_name)
+          service_name=$(terraform output -raw first_kafka_service)
           
           # Move to ./post_queue
           cd ../
