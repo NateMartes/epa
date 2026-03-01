@@ -49,14 +49,22 @@ if [[ $is_running -eq 0 ]]; then
     done
 fi
 
+echo "Adding ACL rules..."
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server $broker:$port --add --operation Write --topic $TOPIC --allow-principal User:post_producer
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server $broker:$port --add --operation Read --topic $TOPIC --allow-principal User:post_consumer
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server $broker:$port --add --operation Describe \
+--topic $TOPIC \
+--allow-principal User:post_producer \
+--allow-principal User:post_consumer
+
 echo "Creating needed topic..."
-/opt/kafka/bin/kafka-topics.sh --create --topic new_posts --bootstrap-server $broker:$port
+/opt/kafka/bin/kafka-topics.sh --create --topic new_posts --bootstrap-server localhost:9092
 echo "Done."
 
 echo "Creating Kafka Consumer Groups..."
 for GROUP in "${TARGET_GROUPS[@]}"; do
   echo "Starting consumer for group: $GROUP"
-  /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server $broker:$port --topic $TOPIC --group $GROUP &
+  /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic $TOPIC --group $GROUP &
 done
 
 echo "Done."
