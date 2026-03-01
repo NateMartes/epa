@@ -1,17 +1,15 @@
 #!/bin/bash
 # Init script for Kakfa broker Docker Container
-# usage: init [--is-started | -s] [--broker | -b] myhostname [--port | -p] myport --
+# usage: init [--is-started | -s] --
 
 
-OPTIONS=$(getopt -o sb:p: --long is-started,broker:,port: -n 'init' -- "$@")
+OPTIONS=$(getopt -o s --long is-started -n 'init' -- "$@")
 eval set -- "$OPTIONS"
 
 TOPIC="new_posts"
 TARGET_GROUPS=("cache_loader_consumer_group" "post_ingestor_consumer_group" "notify_service_consumer_group")
 
 is_running=0
-broker=""
-port=""
 while true; do
     echo $1
     case "$1" in
@@ -19,20 +17,12 @@ while true; do
             is_running=1
             shift 1
             ;;
-        -b|--broker)
-            broker=$2
-            shift 2
-            ;;
-        -p|--port)
-            port=$2
-            shift 2
-            ;;
         --)
             shift
             break
             ;;
         *)
-            echo "usage: init [--is-started | -s] [--broker | -b] myhostname [--port | -p] myport" >&2
+            echo "usage: init [--is-started | -s] --" >&2
             exit 1
             ;;
     esac
@@ -50,9 +40,9 @@ if [[ $is_running -eq 0 ]]; then
 fi
 
 echo "Adding ACL rules..."
-/opt/kafka/bin/kafka-acls.sh --bootstrap-server $broker:$port --add --operation Write --topic $TOPIC --allow-principal User:post_producer
-/opt/kafka/bin/kafka-acls.sh --bootstrap-server $broker:$port --add --operation Read --topic $TOPIC --allow-principal User:post_consumer
-/opt/kafka/bin/kafka-acls.sh --bootstrap-server $broker:$port --add --operation Describe \
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server localhost:9092 --add --operation Write --topic $TOPIC --allow-principal User:post_producer
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server localhost:9092 --add --operation Read --topic $TOPIC --allow-principal User:post_consumer
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server localhost:9092 --add --operation Describe \
 --topic $TOPIC \
 --allow-principal User:post_producer \
 --allow-principal User:post_consumer
