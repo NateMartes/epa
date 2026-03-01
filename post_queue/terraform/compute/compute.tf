@@ -96,20 +96,20 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
               "sh", 
               "-c",
               <<-EOT
-              echo 'Waiting for DNS...'
-              sleep 60
-              
-              echo 'Generating jaas.config file...'
-              cat <<EOF > /opt/kafka/config/jaas.conf
-              KafkaServer {
-                  org.apache.kafka.common.security.plain.PlainLoginModule required
-                  user_admin=\"${var.kafka_admin_password}\"
-                  user_post_producer=\"${var.kafka_producer_password}\"
-                  user_post_consumer=\"${var.kafka_consumer_password}\";
-              };
-              EOF
-              
-              /etc/kafka/docker/run
+                echo 'Waiting for DNS...'
+                sleep 60
+                
+                echo 'Generating jaas.config file...'
+                cat <<EOF > /opt/kafka/config/jaas.conf
+                KafkaServer {
+                    org.apache.kafka.common.security.plain.PlainLoginModule required
+                    user_admin="${var.kafka_admin_password}"
+                    user_post_producer="${var.kafka_producer_password}"
+                    user_post_consumer="${var.kafka_consumer_password}";
+                };
+                EOF
+                
+                /etc/kafka/docker/run
               EOT
       ]
       portMappings = [
@@ -201,7 +201,7 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
         ],
         interval    = 30,
         timeout     = 15,
-        retries     = 3,
+        retries     = 10,
         startPeriod = 120
       },
       logConfiguration = {
