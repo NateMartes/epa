@@ -105,6 +105,7 @@ resource "aws_ssm_parameter" "kafka_consumer_password_ssm" {
   }
 }
 resource "random_uuid" "cluster_id" {}
+variable kafka_lb_name {}
 resource "aws_ecs_task_definition" "kafka_task_definition" {
   count                    = var.node_count
   family                   = "kafka-node${count.index}"
@@ -184,8 +185,8 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
           value = "PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094"
         },
         {
-          name  = "KAFKA_CFG_ADVERTISED_LISTENERS"
-          value = "PLAINTEXT://localhost:9092,EXTERNAL://${var.kafka_discovery_service[count.index].name}.${var.kafka_dns_namespace.name}:9094"
+          name  = "KAFKA_ADVERTISED_LISTENERS"
+          value = "PLAINTEXT://localhost:9092,EXTERNAL://${var.kafka_lb_name}:9094"
         },
         {
           name = "KAFKA_SASL_ENABLED_MECHANISMS"
@@ -274,6 +275,7 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
 
 # --- The Actual ECS service running Kafka ---
 variable kafka_ecs_tasks_sg {}
+variable kafka_tg {}
 resource "aws_ecs_service" "epa_kafka_service" {
   count           = var.node_count
   name            = "epa-ecs-kafka-node-${count.index}"
@@ -288,6 +290,12 @@ resource "aws_ecs_service" "epa_kafka_service" {
     security_groups  = [var.kafka_ecs_tasks_sg.id]
   }
 
+  load_balancer {
+    target_group_arn = var.kafka_tg.arn
+    container_name   = "kafka"
+    container_port   = 9094
+  }
+  
   service_registries {
     registry_arn = var.kafka_discovery_service[count.index].arn
   }
