@@ -107,7 +107,7 @@ resource "aws_lb" "kafka_lb" {
   name               = "kafka-lb"
   internal           = true
   load_balancer_type = "network"
-  subnets            = [aws_subnet.private_kafka_subnet[*].id]
+  subnets            = [for subnet in aws_subnet.private_kafka_subnet : subnet.id]
 }
 
 resource "aws_lb_target_group" "kafka_tg" {

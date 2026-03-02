@@ -17,3 +17,7 @@ output "kafka_discovery_service" {
 output "kafka_tg" {
   value = aws_lb_target_group.kafka_tg
 }
+
+output "kafka_lb_name" {
+  value = aws_route53_record.kafka_cluster_record.name
+}

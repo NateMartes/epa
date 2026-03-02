@@ -24,6 +24,7 @@ module compute {
   kafka_discovery_service = module.networking.kafka_discovery_service
   kafka_dns_namespace = module.networking.private_dns_namespace
   kafka_tg = module.networking.kafka_tg
+  kafka_lb_name = module.networking.kafka_lb_name
   // ec2_sg = module.security.ec2_sg UNCOMMENT ME IF USING DEV EC2 INSTANCE
   efs_sg = module.security.efs_sg
   kafka_ecs_tasks_sg = module.security.kafka_ecs_tasks_sg

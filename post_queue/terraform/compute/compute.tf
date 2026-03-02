@@ -105,6 +105,7 @@ resource "aws_ssm_parameter" "kafka_consumer_password_ssm" {
   }
 }
 resource "random_uuid" "cluster_id" {}
+variable kafka_lb_name {}
 resource "aws_ecs_task_definition" "kafka_task_definition" {
   count                    = var.node_count
   family                   = "kafka-node${count.index}"
@@ -184,8 +185,8 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
           value = "PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094"
         },
         {
-          name  = "KAFKA_CFG_ADVERTISED_LISTENERS"
-          value = "PLAINTEXT://localhost:9092,EXTERNAL://${var.kafka_discovery_service[count.index].name}.${var.kafka_dns_namespace.name}:9094"
+          name  = "KAFKA_ADVERTISED_LISTENERS"
+          value = "PLAINTEXT://localhost:9092,EXTERNAL://${var.kafka_lb_name}:9094"
         },
         {
           name = "KAFKA_SASL_ENABLED_MECHANISMS"
