@@ -114,6 +114,7 @@ resource "aws_lb_target_group" "kafka_tg" {
   name     = "kafka-tg"
   port     = 9094
   protocol = "TCP"
+  target_type = "ip"
   vpc_id   = aws_vpc.kafka_vpc.id
 }
 
