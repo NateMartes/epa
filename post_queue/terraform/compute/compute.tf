@@ -274,6 +274,7 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
 
 # --- The Actual ECS service running Kafka ---
 variable kafka_ecs_tasks_sg {}
+variable kafka_tg {}
 resource "aws_ecs_service" "epa_kafka_service" {
   count           = var.node_count
   name            = "epa-ecs-kafka-node-${count.index}"
@@ -288,6 +289,12 @@ resource "aws_ecs_service" "epa_kafka_service" {
     security_groups  = [var.kafka_ecs_tasks_sg.id]
   }
 
+  load_balancer {
+    target_group_arn = var.kafka_tg.arn
+    container_name   = "kafka"
+    container_port   = 9094
+  }
+  
   service_registries {
     registry_arn = var.kafka_discovery_service[count.index].arn
   }

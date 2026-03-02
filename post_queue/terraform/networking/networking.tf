@@ -101,3 +101,50 @@ resource "aws_service_discovery_service" "kafka_discovery_service" {
     }
   }
 }
+
+# --- Cluster Load Balancer ---
+resource "aws_lb" "kafka_lb" {
+  name               = "kafka-lb"
+  internal           = true
+  load_balancer_type = "network"
+  subnets            = [aws_subnet.private_kafka_subnet[*].id]
+}
+
+resource "aws_lb_target_group" "kafka_tg" {
+  name     = "kafka-tg"
+  port     = 9094
+  protocol = "TCP"
+  vpc_id   = aws_vpc.kafka_vpc.id
+}
+
+resource "aws_lb_listener" "kafka_lb_listener" {
+  load_balancer_arn = aws_lb.kafka_lb.arn
+  port              = "9094"
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.kafka_tg.arn
+  }
+}
+
+# --- DNS namespace for load balancer ---
+resource "aws_route53_zone" "kafka_cluster" {
+  name = "kafka.epa"
+
+  vpc {
+    vpc_id = aws_vpc.kafka_vpc.id
+  }
+}
+
+# --- Name the Kafka cluster load balancer ---
+resource "aws_route53_record" "kafka_cluster_record" {
+  zone_id = aws_route53_zone.kafka_cluster.zone_id
+  name    = "cluster.mongo.epa"
+  type    = "A"
+  ttl     = 10
+
+  records = [
+    aws_lb.kafka_lb.dns_name
+  ]
+}
