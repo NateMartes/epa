@@ -72,8 +72,38 @@ variable kafka_discovery_service {}
 variable ecs_task_execution_role {}
 variable ecs_kafka_task_role {}
 variable kafka_admin_password { sensitive = true }
+resource "aws_ssm_parameter" "kafka_admin_password_ssm" {
+  name  = "/kafka/EPA_KAFKA_ADMIN_PASSWORD"
+  type  = "SecureString"
+  value = var.kafka_admin_password
+  overwrite = true
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
 variable kafka_producer_password { sensitive = true }
+resource "aws_ssm_parameter" "kafka_producer_password_ssm" {
+  name  = "/kafka/EPA_KAFKA_PRODUCER_PASSWORD"
+  type  = "SecureString"
+  value = var.kafka_producer_password
+  overwrite = true
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
 variable kafka_consumer_password { sensitive = true }
+resource "aws_ssm_parameter" "kafka_consumer_password_ssm" {
+  name  = "/kafka/EPA_KAFKA_CONSUMER_PASSWORD"
+  type  = "SecureString"
+  value = var.kafka_consumer_password
+  overwrite = true
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
 resource "random_uuid" "cluster_id" {}
 resource "aws_ecs_task_definition" "kafka_task_definition" {
   count                    = var.node_count
@@ -103,9 +133,9 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
                 cat <<EOF > /opt/kafka/config/jaas.conf
                 KafkaServer {
                     org.apache.kafka.common.security.plain.PlainLoginModule required
-                    user_admin="${var.kafka_admin_password}"
-                    user_post_producer="${var.kafka_producer_password}"
-                    user_post_consumer="${var.kafka_consumer_password}";
+                    user_admin="$EPA_KAFKA_ADMIN_PASSWORD"
+                    user_post_producer="$EPA_KAFKA_PRODUCER_PASSWORD"
+                    user_post_consumer="$EPA_KAFKA_CONSUMER_PASSWORD";
                 };
                 EOF
                 
@@ -193,6 +223,20 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
           name  = "KAFKA_CONNECTION_SETUP_TIMEOUT_MS"
           value = "60000"
         }
+      ],
+      secrets = [
+        {
+          name      = "EPA_KAFKA_ADMIN_PASSWORD"
+          valueFrom = aws_ssm_parameter.kafka_admin_password_ssm.name
+        },
+        {
+          name      = "EPA_KAFKA_PRODUCER_PASSWORD"
+          valueFrom = aws_ssm_parameter.kafka_producer_password_ssm.name
+        },
+        {
+          name      = "EPA_KAFKA_CONSUMER_PASSWORD"
+          valueFrom = aws_ssm_parameter.kafka_consumer_password_ssm.name
+        },
       ],
       healthCheck = {
         command     = [

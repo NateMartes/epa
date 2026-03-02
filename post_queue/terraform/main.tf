@@ -13,6 +13,9 @@ module security {
   source = "./security"
   vpc = module.networking.vpc
   kafka_file_system = module.compute.kafka_file_system
+  kafka_admin_password = module.compute.kafka_admin_password
+  kafka_producer_password = module.compute.kafka_producer_password
+  kafka_consumer_password = module.compute.kafka_consumer_password
 }
 
 module compute {

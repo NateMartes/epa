@@ -57,6 +57,35 @@ resource "aws_iam_policy" "ecs_efs_access_policy" {
   })
 }
 
+# --- Allow access to Kafka passwords ---
+variable kafka_producer_password { sensitive = true }
+variable kafka_consumer_password { sensitive = true }
+variable kafka_admin_password { sensitive = true }
+resource "aws_iam_policy" "ecs_ssm_parameter_access" {
+  name        = "kafka_ssm_parameter_access"
+  description = "Allow ECS tasks to access SSM parameters"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath",
+          "kms:Decrypt"
+        ]
+        Resource = [
+          var.kafka_producer_password.arn,
+          var.kafka_consumer_password.arn,
+          var.kafka_admin_password.arn
+        ]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role" "ecs_kafka_task_role" {
   name_prefix        = "epa-kafka-ecs-mongo-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_kafka_task_role_policy.json
@@ -65,6 +94,16 @@ resource "aws_iam_role" "ecs_kafka_task_role" {
 resource "aws_iam_role_policy_attachment" "ecs_efs_access_policy_attachment" {
   role       = aws_iam_role.ecs_kafka_task_role.name
   policy_arn = aws_iam_policy.ecs_efs_access_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_node_ssm_policy" {
+  role       = aws_iam_role.ecs_node_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_ssm_access_policy" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = aws_iam_policy.ecs_ssm_parameter_access.arn
 }
 
 # --- For ECS Exec Access ---
