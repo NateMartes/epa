@@ -141,7 +141,7 @@ resource "aws_route53_zone" "kafka_cluster" {
 # --- Name the Kafka cluster load balancer ---
 resource "aws_route53_record" "kafka_cluster_record" {
   zone_id = aws_route53_zone.kafka_cluster.zone_id
-  name    = "cluster.mongo.epa"
+  name    = "cluster.kafka.epa"
   type    = "CNAME"
   ttl     = 300
 
