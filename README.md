@@ -25,6 +25,7 @@ Safety is important and as technology gets more sophisticated, so should our abi
 - [User Timeline Caching](#user-timeline-caching)
   - [Connecting to the Cahce](#connecting-to-the-cahce)
 - [The Post Queue](#the-post-queue)
+  - [Authorization](#authorization)
 - [The Notifier, The Post Ingestor, and The User Cache Loader](#the-notifier-the-post-ingestor-and-the-user-cache-loader)
 - [Deployments and Environments](#deployments-and-environments)
   - [Terraform](#terraform)
@@ -140,6 +141,7 @@ class EpaAPIImplementation(BaseDefaultApi):
 ```
 
 ## The Database
+![EPA Database Architecture](./system_diagram/database/epa-database.png "EPA Database Architecture")
 The database uses MongoDB for storing information such as `users`, `posts`, `session_tokens`, `categories`, and more.
 The database is initialized using a Python script and the `config.json` file found within the `./database` directory.
 The database `docker-compose.yml` file includes a database initializer to add the defined collections.
@@ -190,6 +192,7 @@ func connectToRedis() *redis.Client {
 ```
 
 ## The Post Queue
+![EPA Post Queue Architecture](./system_diagram/kafka/epa-kafka.png "EPA Post Queue Architecture")
 The post queue uses Kafka to store posts for later consumers to pick up (e.g post_ingestor, cache_loader).
 You can use `docker-compose` to spin up a local Kafka instance.
 
@@ -200,6 +203,15 @@ The defined Kafka consumer groups include:
 - `post_ingestor_consumer`
 - `cache_loader_consumer`
 - `notify_service_consumer`
+
+### Authorization
+For connecting to the cluster, you'll need to use the information depending on if the client
+is a consumer or a producer.
+
+- consumer: 'post_consumer':'consumer-password'
+- producer: 'post_producer':'producer-password
+
+Authorization is only set on the external Kafka port (9094) since the cluster runs in a private subnet.
 
 More Kafka topics can be added to the local instance by updating the `init.sh` script:
 ```bash
