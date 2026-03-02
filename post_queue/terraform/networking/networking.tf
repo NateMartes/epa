@@ -141,8 +141,8 @@ resource "aws_route53_zone" "kafka_cluster" {
 resource "aws_route53_record" "kafka_cluster_record" {
   zone_id = aws_route53_zone.kafka_cluster.zone_id
   name    = "cluster.mongo.epa"
-  type    = "A"
-  ttl     = 10
+  type    = "CNAME"
+  ttl     = 300
 
   records = [
     aws_lb.kafka_lb.dns_name
