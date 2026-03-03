@@ -12,6 +12,8 @@ from epa_api.api_implementation.utils.redis import RedisUtils
 from epa_api.api_implementation.utils.token import TokenUtils
 from epa_api.api_implementation.utils.category import CategoryUtils
 import logging
+from fastapi.exceptions import HTTPException
+from fastapi import status
 
 
 class PostAPIImplementation(BasePostsApi):
@@ -29,6 +31,9 @@ class PostAPIImplementation(BasePostsApi):
 
         token = TokenUtils.validate_access_token_with_db()
         requesting_user_id = TokenUtils.get_user_id(token)
+        if not requesting_user_id:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
         page_num_int = PostUtils.get_page_num_from_string(page_num)
         page_size = PostUtils.get_page_size()
         
@@ -126,9 +131,12 @@ class PostAPIImplementation(BasePostsApi):
         category_collection = MongoUtils.get_categories_collection(db)
         
         PostUtils.validate_post(create_post, category_collection)
-        
+        user_id = TokenUtils.get_user_id(token)
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         output = PostUtils.create_post(post_collection, 
-            TokenUtils.get_user_id(token), 
+            user_id, 
             list(CategoryUtils.get_categories(
                 category_collection, 
                 query=CategoryUtils.build_category_query(category_id=create_post.category_slug))
@@ -148,11 +156,14 @@ class PostAPIImplementation(BasePostsApi):
         """Deletes a post"""
 
         token = TokenUtils.validate_access_token_with_db()
-        
+        user_id = TokenUtils.get_user_id(token)
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         client, db = MongoUtils.get_mongodb_database_connection()
         post_collection = MongoUtils.get_post_collection(db)
 
-        PostUtils.delete_post(post_collection, post_id, TokenUtils.get_user_id(token))
+        PostUtils.delete_post(post_collection, post_id, user_id)
         
         client.close()
             

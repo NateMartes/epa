@@ -1,5 +1,5 @@
 from kafka import KafkaProducer
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 import os
 import json
 
@@ -37,6 +37,21 @@ class KafkaUtils:
             
         return output
 
+    @staticmethod
+    def get_kafka_producer_credentials() -> Tuple[str, str]:
+        """
+        Gets the kafka credentials for the producer user.
+        
+        :return: The kafka producer credentials
+        :rtype: Tuple[str, str]
+        """
+        
+        username = os.getenv("EPA_KAFKA_PRODUCER_USERNAME")
+        password = os.getenv("EPA_KAFKA_PRODUCER_PASSWORD")
+        if not username or not password:
+            raise ValueError("EPA_KAFKA_PRODUCER_USERNAME and EPA_KAFKA_PRODUCER_PASSWORD not set")
+            
+        return username, password
         
     @staticmethod
     def connect_to_kafka_as_producer() -> KafkaProducer:
@@ -47,10 +62,16 @@ class KafkaUtils:
         :rtype: kafka.KafkaProducer
         """
         server = KafkaUtils.get_kafka_bootstrap_server()
+        username, password = KafkaUtils.get_kafka_producer_credentials()
         return KafkaProducer(
-            bootstrap_servers=server,
+            bootstrap_servers=[server],
             allow_auto_create_topics=False,
-            retries=3)
+            retries=3,
+            security_protocol="SASL_PLAINTEXT",
+            sasl_mechanism="PLAIN",
+            sasl_plain_username=username,
+            sasl_plain_password=password
+        )
         
     @staticmethod
     def send_message(producer: KafkaProducer, message: Dict[Any, Any]):
@@ -62,7 +83,6 @@ class KafkaUtils:
         :param message: The message to send
         :type message: Dict[Any, Any]
         """
-        
         
         producer.send(
             KafkaUtils.get_kafka_post_topic(),

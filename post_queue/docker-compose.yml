@@ -1,12 +1,12 @@
 services:
-  epa_kakfa_broker:
+  epa_kafka_broker:
     build:
       context: .
       args:
         EPA_KAFKA_ADMIN_PASSWORD: ${EPA_KAFKA_ADMIN_PASSWORD}
         EPA_KAFKA_PRODUCER_PASSWORD: ${EPA_KAFKA_PRODUCER_PASSWORD}
         EPA_KAFKA_CONSUMER_PASSWORD: ${EPA_KAFKA_CONSUMER_PASSWORD}
-    container_name: epa_kakfa_broker
+    container_name: epa_kafka_broker
     hostname: epa-kafka-broker
     ports:
       - "9094:9094" # If you want to test connection directly to kafka without a containerized app
@@ -14,7 +14,7 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,EXTERNAL://localhost:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,EXTERNAL://epa-kafka-broker:9094
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:SASL_PLAINTEXT # All are plaintext since no security in testing
       KAFKA_SASL_ENABLED_MECHANISMS: PLAIN

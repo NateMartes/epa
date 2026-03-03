@@ -7,6 +7,7 @@ from pydantic import StrictStr
 from epa_api.api_implementation.utils.token import TokenUtils
 from epa_api.api_implementation.utils.category import CategoryUtils
 from epa_api.api_implementation.utils.mongo import MongoUtils
+from fastapi import status
 
 class PostAPIImplementation(BaseCategoryApi):
     async def get_categories(
@@ -37,6 +38,8 @@ class PostAPIImplementation(BaseCategoryApi):
         
         token = TokenUtils.validate_access_token_with_db()
         user_id = TokenUtils.get_user_id(token)
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         client, db = MongoUtils.get_mongodb_database_connection()
         category_collection = MongoUtils.get_categories_collection(db)
@@ -64,6 +67,8 @@ class PostAPIImplementation(BaseCategoryApi):
         
         token = TokenUtils.validate_access_token_with_db()
         user_id = TokenUtils.get_user_id(token)
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         client, db = MongoUtils.get_mongodb_database_connection()
         category_collection = MongoUtils.get_categories_collection(db)
@@ -91,6 +96,8 @@ class PostAPIImplementation(BaseCategoryApi):
         
         token = TokenUtils.validate_access_token_with_db()
         user_id = TokenUtils.get_user_id(token)
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         client, db = MongoUtils.get_mongodb_database_connection()
         category_collection = MongoUtils.get_categories_collection(db)
