@@ -39,14 +39,6 @@ if [[ $is_running -eq 0 ]]; then
     done
 fi
 
-echo "Adding ACL rules..."
-/opt/kafka/bin/kafka-acls.sh --bootstrap-server localhost:9092 --add --operation Write --topic $TOPIC --allow-principal User:post_producer
-/opt/kafka/bin/kafka-acls.sh --bootstrap-server localhost:9092 --add --operation Read --topic $TOPIC --allow-principal User:post_consumer
-/opt/kafka/bin/kafka-acls.sh --bootstrap-server localhost:9092 --add --operation Describe \
---topic $TOPIC \
---allow-principal User:post_producer \
---allow-principal User:post_consumer
-
 echo "Creating needed topic..."
 /opt/kafka/bin/kafka-topics.sh --create --topic new_posts --bootstrap-server localhost:9092
 echo "Done."
@@ -58,6 +50,14 @@ for GROUP in "${TARGET_GROUPS[@]}"; do
 done
 
 echo "Done."
+
+echo "Adding ACL rules..."
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server localhost:9092 --add --operation Write --topic $TOPIC --allow-principal User:post_producer
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server localhost:9092 --add --operation Read --topic $TOPIC --allow-principal User:post_consumer --group='*'
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server localhost:9092 --add --operation Describe \
+--topic $TOPIC \
+--allow-principal User:post_producer \
+--allow-principal User:post_consumer
 
 if [[ $is_running -eq 0 ]]; then
     wait $PID
