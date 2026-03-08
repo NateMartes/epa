@@ -1,26 +1,26 @@
+import React, {useState} from 'react';
 import Button from '@/components/Button';
 export default function MyForm() {
+  const [Post, setPost] = useState('');
+  
   function handleSubmit(e) {
   
     e.preventDefault();
-    const form = e.target
-    const formData = new FormData(form);
-    fetch('/some-api', {method: form.method, body: formData });
-    const formJson = Object.fromEntries(formData.entries());
+    alert(Post);
+    const formJson = { PostText: Post };
+    e => setPost('');
+    //fetch('/some-api', {method: form.method, body: formData });
     console.log(formJson);
   }
+
   return (
     <form method="post" onSubmit={handleSubmit}>
       <label>
-        Text input: <input name="myInput" defaultValue="Some initial value" />
+        Text input: <input name="myInput" value={Post} onChange={e =>setPost(e.target.value)} placeholder="Write Your Post" />
       </label>
+      <Button theme="primary" label="Make Post" onPress={handleSubmit}/>
       <hr />
-      <Pressable
-          style={[styles.button, { backgroundColor: '#fff' }]}
-          onPress={handleSubmit}>
-          <FontAwesome name="paper-plane" size={18} color="#25292e" style={styles.buttonIcon} />
-          <Text style={[styles.buttonLabel, { color: '#25292e' }]}>{label}</Text>
-      </Pressable>
-    </form>
+   </form>
   );
 }
+
