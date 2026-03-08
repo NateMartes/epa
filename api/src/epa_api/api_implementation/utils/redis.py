@@ -3,6 +3,7 @@ from typing import Any, Dict
 import redis.asyncio 
 import os
 import json
+import logging
 
 class RedisUtils:
     """A class with helpful methods to interact with Redis"""
@@ -11,23 +12,29 @@ class RedisUtils:
     def get_redis_connection() -> redis.asyncio.Redis:
         """
         Gets a connection to the underlying redis instance.
-        
-        :return: A instance to a redis database
-        :rtype: redis.asyncio.Redis
         """
+    
         hostname = os.getenv("EPA_REDIS_HOSTNAME")
         port = os.getenv("EPA_REDIS_PORT")
         password = os.getenv("EPA_REDIS_PASSWORD")
+        protocol = "rediss"
+        use_ssl = os.getenv("EPA_REDIS_USE_SSL", "false").lower() == "true"
+       
+        if not use_ssl:
+            logging.getLogger(__name__).warning("Environment variable EPA_REDIS_USE_SSL is false or not set, not using 'rediss' protocal")
+            protocol = "redis"
+    
         if not hostname or not port or not password:
             raise ValueError("Not all redis environment variables are set")
         
         try:
             port = int(port)
-        except TypeError:
-            raise TypeError("EPA_REDIS_PORT must be a integer")
-            
-        return redis.asyncio.Redis(host=hostname, port=port, db=0, password=password)
-        
+        except ValueError:
+            raise ValueError("EPA_REDIS_PORT must be an integer")
+    
+        url = f"{protocol}://default:{password}@{hostname}:{port}"
+    
+        return redis.asyncio.from_url(url)
 
     @staticmethod
     async def get_user_subscribed_posts(rdb: redis.asyncio.Redis, user_id: str) -> list | None:
