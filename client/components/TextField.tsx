@@ -3,13 +3,14 @@ import {StyleSheet, TextInput} from 'react-native';
 import {SafeAreaView, SafeAreaProvider} from 'react-native-safe-area-context';
 
 export default function TextField() {
-  const [text, onChangeText] = React.useState('Useless Text');
+  const [text, onChangeText] = React.useState('');
   const [number, onChangeNumber] = React.useState('');
 
   return (
     <SafeAreaProvider>
       <SafeAreaView>
         <TextInput
+	  placeholder="Write your post!"
           style={styles.input}
           onChangeText={onChangeText}
           value={text}
@@ -25,6 +26,7 @@ const styles = StyleSheet.create({
     margin: 12,
     borderWidth: 1,
     padding: 10,
+    color: '#fff',
   },
 });
 

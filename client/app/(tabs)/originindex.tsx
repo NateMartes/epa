@@ -8,7 +8,9 @@ export default function Index() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.footerContainer}>
+        //<TextField/>
 	<Input/>
+        <Button theme="primary" label="Make Post" />
       </View>
       <Text style={styles.text}>Home screen</Text>
       <Link href="/about" style={styles.button}>
