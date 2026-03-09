@@ -49,12 +49,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          docker compose -p sam-test -f ./database/docker-compose.yaml up -d --build
+          docker compose -p sam-test -f ./database/docker-compose.yml up -d --build
 
           echo "Waiting for MongoDB to become healthy..."
           for i in {1..30}; do
-            # Target the SERVICE NAME (epa_database)
-            if docker compose -p sam-test -f ./database/docker-compose.yaml exec -T epa_database \
+            # Target (epa_database)
+            if docker compose -p sam-test -f ./database/docker-compose.yml exec -T epa_database \
               mongosh --quiet --eval "db.adminCommand({ping:1}).ok" | grep -q "1"; then
               echo "MongoDB is healthy"
               exit 0
@@ -63,9 +63,9 @@ jobs:
           done
 
           echo "MongoDB failed to become healthy"
-          docker compose -p sam-test -f ./database/docker-compose.yaml ps
-          docker compose -p sam-test -f ./database/docker-compose.yaml logs epa_database || true
-          docker compose -p sam-test -f ./database/docker-compose.yaml logs epa_database_init || true
+          docker compose -p sam-test -f ./database/docker-compose.yml ps
+          docker compose -p sam-test -f ./database/docker-compose.yml logs epa_database || true
+          docker compose -p sam-test -f ./database/docker-compose.yml logs epa_database_init || true
           exit 1
 
       # ---- SAM build in post_ingestor/ ----
@@ -129,4 +129,5 @@ jobs:
         if: always()
         shell: bash
         run: |
-          docker compose -p sam-test -f ./database/docker-compose.yaml down -v --remove-orphans || true
+          docker compose -p sam-test -f ./database/docker-compose.yml down -v --remove-orphans || true
+          docker compose -p sam-test -f ./database/docker-compose.yml down -v --remove-orphans || true
