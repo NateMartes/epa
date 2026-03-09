@@ -80,9 +80,9 @@ def post_validation (payload):
             if not (field in validFields):
                 return output
             else: 
-                if payload[field] is "":
+                if payload[field] == "":
                     return output
-            validFields.pop(field)
+            validFields.remove(field)
     output = True   
     return output
 
@@ -93,8 +93,7 @@ def get_mongo_collection(env_vars: Dict[str, str]):
     - It will work as soon as MONGO_URI / DB / COLLECTION are correct.
     - Uses TLS by default
     """
-
-    mongo_uri = env_vars.get("MONGO_URI")
+    mongo_uri = env_vars.get("EPA_MONGO_URI")
     mongo_db = env_vars.get("EPA_MONGODB_DATABASE_NAME")
     mongo_collection = env_vars.get("EPA_MONGODB_POSTS_COLLECTION")
 
@@ -137,9 +136,8 @@ def ingest_posts(records: List[Dict[str, Any]], env_vars: Dict[str, str]) -> int
             continue
 
         # Upsert based on post_id
-        result = collection.insert_one(
-            post
-        )
+        result = collection.insert_one(post)
+        inserted += 1
         print(result)
         print(post)
 
