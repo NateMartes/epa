@@ -49,8 +49,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          pwd
-
           docker compose -p sam-test -f ./database/docker-compose.yaml up -d --build
 
           echo "Waiting for MongoDB to become healthy..."
