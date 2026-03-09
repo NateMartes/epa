@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  epa-api
+
+Globals:
+  Function:
+    Timeout: 3
+
+    LoggingConfig:
+      LogFormat: JSON
+      
+Resources:
+  EpaApiFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      PackageType: Zip
+      CodeUri: .
+      Handler: epa_api.main.handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Events:
+        HealthCheck:
+          Type: Api
+          Properties:
+            Path: /v1/status
+            Method: get
+    Metadata:
+      BuildMethod: makefile
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+        
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+      
+Outputs:
+  EpaApi:
+    Description: API Gateway endpoint URL for Prod stage for Hello World 
+      function
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/hello/"
+  EpaAPIFunction:
+    Description: Hello World Lambda Function ARN
+    Value: !GetAtt HelloWorldFunction.Arn
+  EpaAPIFunctionIamRole:
+    Description: Implicit IAM Role created for Hello World function
+    Value: !GetAtt HelloWorldFunctionRole.Arn

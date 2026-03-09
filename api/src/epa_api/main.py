@@ -13,6 +13,7 @@
 
 
 from fastapi import FastAPI, Request
+from mangum import Mangum
 
 from epa_api.apis.authentication_api import router as AuthenticationApiRouter
 from epa_api.apis.system_api import router as SystemApiRouter
@@ -51,3 +52,6 @@ app.include_router(AuthenticationApiRouter)
 app.include_router(SystemApiRouter)
 app.include_router(PostsApiRouter)
 app.include_router(CategoryApiRouter)
+
+# Lambda Handler
+handler = Mangum(app)
