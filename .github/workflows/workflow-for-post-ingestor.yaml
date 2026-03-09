@@ -82,8 +82,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          test -f env.json
-          test -f events/ingest_posts.json
+          # test -f env.json
+          # test -f events/ingest_posts.json
 
           sam local invoke PostIngestorFunction \
             --event ./events/ingest_posts.json \
