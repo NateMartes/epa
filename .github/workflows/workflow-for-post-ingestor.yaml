@@ -86,8 +86,8 @@ jobs:
           test -f events/ingest_posts.json
 
           sam local invoke PostIngestorFunction \
-            --event events/ingest_posts.json \
-            --env-vars env.json \
+            --event ./events/ingest_posts.json \
+            --env-vars ./post_ingestor/env.json \
             --docker-network sam-test_default \
             --log-file sam-test.log \
             > response.json
