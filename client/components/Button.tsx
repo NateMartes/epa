@@ -17,8 +17,9 @@ export default function Button({ label, theme, onPress }: Props) {
         <Pressable
           style={[styles.button, { backgroundColor: '#fff' }]}
           onPress={onPress}>
+	  <Text style={[styles.buttonLabel, { color: '#25292e' }]}>{label}</Text>
           <FontAwesome name="paper-plane" size={18} color="#25292e" style={styles.buttonIcon} />
-          <Text style={[styles.buttonLabel, { color: '#25292e' }]}>{label}</Text>
+          
         </Pressable>
       </View>
     );
@@ -36,8 +37,8 @@ const styles = StyleSheet.create({
   buttonContainer: {
     width: 320,
     height: 68,
-    marginHorizontal: 20,
-    alignItems: 'center',
+    //marginHorizontal: 290,
+    alignItems: 'top',
     justifyContent: 'center',
     padding: 3,
   },
@@ -45,15 +46,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     width: '100%',
     height: '100%',
+    justify: 'right',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
   },
   buttonIcon: {
-    paddingRight: 8,
+    paddingLeft: 8,
   },
   buttonLabel: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 20,
   },
 });
