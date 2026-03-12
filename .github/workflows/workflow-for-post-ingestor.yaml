@@ -80,26 +80,54 @@ jobs:
         working-directory: ./post_ingestor
         run: sam build --use-container
 
+        
       - name: SAM Local Invoke Test
         working-directory: ./post_ingestor
         run: |
-          test -f env.json
-          test -f events/ingest_posts.json
+          echo "=== Verifying test files ==="
+          test -f env.json && echo "✓ env.json exists" || { echo "✗ env.json missing"; exit 1; }
+          test -f events/ingest_posts.json && echo "✓ ingest_posts.json exists" || { echo "✗ ingest_posts.json missing"; exit 1; }
 
+          echo ""
+          echo "=== Invoking Lambda function ==="
           sam local invoke PostIngestorFunction \
             --event ./events/ingest_posts.json \
             --env-vars ./env.json \
             --docker-network sam-test_default \
             --log-file sam-test.log \
-            > response.json
+            > response.json 2>&1 || {
+              echo "SAM command failed with exit code $?"
+              cat sam-test.log || echo "No logs available"
+              exit 1
+            }
 
-          echo "Lambda response:"
-          cat response.json
+          echo ""
+          echo "=== Response file contents ==="
+          cat response.json || echo "[EMPTY]"
 
-          # Validate using jq (fails if any condition fails)
+          echo ""
+          echo "=== Response file size ==="
+          wc -c < response.json
+
+          echo ""
+          echo "=== Function execution logs ==="
+          cat sam-test.log || echo "No function logs"
+
+          echo ""
+          echo "=== Validating response ==="
+          if [ ! -s response.json ]; then
+            echo "ERROR: Response is empty. Function likely crashed."
+            exit 1
+          fi
+
+          # Try to parse with jq and show what we got
+          echo "Response parsed by jq:"
+          jq '.' response.json || echo "Not valid JSON"
+
+          # Run validation
           jq -e '.statusCode == 200 and (.body | type == "object") and (.body.inserted | type == "number") and (.body.inserted >= 1)' response.json
 
-          echo "Test passed: statusCode=200, inserted >= 1"
+          echo "✓ Test passed: statusCode=200, inserted >= 1"
 
       - name: Cleanup Database
         if: always()
