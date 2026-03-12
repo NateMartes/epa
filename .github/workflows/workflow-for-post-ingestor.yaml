@@ -8,13 +8,6 @@ jobs:
   build-and-test-post-ingestor:
     runs-on: ubuntu-latest
 
-    env:
-      EPA_MONGODB_USERNAME: test
-      EPA_MONGODB_PASSWORD: test
-      EPA_MONGODB_HOSTNAME: epa-db
-      EPA_MONGODB_PORT: "27017"
-      EPA_MONGODB_DATABASE_NAME: epa_database
-
     steps:
       - name: Check out pull request
         uses: actions/checkout@v4
@@ -22,15 +15,19 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Validate Docker + Compose
-        shell: bash
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Docker Compose
         run: |
-          set -euo pipefail
           docker --version
           docker compose version
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Build Database Container
+        run: docker compose -f ./database/docker-compose.yml build epa_database
+
+      - name: Build Post Ingestor Container
+        run: docker compose -f ./docker-compose.yml build epa-post-ingestor
 
       - name: Install AWS SAM CLI
         uses: aws-actions/setup-sam@v2
@@ -38,22 +35,14 @@ jobs:
           use-installer: true
 
       - name: Verify SAM CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-          sam --version
+        run: sam --version
 
-      # ---- Start MongoDB dependency stack ----
       - name: Start Database Stack
-        shell: bash
         run: |
-          set -euo pipefail
-
           docker compose -p sam-test -f ./database/docker-compose.yml up -d --build
 
           echo "Waiting for MongoDB to become healthy..."
           for i in {1..30}; do
-            # Target (epa_database)
             if docker compose -p sam-test -f ./database/docker-compose.yml exec -T epa_database \
               mongosh --quiet --eval "db.adminCommand({ping:1}).ok" | grep -q "1"; then
               echo "MongoDB is healthy"
@@ -68,81 +57,50 @@ jobs:
           docker compose -p sam-test -f ./database/docker-compose.yml logs epa_database_init || true
           exit 1
 
-      # ---- SAM build in post_ingestor/ ----
-      - name: SAM Build (post_ingestor)
+      - name: Create env.json for SAM test
         working-directory: ./post_ingestor
-        shell: bash
         run: |
-          set -euo pipefail
-          sam build
+          cat > env.json <<'EOF'
+          {
+            "PostIngestorFunction": {
+              "EPA_MONGODB_HOSTNAME": "epa-db",
+              "EPA_MONGODB_PORT": "27017",
+              "EPA_MONGODB_USERNAME": "test",
+              "EPA_MONGODB_PASSWORD": "test",
+              "EPA_MONGODB_SESSION_TOKEN_COLLECTION": "session_tokens",
+              "EPA_MONGODB_DATABASE_NAME": "epa_database",
+              "EPA_MONGODB_USER_COLLECTION": "users",
+              "EPA_MONGODB_POSTS_COLLECTION": "posts"
+            }
+          }
+          EOF
+          cat env.json
+
+      - name: SAM Build
+        working-directory: ./post_ingestor
+        run: sam build --use-container
 
       - name: SAM Local Invoke Test
         working-directory: ./post_ingestor
-        shell: bash
         run: |
-          set -euo pipefail  
-          sam build --use-container --template template.yaml
-
           test -f env.json
           test -f events/ingest_posts.json
 
-          # Run invoke and capture FULL output (stdout + stderr) to response.json
           sam local invoke PostIngestorFunction \
             --event ./events/ingest_posts.json \
             --env-vars ./env.json \
             --docker-network sam-test_default \
             --log-file sam-test.log \
-            2>&1 > response.json
+            > response.json
 
-          echo "---- Lambda response ----"
+          echo "Lambda response:"
           cat response.json
 
-          # Validate JSON and structure
-          python3 - <<'PY'
-          import json, sys
-          try:
-              with open("response.json", "r", encoding="utf-8") as f:
-                  data = json.load(f)
-          except json.JSONDecodeError as e:
-              print(f"FAIL: JSON decode error: {e}")
-              sys.exit(1)
+          # Validate using jq (fails if any condition fails)
+          jq -e '.statusCode == 200 and (.body | type == "object") and (.body.inserted | type == "number") and (.body.inserted >= 1)' response.json
 
-          status = data.get("statusCode")
-          body = data.get("body")
-          inserted = None
+          echo "Test passed: statusCode=200, inserted >= 1"
 
-          if isinstance(body, str):
-              try:
-                  body = json.loads(body)
-              except json.JSONDecodeError:
-                  pass  # leave as string if not JSON
-
-          if isinstance(body, dict):
-              inserted = body.get("inserted")
-
-          if status != 200:
-              print(f"FAIL: statusCode={status}")
-              sys.exit(2)
-
-          try:
-              inserted_int = int(inserted)
-          except (ValueError, TypeError):
-              print(f"FAIL: body.inserted missing/not int: {inserted!r}")
-              sys.exit(3)
-
-          if inserted_int < 1:
-              print(f"FAIL: inserted={inserted_int}, expected >= 1")
-              sys.exit(4)
-
-          print(f"PASS: statusCode=200 inserted={inserted_int}")
-          PY
-
-          echo "---- SAM logs ----"
-          cat sam-test.log || true
-
-      - name: Cleanup
+      - name: Cleanup Database
         if: always()
-        shell: bash
-        run: |
-          docker compose -p sam-test -f ./database/docker-compose.yml down -v --remove-orphans || true
-          docker compose -p sam-test -f ./database/docker-compose.yml down -v --remove-orphans || true
+        run: docker compose -p sam-test -f ./database/docker-compose.yml down -v --remove-orphans || true
