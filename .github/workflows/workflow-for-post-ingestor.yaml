@@ -27,7 +27,7 @@ jobs:
         run: docker compose -f ./database/docker-compose.yml build epa_database
 
       - name: Build Post Ingestor Container
-        run: docker compose -f ./docker-compose.yml build epa-post-ingestor
+        run: docker compose -f ./post_ingestor/docker-compose.yml build epa_post_ingestor
 
       - name: Install AWS SAM CLI
         uses: aws-actions/setup-sam@v2
