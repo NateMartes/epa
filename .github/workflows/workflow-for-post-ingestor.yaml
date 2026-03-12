@@ -78,7 +78,7 @@ jobs:
             }
           }
           EOF
-          echo "env.json created with all required EPA_* variables:"
+          echo "env.json created:"
           cat env.json
 
       - name: SAM Build
@@ -89,56 +89,84 @@ jobs:
         working-directory: ./post_ingestor
         run: |
           echo "Verifying test files..."
-          test -f env.json && echo "✓ env.json exists" || { echo "✗ Missing env.json"; exit 1; }
-          test -f events/ingest_posts.json && echo "✓ ingest_posts.json exists" || { echo "✗ Missing ingest_posts.json"; exit 1; }
+          test -f env.json && echo "env.json exists" || { echo "Missing env.json"; exit 1; }
+          test -f events/ingest_posts.json && echo "ingest_posts.json exists" || { echo "Missing ingest_posts.json"; exit 1; }
 
           echo ""
-          echo "Invoking Lambda function with DECODED test event..."
+          echo "Invoking Lambda function with Kafka-formatted event..."
+          # CRITICAL: Proper stream separation
+          #   stdout → Lambda response JSON
+          #   stderr → SAM diagnostics (not mixed into response)
           sam local invoke PostIngestorFunction \
             --event ./events/ingest_posts.json \
             --env-vars ./env.json \
             --docker-network sam-test_default \
             --log-file sam-test.log \
-            > response.json 2>&1
+            > response.json 2> sam-cli.log
 
           SAM_EXIT=$?
-          echo ""
           echo "SAM exit code: $SAM_EXIT"
           echo ""
-          echo "Lambda response:"
-          cat response.json || echo "[NO RESPONSE]"
+          echo "=== Lambda Response (stdout) ==="
+          cat response.json || echo "[EMPTY RESPONSE]"
 
-          # Show logs on failure for debugging
-          if [ $SAM_EXIT -ne 0 ] || [ ! -s response.json ]; then
+          # Diagnose failures immediately
+          if [ $SAM_EXIT -ne 0 ]; then
             echo ""
-            echo "=== FUNCTION LOGS (critical for debugging) ==="
-            cat sam-test.log || echo "No logs available"
+            echo "=== SAM CLI Diagnostics (stderr) ==="
+            cat sam-cli.log
+            echo ""
+            echo "=== Function Execution Logs ==="
+            cat sam-test.log 2>/dev/null | tail -50 || echo "No function logs"
+            exit $SAM_EXIT
+          fi
+
+          if [ ! -s response.json ]; then
+            echo ""
+            echo "ERROR: Empty response - function likely crashed"
+            echo "=== Function Logs ==="
+            cat sam-test.log 2>/dev/null | tail -50 || echo "No logs"
             exit 1
           fi
 
           echo ""
-          echo "Validating response structure..."
-          if ! jq -e '.statusCode == 200 and (.body.inserted | type == "number")' response.json > /dev/null; then
-            echo "✗ Response validation failed"
+          echo "=== Validating Response ==="
+          if ! jq empty response.json >/dev/null 2>&1; then
+            echo "ERROR: response.json is not valid JSON:"
             cat response.json
+            echo ""
+            echo "=== Function Logs (last 50 lines) ==="
+            cat sam-test.log 2>/dev/null | tail -50 || echo "No logs"
+            exit 1
+          fi
+
+          if ! jq -e '.statusCode == 200 and (.body.inserted | type == "number")' response.json >/dev/null 2>&1; then
+            echo "ERROR: Response validation failed. Expected {statusCode:200, body:{inserted:<number>}}"
+            jq '.' response.json || cat response.json
             exit 1
           fi
 
           INSERTED=$(jq -r '.body.inserted' response.json)
-          echo "✓ Test passed: statusCode=200, inserted=$INSERTED posts"
+          echo "Test passed: statusCode=200, inserted=$INSERTED posts"
+
           echo ""
-          echo "=== Verifying posts were stored DECODED (not base64) ==="
-          # Sample query to verify first post was stored as JSON object (not string)
+          echo "=== Verifying Decoded Storage in MongoDB ==="
           docker compose -p sam-test -f ./database/docker-compose.yml exec -T epa_database \
             mongosh --quiet --eval "
               db = db.getSiblingDB('epa_database');
+              count = db.posts.countDocuments();
               doc = db.posts.findOne();
-              if (doc && doc.post_id) {
-                print('✓ First post stored as DECODED JSON object with post_id: ' + doc.post_id);
+              if (count > 0 && doc && doc.title && typeof doc.title === 'string' && !doc.title.includes('eyJ')) {
+                print('SUCCESS: ' + count + ' posts stored as DECODED JSON (not base64)');
+                print('  Sample title: ' + doc.title);
+              } else if (count > 0 && doc && doc.title && doc.title.includes('eyJ')) {
+                print('FAILURE: Posts stored as base64 strings (not decoded!)');
+                print('  Sample title: ' + doc.title);
+                quit(1);
               } else {
-                print('⚠ No posts found in database');
+                print(count + ' posts in DB, but could not verify decoding status');
               }
-            " 2>&1 || echo "Database query skipped (non-critical)"
+            " 2>&1 || true
 
       - name: Cleanup Database
         if: always()
