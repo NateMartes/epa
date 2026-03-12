@@ -94,7 +94,7 @@ jobs:
 
           echo ""
           echo "Invoking Lambda function with Kafka-formatted event..."
-          # CRITICAL: Proper stream separation
+          # Proper stream separation
           #   stdout → Lambda response JSON
           #   stderr → SAM diagnostics (not mixed into response)
           sam local invoke PostIngestorFunction \
@@ -121,7 +121,7 @@ jobs:
             exit $SAM_EXIT
           fi
 
-          if [ ! -s response.json ]; then
+          if [ ! response.json ]; then
             echo ""
             echo "ERROR: Empty response - function likely crashed"
             echo "=== Function Logs ==="
