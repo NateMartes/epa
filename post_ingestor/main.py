@@ -5,25 +5,24 @@ from typing import List, Dict, Any
 from pymongo import MongoClient
 
 
-
 def lambda_handler(event, context):
     """
-    Supports
-    1) MSK / Kafka trigger event shape (records dict, base64 values)
+    Supports:
+    1) MSK / Kafka trigger event shape (records dict with base64-encoded 'value' fields)
+    2) Custom test events with "event": "INGEST_POSTS" containing plain JSON records
     """
-
     env_vars = load_env()
 
-    # MSK/Kafka event
+    # MSK/Kafka event: records dict with base64-encoded values
     if event.get("eventSource") == "aws:kafka" and isinstance(event.get("records"), dict):
         posts = parse_kafka_event(event)
         inserted = ingest_posts(posts, env_vars)
         return {"statusCode": 200, "body": {"inserted": inserted}}
 
-    # Custom test event
+    # Custom test event: plain JSON records
     if event.get("event") != "INGEST_POSTS":
-        return {"statusCode": 400, "body": "Unsupported event type"}
-    
+        return {"statusCode": 400, "body": {"error": "Unsupported event type"}}
+
     records = event.get("records") or []
     inserted = ingest_posts(records, env_vars)
     return {"statusCode": 200, "body": {"inserted": inserted}}
@@ -32,117 +31,107 @@ def lambda_handler(event, context):
 def load_env() -> Dict[str, str]:
     """
     Reads environment variables needed for Mongo insertion.
-    Script will function fully once these are set.
+    All EPA_* variables must be set for successful execution.
     """
+    username = os.getenv("EPA_MONGODB_USERNAME", "")
+    password = os.getenv("EPA_MONGODB_PASSWORD", "")
+    hostname = os.getenv("EPA_MONGODB_HOSTNAME", "")
+    port = os.getenv("EPA_MONGODB_PORT", "")
+    
     return {
-        "EPA_MONGODB_HOSTNAME": os.getenv("EPA_MONGODB_HOSTNAME", ""),
-        "EPA_MONGODB_PORT": os.getenv("EPA_MONGODB_PORT", ""),
-        "EPA_MONGODB_USERNAME": os.getenv("EPA_MONGODB_USERNAME", ""),
-        "EPA_MONGODB_PASSWORD": os.getenv("EPA_MONGODB_PASSWORD", ""),
+        "EPA_MONGODB_HOSTNAME": hostname,
+        "EPA_MONGODB_PORT": port,
+        "EPA_MONGODB_USERNAME": username,
+        "EPA_MONGODB_PASSWORD": password,
         "EPA_MONGODB_SESSION_TOKEN_COLLECTION": os.getenv("EPA_MONGODB_SESSION_TOKEN_COLLECTION", ""),
         "EPA_MONGODB_DATABASE_NAME": os.getenv("EPA_MONGODB_DATABASE_NAME", ""),
         "EPA_MONGODB_USER_COLLECTION": os.getenv("EPA_MONGODB_USER_COLLECTION", ""),
         "EPA_MONGODB_POSTS_COLLECTION": os.getenv("EPA_MONGODB_POSTS_COLLECTION", ""),
-        "EPA_MONGO_URI": ("mongodb://"+os.getenv("EPA_MONGODB_USERNAME")+":"+os.getenv("EPA_MONGODB_PASSWORD")+"@"+os.getenv("EPA_MONGODB_HOSTNAME")+":"+os.getenv("EPA_MONGODB_PORT")+"/")
+        # Constructed URI (not read from env)
+        "EPA_MONGO_URI": f"mongodb://{username}:{password}@{hostname}:{port}/"
     }
+
 
 def parse_kafka_event(event: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    Kafka MSK events store record payload in base64.
-    Decode each record["value"] into JSON dicts.
+    Decodes base64-encoded Kafka records into JSON post objects.
+    This ensures encoded input is ALWAYS decoded before storage.
     """
     posts = []
-
     for _tp, rec_list in event.get("records", {}).items():
+        if not isinstance(rec_list, list):
+            continue
         for rec in rec_list:
+            if not isinstance(rec, dict):
+                continue
             b64_value = rec.get("value")
             if not b64_value:
                 continue
-
             try:
+                # Decode base64 BEFORE storage
                 decoded = base64.b64decode(b64_value).decode("utf-8")
                 payload = json.loads(decoded)
                 posts.append(payload)
-            except Exception:
-                # Passes any errors
+            except Exception as e:
+                print(f"Failed to decode Kafka record: {e}")
                 continue
-
     return posts
 
-def post_validation (payload):
-    validFields = {"post_id", "title", "content", "category", "category_slug", "created_at", "created_by"}
-    output = False
-
-    if (not payload):
-        return output
-    else:
-        for field in payload:
-            if not (field in validFields):
-                return output
-            else: 
-                if payload[field] == "":
-                    return output
-            validFields.remove(field)
-    output = True   
-    return output
 
 def get_mongo_collection(env_vars: Dict[str, str]):
     """
-    Creates and returns a pymongo collection object.
-    This is a "skeleton":
-    - It will work as soon as MONGO_URI / DB / COLLECTION are correct.
-    - Uses TLS by default
+    Returns pymongo collection object after validating required environment variables.
     """
-    mongo_uri = env_vars.get("EPA_MONGO_URI")
-    mongo_db = env_vars.get("EPA_MONGODB_DATABASE_NAME")
-    mongo_collection = env_vars.get("EPA_MONGODB_POSTS_COLLECTION")
+    required_vars = {
+        "EPA_MONGODB_USERNAME": env_vars.get("EPA_MONGODB_USERNAME"),
+        "EPA_MONGODB_PASSWORD": env_vars.get("EPA_MONGODB_PASSWORD"),
+        "EPA_MONGODB_HOSTNAME": env_vars.get("EPA_MONGODB_HOSTNAME"),
+        "EPA_MONGODB_PORT": env_vars.get("EPA_MONGODB_PORT"),
+        "EPA_MONGODB_DATABASE_NAME": env_vars.get("EPA_MONGODB_DATABASE_NAME"),
+        "EPA_MONGODB_POSTS_COLLECTION": env_vars.get("EPA_MONGODB_POSTS_COLLECTION")
+    }
 
-    if not mongo_uri or not mongo_db or not mongo_collection:
+    missing = [k for k, v in required_vars.items() if not v]
+    if missing:
         raise ValueError(
-            "Missing required Mongo environment variables: "
-            "MONGO_URI, MONGO_DB, MONGO_COLLECTION"
+            f"Missing required environment variables: {', '.join(missing)}\n"
+            f"Got values: {{{', '.join(f'{k}: {v[:3]}***' if v else f'{k}: <empty>' for k, v in required_vars.items())}}}"
         )
 
-    client = MongoClient(
-        mongo_uri,
-        serverSelectionTimeoutMS=5000,
-    )
+    mongo_uri = env_vars["EPA_MONGO_URI"]
+    mongo_db = env_vars["EPA_MONGODB_DATABASE_NAME"]
+    mongo_collection = env_vars["EPA_MONGODB_POSTS_COLLECTION"]
 
+    client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
     db = client[mongo_db]
     return db[mongo_collection]
 
 
 def ingest_posts(records: List[Dict[str, Any]], env_vars: Dict[str, str]) -> int:
     """
-    Inserts post records into MongoDB.
-
-    - Uses upsert so duplicates overwrite instead of duplicating
-    - Uses post_id as the unique key (adjust if your schema differs)
+    Inserts decoded post records into MongoDB.
+    CRITICAL: Records MUST be decoded BEFORE reaching this function.
+    Returns count of successfully inserted documents.
     """
-
     if not records:
         return 0
 
     collection = get_mongo_collection(env_vars)
-
     inserted = 0
 
     for post in records:
-        # Can change this key in future
         post_id = post.get("post_id")
-
-        if post_id is None:
-            # Skip bad record
+        if not post_id:
+            print(f"Skipping record without post_id: {post}")
             continue
 
-        # Upsert based on post_id
-        result = collection.insert_one(post)
-        inserted += 1
-        print(result)
-        print(post)
-
-        # Count "inserted" only when a new doc was created
-        #if result.upserted_id is not None:
-         #   inserted += 1
+        try:
+            # CRITICAL: Store DECODED JSON objects (not base64 strings)
+            result = collection.insert_one(post)
+            if result.acknowledged and result.inserted_id:
+                inserted += 1
+        except Exception as e:
+            print(f"Failed to insert post {post_id}: {e}")
+            continue
 
     return inserted

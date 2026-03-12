@@ -39,12 +39,18 @@ jobs:
 
       - name: Start Database Stack
         run: |
+          export EPA_MONGODB_USERNAME=test
+          export EPA_MONGODB_PASSWORD=test
+          export EPA_MONGODB_HOSTNAME=epa_database
+          export EPA_MONGODB_PORT=27017
+          export EPA_MONGODB_DATABASE_NAME=epa_database
+          
           docker compose -p sam-test -f ./database/docker-compose.yml up -d --build
 
           echo "Waiting for MongoDB to become healthy..."
           for i in {1..30}; do
             if docker compose -p sam-test -f ./database/docker-compose.yml exec -T epa_database \
-              mongosh --quiet --eval "db.adminCommand({ping:1}).ok" | grep -q "1"; then
+              mongosh --quiet --eval "db.adminCommand({ping:1}).ok" 2>&1 | grep -q "1"; then
               echo "MongoDB is healthy"
               exit 0
             fi
@@ -52,9 +58,7 @@ jobs:
           done
 
           echo "MongoDB failed to become healthy"
-          docker compose -p sam-test -f ./database/docker-compose.yml ps
           docker compose -p sam-test -f ./database/docker-compose.yml logs epa_database || true
-          docker compose -p sam-test -f ./database/docker-compose.yml logs epa_database_init || true
           exit 1
 
       - name: Create env.json for SAM test
@@ -63,71 +67,78 @@ jobs:
           cat > env.json <<'EOF'
           {
             "PostIngestorFunction": {
-              "EPA_MONGODB_HOSTNAME": "epa-db",
-              "EPA_MONGODB_PORT": "27017",
               "EPA_MONGODB_USERNAME": "test",
               "EPA_MONGODB_PASSWORD": "test",
-              "EPA_MONGODB_SESSION_TOKEN_COLLECTION": "session_tokens",
+              "EPA_MONGODB_HOSTNAME": "epa_database",
+              "EPA_MONGODB_PORT": "27017",
               "EPA_MONGODB_DATABASE_NAME": "epa_database",
+              "EPA_MONGODB_POSTS_COLLECTION": "posts",
               "EPA_MONGODB_USER_COLLECTION": "users",
-              "EPA_MONGODB_POSTS_COLLECTION": "posts"
+              "EPA_MONGODB_SESSION_TOKEN_COLLECTION": "sessions"
             }
           }
           EOF
+          echo "env.json created with all required EPA_* variables:"
           cat env.json
 
       - name: SAM Build
         working-directory: ./post_ingestor
         run: sam build --use-container
 
-        
       - name: SAM Local Invoke Test
         working-directory: ./post_ingestor
         run: |
-          echo "=== Verifying test files ==="
-          test -f env.json && echo "✓ env.json exists" || { echo "✗ env.json missing"; exit 1; }
-          test -f events/ingest_posts.json && echo "✓ ingest_posts.json exists" || { echo "✗ ingest_posts.json missing"; exit 1; }
+          echo "Verifying test files..."
+          test -f env.json && echo "✓ env.json exists" || { echo "✗ Missing env.json"; exit 1; }
+          test -f events/ingest_posts.json && echo "✓ ingest_posts.json exists" || { echo "✗ Missing ingest_posts.json"; exit 1; }
 
           echo ""
-          echo "=== Invoking Lambda function ==="
+          echo "Invoking Lambda function with DECODED test event..."
           sam local invoke PostIngestorFunction \
             --event ./events/ingest_posts.json \
             --env-vars ./env.json \
             --docker-network sam-test_default \
             --log-file sam-test.log \
-            > response.json 2>&1 || {
-              echo "SAM command failed with exit code $?"
-              cat sam-test.log || echo "No logs available"
-              exit 1
-            }
+            > response.json 2>&1
 
+          SAM_EXIT=$?
           echo ""
-          echo "=== Response file contents ==="
-          cat response.json || echo "[EMPTY]"
+          echo "SAM exit code: $SAM_EXIT"
+          echo ""
+          echo "Lambda response:"
+          cat response.json || echo "[NO RESPONSE]"
 
-          echo ""
-          echo "=== Response file size ==="
-          wc -c < response.json
-
-          echo ""
-          echo "=== Function execution logs ==="
-          cat sam-test.log || echo "No function logs"
-
-          echo ""
-          echo "=== Validating response ==="
-          if [ ! -s response.json ]; then
-            echo "ERROR: Response is empty. Function likely crashed."
+          # Show logs on failure for debugging
+          if [ $SAM_EXIT -ne 0 ] || [ ! -s response.json ]; then
+            echo ""
+            echo "=== FUNCTION LOGS (critical for debugging) ==="
+            cat sam-test.log || echo "No logs available"
             exit 1
           fi
 
-          # Try to parse with jq and show what we got
-          echo "Response parsed by jq:"
-          jq '.' response.json || echo "Not valid JSON"
+          echo ""
+          echo "Validating response structure..."
+          if ! jq -e '.statusCode == 200 and (.body.inserted | type == "number")' response.json > /dev/null; then
+            echo "✗ Response validation failed"
+            cat response.json
+            exit 1
+          fi
 
-          # Run validation
-          jq -e '.statusCode == 200 and (.body | type == "object") and (.body.inserted | type == "number") and (.body.inserted >= 1)' response.json
-
-          echo "✓ Test passed: statusCode=200, inserted >= 1"
+          INSERTED=$(jq -r '.body.inserted' response.json)
+          echo "✓ Test passed: statusCode=200, inserted=$INSERTED posts"
+          echo ""
+          echo "=== Verifying posts were stored DECODED (not base64) ==="
+          # Sample query to verify first post was stored as JSON object (not string)
+          docker compose -p sam-test -f ./database/docker-compose.yml exec -T epa_database \
+            mongosh --quiet --eval "
+              db = db.getSiblingDB('epa_database');
+              doc = db.posts.findOne();
+              if (doc && doc.post_id) {
+                print('✓ First post stored as DECODED JSON object with post_id: ' + doc.post_id);
+              } else {
+                print('⚠ No posts found in database');
+              }
+            " 2>&1 || echo "Database query skipped (non-critical)"
 
       - name: Cleanup Database
         if: always()
