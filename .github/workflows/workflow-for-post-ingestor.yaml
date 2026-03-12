@@ -74,36 +74,51 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sam build
+          sam ild
 
-      - name: SAM Local Invoke Test
+            - name: SAM Local Invoke Test
         working-directory: ./post_ingestor
         shell: bash
         run: |
-          set -euo pipefail
+          set -euo pipefail  
+          sam build --use-container --template template.yaml
 
-          # test -f env.json
-          # test -f events/ingest_posts.json
+          test -f env.json
+          test -f events/ingest_posts.json
 
+          # Run invoke and capture FULL output (stdout + stderr) to response.json
           sam local invoke PostIngestorFunction \
             --event ./events/ingest_posts.json \
             --env-vars ./env.json \
             --docker-network sam-test_default \
             --log-file sam-test.log \
-            > response.json
+            2>&1 > response.json
 
           echo "---- Lambda response ----"
           cat response.json
 
-          # Require: statusCode == 200 and body.inserted >= 1
+          # Validate JSON and structure
           python3 - <<'PY'
           import json, sys
-          with open("response.json","r",encoding="utf-8") as f:
-              data = json.load(f)
+          try:
+              with open("response.json", "r", encoding="utf-8") as f:
+                  data = json.load(f)
+          except json.JSONDecodeError as e:
+              print(f"FAIL: JSON decode error: {e}")
+              sys.exit(1)
 
           status = data.get("statusCode")
-          body = data.get("body") or {}
-          inserted = body.get("inserted") if isinstance(body, dict) else None
+          body = data.get("body")
+          inserted = None
+
+          if isinstance(body, str):
+              try:
+                  body = json.loads(body)
+              except json.JSONDecodeError:
+                  pass  # leave as string if not JSON
+
+          if isinstance(body, dict):
+              inserted = body.get("inserted")
 
           if status != 200:
               print(f"FAIL: statusCode={status}")
@@ -111,7 +126,7 @@ jobs:
 
           try:
               inserted_int = int(inserted)
-          except Exception:
+          except (ValueError, TypeError):
               print(f"FAIL: body.inserted missing/not int: {inserted!r}")
               sys.exit(3)
 
