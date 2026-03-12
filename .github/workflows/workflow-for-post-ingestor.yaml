@@ -144,6 +144,7 @@ jobs:
             exit 1
           fi
 
+          cat '.statusCode'
           if ! jq -e '.statusCode == 200 ' response.json >/dev/null 2>&1; then
             echo "ERROR: Response validation failed. Expected {statusCode:200}"
             jq '.' response.json || cat response.json
