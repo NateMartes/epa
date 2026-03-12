@@ -88,6 +88,10 @@ jobs:
       - name: SAM Local Invoke Test
         working-directory: ./post_ingestor
         run: |
+
+          ls -a
+          cat env.json
+          
           echo "Verifying test files..."
           test -f env.json && echo "env.json exists" || { echo "Missing env.json"; exit 1; }
           test -f events/ingest_posts.json && echo "ingest_posts.json exists" || { echo "Missing ingest_posts.json"; exit 1; }
