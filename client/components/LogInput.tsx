@@ -1,7 +1,9 @@
 import React, {useState} from 'react';
 import {View, StyleSheet, TextInput} from 'react-native';
 import Button from '@/components/Button';
+import { Link, useRouter } from 'expo-router';
 export default function MyForm() {
+  const router = useRouter();
   const [Uname, setUsername] = useState('');
   const [Pass, setPassword] = useState('');
   const styles = StyleSheet.create({
@@ -17,6 +19,11 @@ export default function MyForm() {
     color: '#000',
     textAlignVertical: 'top',
     },
+  button: {
+    fontSize: 15,
+    textDecorationLine: 'underLine',
+    color: '#ccc',
+  },
   })
   
   function handleSubmit(e) {
@@ -25,7 +32,12 @@ export default function MyForm() {
     const formJson = { Username: Uname, Password: Pass };
     //fetch('/some-api', {method: form.method, body: formData });
     console.log(formJson);
-    e => setPassword('');
+    if (Pass == "test"){
+      router.navigate('/index');
+      }
+    else{
+      e => setPassword('');
+  }
   }
 
   return (
@@ -46,8 +58,11 @@ export default function MyForm() {
 	     style={styles.input}
 	   />
       <hr />
-      <View style={{alignItems: 'flex-end'}}>
-      <Button theme="primary" label="Make Post" onPress={handleSubmit}/>
+      <View style={{alignItems: 'center'}}>
+      <Button label="Login" onPress={handleSubmit}/>
+      <Link href="/signup" style = {styles.button}>
+        Create Account
+      </Link>
       </View>
       
       
