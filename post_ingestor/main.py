@@ -17,12 +17,12 @@ def lambda_handler(event, context):
     if event.get("eventSource") == "aws:kafka" and isinstance(event.get("records"), dict):
         posts = parse_kafka_event(event)
         inserted = ingest_posts(posts, env_vars)
-        return {"statusCode": 200, "body": {"inserted": inserted}}
+        return {"statusCode": 200}
 
     # Custom test event detection
     if event.get("event") == "INGEST_POSTS" and isinstance(event.get("records"), list):
         inserted = ingest_posts(event["records"], env_vars)
-        return {"statusCode": 200, "body": {"inserted": inserted}}
+        return {"statusCode": 200}
 
     # Unsupported event format
     return {
