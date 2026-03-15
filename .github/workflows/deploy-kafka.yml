@@ -72,7 +72,7 @@ jobs:
       TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
       TF_WORKSPACE: "terraform-github-actions-kafka"
       CONFIG_DIRECTORY: "./post_queue/terraform"
-      AWS_REGION: "${{ vars.AWS_REGION }}"
+      AWS_DEFAULT_REGION: "${{ vars.AWS_REGION }}"
     
     permissions: # granular permissions
       # so GitHub can check out this repo using the default github.token
@@ -99,7 +99,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
         aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
         
     - name: Init terraform CLI
       working-directory: ${{ env.CONFIG_DIRECTORY }}
