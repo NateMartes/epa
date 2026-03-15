@@ -15,8 +15,6 @@ on:
       route_table_id:
         description: "The ID of the route table that belongs to kafka nodes"
         value: ${{ jobs.init-kafka.route_table_id }}
-    secrets:
-      inherit: true
     
 
 jobs:
