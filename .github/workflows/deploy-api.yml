@@ -11,9 +11,9 @@ on:
 jobs:
   # Deploy dependencies
   deploy-database:
-    environment: production
     uses: NateMartes/epa/.github/workflows/deploy-db.yml@feature/create-api-workflow
+    secrets: inherit
     
   deploy-kafka:
-    environment: production
     uses: NateMartes/epa/.github/workflows/deploy-kafka.yml@feature/create-api-workflow
+    secrets: inherit
