@@ -14,6 +14,14 @@ output "mongo_discovery_service" {
   value = aws_service_discovery_service.mongo_discovery_service
 }
 
+output "mongo_dns_id" {
+  value = aws_route53_zone.mongo_cluster.zone_id
+}
+
+output "route_table_id" {
+  value = aws_route_table.mongo_route_table.id
+}
+
 output "mongo_cluster_dns_name" {
   value = aws_route53_record.mongo_txt.name
 }

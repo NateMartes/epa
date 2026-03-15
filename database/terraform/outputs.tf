@@ -14,8 +14,20 @@ output "mongo_db_cluster_name" {
   value = module.compute.mongo_db_cluster.name
 }
 
+output "vpc_id" {
+  value = module.networking.vpc.id
+}
+
 output "first_mongodb_service" {
   value = module.compute.first_mongodb_service
+}
+
+output "mongo_dns_id" {
+  value = module.networking.mongo_dns_id
+}
+
+output "route_table_id" {
+  value = module.networking.route_table_id
 }
 
 output "replica_set_name" {

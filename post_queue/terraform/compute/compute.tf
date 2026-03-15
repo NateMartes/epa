@@ -127,8 +127,12 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
               "sh", 
               "-c",
               <<-EOT
-                echo 'Waiting for DNS...'
-                sleep 60
+                
+                echo 'Generating custom.security file...'
+                cat <<EOF > /opt/kafka/config/custom.security
+                networkaddress.cache.ttl=5
+                networkaddress.cache.negative.ttl=5
+                EOF
                 
                 echo 'Generating jaas.config file...'
                 cat <<EOF > /opt/kafka/config/jaas.conf
@@ -170,7 +174,7 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
       environment = [
         {
           name  = "KAFKA_NODE_ID"
-          value = tostring(count.index)
+          value = tostring(count.index + 1)
         },
         {
           name  = "CLUSTER_ID"
@@ -185,9 +189,12 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
           value = "PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094"
         },
         {
-          name  = "KAFKA_ADVERTISED_LISTENERS"
-          value = "PLAINTEXT://localhost:9092,EXTERNAL://${var.kafka_lb_name}:9094"
+          name  = "KAFKA_INTER_BROKER_LISTENER_NAME"
+          value = "PLAINTEXT"
         },
+        {
+          name  = "KAFKA_ADVERTISED_LISTENERS"
+          value = "PLAINTEXT://kafka-${count.index}.${var.kafka_dns_namespace.name}:9092,EXTERNAL://${var.kafka_lb_name}:9094"},
         {
           name = "KAFKA_SASL_ENABLED_MECHANISMS"
           value = "PLAIN"
@@ -201,8 +208,8 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
           value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
         },
         {
-          name = "KAFKA_OPTS"
-          value = "-Djava.security.auth.login.config=/opt/kafka/config/jaas.conf"
+          name  = "KAFKA_OPTS"
+          value = "-Djava.security.auth.login.config=/opt/kafka/config/jaas.conf -Djava.security.properties=/opt/kafka/config/custom.security"
         },
         {
           name  = "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"
@@ -214,7 +221,7 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
         },
         {
           name  = "KAFKA_CONTROLLER_QUORUM_VOTERS"
-          value = join(",", [for id in range(var.node_count) : "${id}@${var.kafka_discovery_service[id].name}.${var.kafka_dns_namespace.name}:9093"])
+          value = join(",", [for id in range(var.node_count) : "${id + 1}@${var.kafka_discovery_service[id].name}.${var.kafka_dns_namespace.name}:9093"])
         },
         {
           name  = "KAFKA_LOG_DIRS",
@@ -223,6 +230,18 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
         {
           name  = "KAFKA_CONNECTION_SETUP_TIMEOUT_MS"
           value = "60000"
+        },
+        {
+          name  = "KAFKA_CONTROLLER_QUORUM_RETRY_BACKOFF_MS"
+          value = "500"
+        },
+        {
+          name  = "KAFKA_CONTROLLER_QUORUM_RETRY_BACKOFF_MAX_MS"  
+          value = "5000"
+        },
+        {
+          name  = "KAFKA_CONTROLLER_QUORUM_REQUEST_TIMEOUT_MS"
+          value = "30000"
         }
       ],
       secrets = [
@@ -242,18 +261,18 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
       healthCheck = {
         command     = [
           "CMD-SHELL",
-          "/opt/kafka/bin/kafka-cluster.sh cluster-id --bootstrap-server localhost:9092"
+          "nc -z localhost 9092 && nc -z localhost 9094 || exit 1"
         ],
         interval    = 30,
         timeout     = 15,
         retries     = 10,
-        startPeriod = 120
+        startPeriod = 240
       },
       logConfiguration = {
         logDriver = "awslogs",
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.ecs_log_group.name,
-          "awslogs-region"        = "us-east-1",
+          "awslogs-region"        = "us-west-2",
           "awslogs-stream-prefix" = "epa-kafka"
         }
       }
@@ -284,7 +303,8 @@ resource "aws_ecs_service" "epa_kafka_service" {
   desired_count   = 1
   launch_type     = "EC2"
   enable_execute_command = true # For automated database setup
-
+  health_check_grace_period_seconds = 120
+  
   network_configuration {
     subnets          = var.subnet[*].id
     security_groups  = [var.kafka_ecs_tasks_sg.id]

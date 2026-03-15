@@ -14,6 +14,14 @@ output "kafka_discovery_service" {
   value = aws_service_discovery_service.kafka_discovery_service
 }
 
+output "kafka_dns_id" {
+  value = aws_route53_zone.kafka_cluster.id
+}
+
+output "route_table_id" {
+  value = aws_route_table.kafka_route_table.id
+}
+
 output "kafka_tg" {
   value = aws_lb_target_group.kafka_tg
 }
