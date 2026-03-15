@@ -122,6 +122,9 @@ jobs:
           # Get variables for ecs command
           cluster_name=$(terraform output -raw kafka_cluster_name)
           service_name=$(terraform output -raw first_kafka_service)
+          echo $cluster_name
+          echo $(terraform output -raw kafka_cluster_name)
+          echo $(terraform output kafka_cluster_name)
           
           # Move to ./post_queue
           cd ../

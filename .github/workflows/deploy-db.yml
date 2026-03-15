@@ -282,6 +282,9 @@ jobs:
           # Get variables for ecs command
           cluster_name=$(terraform output -raw mongo_db_cluster_name)
           service_name=$(terraform output -raw first_mongodb_service)
+          echo $cluster_name
+          echo $(terraform output -raw mongo_db_cluster_name)
+          echo $(terraform output mongo_db_cluster_name)
           
           # Move to ./database
           cd ../
