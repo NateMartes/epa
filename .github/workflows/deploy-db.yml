@@ -15,8 +15,6 @@ on:
       route_table_id:
         description: "The ID of the route table that belongs to the database nodes"
         value: ${{ jobs.init-db.route_table_id }}
-    secrets:
-      inherit: true
 
 jobs:
   terraform-apply:    
