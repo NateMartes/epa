@@ -18,6 +18,10 @@ output "vpc_id" {
   value = module.networking.vpc.id
 }
 
+output "vpc_cidr_block" {
+  value = module.networking.vpc.cidr_block
+}
+
 output "first_mongodb_service" {
   value = module.compute.first_mongodb_service
 }

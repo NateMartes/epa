@@ -10,6 +10,11 @@ output "vpc_id" {
   value = module.networking.vpc.id
 }
 
+output "vpc_cidr_block" {
+  value = module.networking.vpc.cidr_block
+}
+
+
 output "kafka_dns_id" { 
   value = module.networking.kafka_dns_id
 }

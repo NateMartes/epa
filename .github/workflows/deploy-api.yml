@@ -1,0 +1,18 @@
+name: "Deploy API and Dependencies"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    breaches:
+      - main
+
+jobs:
+  
+  # Deploy dependencies
+  deploy-database:
+    uses: NateMartes/epa/.github/workflows/deploy-db@main
+    
+  deploy-kafka:
+    uses: NateMartes/epa/.github/workflows/deploy-kafka@main

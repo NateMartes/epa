@@ -26,6 +26,10 @@ Parameters:
     Description: CIDR block of the Database VPC (Needed for routing)
     Type: String
     
+  DatabaseRouteTableId:
+    Description: Route table ID of the Database VPC (for return route)
+    Type: String
+    
   KafkaVPCId:
     Description: Kafka VPC ID
     Type: String
@@ -40,10 +44,6 @@ Parameters:
     
   KafkaRouteTableId:
     Description: Route table ID of the Kafka VPC (for return route)
-    Type: String
-
-  DatabaseRouteTableId:
-    Description: Route table ID of the Database VPC (for return route)
     Type: String
     
 Resources:
