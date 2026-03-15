@@ -99,7 +99,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
         aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
-        aws-region: "us-east-1"
+        aws-region: ${{ env.AWS_REGION }}
         
     - name: Init terraform CLI
       working-directory: ${{ env.CONFIG_DIRECTORY }}
@@ -282,9 +282,6 @@ jobs:
           # Get variables for ecs command
           cluster_name=$(terraform output -raw mongo_db_cluster_name)
           service_name=$(terraform output -raw first_mongodb_service)
-          echo $cluster_name
-          echo $(terraform output -raw mongo_db_cluster_name)
-          echo $(terraform output mongo_db_cluster_name)
           
           # Move to ./database
           cd ../
