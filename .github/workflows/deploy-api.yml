@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  
+  environment: production
   # Deploy dependencies
   deploy-database:
     uses: NateMartes/epa/.github/workflows/deploy-db.yml@feature/create-api-workflow
