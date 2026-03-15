@@ -192,14 +192,6 @@ resource "aws_security_group" "kafka_ecs_tasks_sg" {
   description = "Security group for ECS Kafka tasks"
   vpc_id      = var.vpc.id
   
-  ingress {
-    from_port       = 9093
-    to_port         = 9093
-    protocol        = "tcp"
-    
-    # This should be changed to the CIDR block of a VPC for production
-    cidr_blocks      = ["0.0.0.0/0"] 
-  }
   egress {
     from_port   = 0
     to_port     = 0
@@ -217,9 +209,30 @@ resource "aws_security_group_rule" "kafka_external_communication_9094" {
   to_port                  = 9094
   protocol                 = "tcp"
   security_group_id        = aws_security_group.kafka_ecs_tasks_sg.id
-  source_security_group_id = aws_security_group.kafka_ecs_tasks_sg.id
+  cidr_blocks              = ["0.0.0.0/0"]
   description              = "Allow Kafka external traffic"
 }
+
+resource "aws_security_group_rule" "kafka_external_communication_9093" {
+  type                     = "ingress"
+  from_port                = 9093
+  to_port                  = 9093
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.kafka_ecs_tasks_sg.id
+  cidr_blocks              = [var.vpc.cidr_block]
+  description              = "Allow Kafka 9093 traffic"
+}
+
+resource "aws_security_group_rule" "kafka_communication_9092" {
+  type                     = "ingress"
+  from_port                = 9092
+  to_port                  = 9092
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.kafka_ecs_tasks_sg.id
+  cidr_blocks              = [var.vpc.cidr_block]
+  description              = "Allow Kafka 9092 traffic"
+}
+
 
 # --- Kafka access for the data from EFS (Elastic File System), on the default NFS port ---
 resource "aws_security_group" "efs_sg" {

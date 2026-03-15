@@ -8,7 +8,7 @@ locals {
 
 # --- VPC ---
 resource "aws_vpc" "kafka_vpc" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = "10.1.0.0/16"
   enable_dns_hostnames = true
   enable_dns_support   = true
   tags                 = { Name = "epa-kafka-vpc" }
@@ -19,7 +19,7 @@ resource "aws_subnet" "kafka_subnet" {
   count                   = local.azs_count
   vpc_id                  = aws_vpc.kafka_vpc.id
   availability_zone       = local.azs_names[count.index]
-  cidr_block              = "10.0.${count.index}.0/24"
+  cidr_block              = "10.1.${count.index}.0/24"
   tags                    = { Name = "epa-kafka-public-${local.azs_names[count.index]}" }
 }
 
@@ -28,7 +28,7 @@ resource "aws_subnet" "private_kafka_subnet" {
   count             = local.azs_count
   vpc_id            = aws_vpc.kafka_vpc.id
   availability_zone = local.azs_names[count.index]
-  cidr_block        = "10.0.${count.index + 10}.0/24"
+  cidr_block        = "10.1.${count.index + 10}.0/24"
   tags              = { Name = "epa-kafka-private-${local.azs_names[count.index]}" }
 }
 
@@ -100,6 +100,10 @@ resource "aws_service_discovery_service" "kafka_discovery_service" {
       type = "A"
     }
   }
+
+  health_check_custom_config {
+    failure_threshold = 1
+  }
 }
 
 # --- Cluster Load Balancer ---
@@ -116,6 +120,14 @@ resource "aws_lb_target_group" "kafka_tg" {
   protocol = "TCP"
   target_type = "ip"
   vpc_id   = aws_vpc.kafka_vpc.id
+  
+  health_check {
+      protocol            = "TCP"
+      port                = "traffic-port"
+      healthy_threshold   = 2              
+      unhealthy_threshold = 10           
+      interval            = 10           
+  }
 }
 
 resource "aws_lb_listener" "kafka_lb_listener" {
