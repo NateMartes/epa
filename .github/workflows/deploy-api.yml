@@ -12,7 +12,7 @@ jobs:
   
   # Deploy dependencies
   deploy-database:
-    uses: NateMartes/epa/.github/workflows/deploy-db.yml@main
+    uses: NateMartes/epa/.github/workflows/deploy-db.yml@feature/create-api-workflow
     
   deploy-kafka:
-    uses: NateMartes/epa/.github/workflows/deploy-kafka.yml@main
+    uses: NateMartes/epa/.github/workflows/deploy-kafka.yml@feature/create-api-workflow
