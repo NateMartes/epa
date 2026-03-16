@@ -51,11 +51,12 @@ jobs:
         aws-region: ${{ env.AWS_DEFAULT_REGION }}
       
     - name: Build SAM project
-      working-directory: ./api/
+      working-directory: api/
       run: |
           sam build --use-container
           
     - name: Deploy SAM project
+      working-directory: api/
       run: |
         sam deploy --no-confirm-changeset \
                    --no-fail-on-empty-changeset \
