@@ -5,16 +5,16 @@ on:
     outputs:
       vpc_id:
         description: "The ID of the AWS VPC kafka was deployed to"
-        value: ${{ jobs.init-kafka.vpc_id }}
+        value: ${{ jobs.init-kafka.outputs.vpc_id }}
       route53_zone_id:
         description: "The ID of the DNS hosted zone that kafka uses"
-        value: ${{ jobs.init-kafka.route53_zone_id }}
+        value: ${{ jobs.init-kafka.outputs.route53_zone_id }}
       vpc_cidr:
         description: "The CIDR block kafka uses"
-        value: ${{ jobs.init-kafka.vpc_cidr }}
+        value: ${{ jobs.init-kafka.outputs.vpc_cidr }}
       route_table_id:
         description: "The ID of the route table that belongs to kafka nodes"
-        value: ${{ jobs.init-kafka.route_table_id }}
+        value: ${{ jobs.init-kafka.outputs.route_table_id }}
     
 
 jobs:
