@@ -35,6 +35,10 @@ jobs:
        KAFKA_VPC_CIDR: ${{ needs.deploy-kafka.outputs.vpc_cidr }}
        KAFKA_ROUTE_TABLE_ID: ${{ needs.deploy-kafka.outputs.route_table_id }}
     steps:
+      
+    - name: Checkout
+      uses: actions/checkout@v3
+        
     - name: Install AWS CLI
       run: |
         sudo apt update && sudo apt install -y unzip curl
@@ -51,12 +55,12 @@ jobs:
         aws-region: ${{ env.AWS_DEFAULT_REGION }}
       
     - name: Build SAM project
-      working-directory: api/
+      working-directory: ./api/
       run: |
           sam build --use-container
           
     - name: Deploy SAM project
-      working-directory: api/
+      working-directory: ./api/
       run: |
         sam deploy --no-confirm-changeset \
                    --no-fail-on-empty-changeset \
