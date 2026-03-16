@@ -11,18 +11,19 @@ on:
 jobs:
   # Deploy dependencies
   deploy-database:
-    id: deploy-database
     uses: NateMartes/epa/.github/workflows/deploy-db.yml@feature/create-api-workflow
     secrets: inherit
     
   deploy-kafka:
-    id: deploy-kafka
     uses: NateMartes/epa/.github/workflows/deploy-kafka.yml@feature/create-api-workflow
     secrets: inherit
 
   deploy-api:
     runs-on: ubuntu-latest
     environment: production
+    needs: 
+      - deploy-database
+      - deploy-kafka
     env:
        AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
        DATABASE_VPC_ID: ${{ needs.deploy-database.outputs.vpc_id }}
