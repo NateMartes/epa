@@ -11,9 +11,59 @@ on:
 jobs:
   # Deploy dependencies
   deploy-database:
+    id: deploy-database
     uses: NateMartes/epa/.github/workflows/deploy-db.yml@feature/create-api-workflow
     secrets: inherit
     
   deploy-kafka:
+    id: deploy-kafka
     uses: NateMartes/epa/.github/workflows/deploy-kafka.yml@feature/create-api-workflow
     secrets: inherit
+
+  deploy-api:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+       AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
+       DATABASE_VPC_ID: ${{ needs.deploy-database.outputs.vpc_id }}
+       DATABASE_ROUTE53_ZONE_ID: ${{ needs.deploy-database.outputs.route53_zone_id }}
+       DATABASE_VPC_CIDR: ${{ needs.deploy-database.outputs.vpc_cidr }}
+       DATABASE_ROUTE_TABLE_ID: ${{ needs.deploy-database.outputs.route_table_id }}
+       KAFKA_VPC_ID: ${{ needs.deploy-kafka.outputs.vpc_id }}
+       KAFKA_ROUTE53_ZONE_ID: ${{ needs.deploy-kafka.outputs.route53_zone_id }}
+       KAFKA_VPC_CIDR: ${{ needs.deploy-kafka.outputs.vpc_cidr }}
+       KAFKA_ROUTE_TABLE_ID: ${{ needs.deploy-kafka.outputs.route_table_id }}
+    steps:
+    - name: Install AWS CLI
+      run: |
+        sudo apt update && sudo apt install -y unzip curl
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install --update
+        rm -rf awscliv2.zip aws
+        
+    - name: Configure AWS CLI Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
+        aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      
+    - name: Build SAM project
+      working-directory: ./api/
+      run: |
+          sam build --use-container
+          
+    - name: Deploy SAM project
+      run: |
+        sam deploy --no-confirm-changeset \
+                   --no-fail-on-empty-changeset \
+                   --parameter-overrides \
+                   DatabaseVPCId="$DATABASE_VPC_ID" \
+                   DatabaseRoute53ZoneId="$DATABASE_ROUTE53_ZONE_ID" \
+                   DatabaseVpcCidr="$DATABASE_VPC_CIDR" \
+                   DatabaseRouteTableId="$DATABASE_ROUTE_TABLE_ID" \
+                   KafkaVPCId="$KAFKA_VPC_ID" \
+                   KafkaRoute53ZoneId="$KAFKA_ROUTE53_ZONE_ID" \
+                   KafkaVpcCidr="$KAFKA_VPC_CIDR" \
+                   KafkaRouteTableId="$KAFKA_ROUTE_TABLE_ID" \
