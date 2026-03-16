@@ -8,7 +8,7 @@ Description: >
 Globals:
   Function:
     Timeout: 30
-    MemorySize: 128
+    MemorySize: 256
     LoggingConfig:
       LogFormat: JSON
 
@@ -26,19 +26,19 @@ Resources:
             StartingPosition: LATEST
             Topics:
               - new_post
-            ConsumerGroupId: post_ingestor_consumer_group <<<<
+            ConsumerGroupId: post_ingestor_consumer_group
             BatchSize: 100
             MaximumBatchingWindowInSeconds: 5
             Enabled: true
       Environment:
         Variables:
-          EPA_MONGODB_HOSTNAME: "epa-db"
+          EPA_MONGODB_HOSTNAME: "epa_database"
           EPA_MONGODB_PORT: "27017"
           EPA_MONGODB_USERNAME: "test"
           EPA_MONGODB_PASSWORD: "test"
-          EPA_MONGODB_USER_COLLECTION: "session_tokens"
-          EPA_MONGODB_DATABSE_NAME: "epa_database"
+          EPA_MONGODB_DATABASE_NAME: "epa_database"
           EPA_MONGODB_USER_COLLECTION: "users"
+          EPA_MONGODB_SESSION_TOKEN_COLLECTION: "session_tokens"
           EPA_MONGODB_POSTS_COLLECTION: "posts"
 
     Metadata:

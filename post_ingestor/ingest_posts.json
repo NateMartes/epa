@@ -11,7 +11,7 @@
         "timestamp": 1700000000000,
         "timestampType": "CREATE_TIME",
         "key": "cG9zdF9rZXlfMQ==",
-        "value": "eyJwb3N0X2lkIjoxMjQsInRpdGxlIjoiSGVsbG8gV29ybGQhIiwiY2F0ZWdvcnlfbmFtZSI6IlRlc3QiLCJjYXRlZ29yeV9zbHVnIjoidGVzdCJ9",
+        "value": "eyJwb3N0X2lkIjoxMjQsInRpdGxlIjoiSGVsbG8gV29ybGQhIiwiY29udGVudCI6IlRoaXMgaXMgYSB0ZXN0IHBvc3QiLCJjYXRlZ29yeSI6IlRlc3QiLCJjYXRlZ29yeV9zbHVnIjoidGVzdCIsImNyZWF0ZWRfYXQiOiIyMDI0LTAxLTAxVDAwOjAwOjAwWiIsImNyZWF0ZWRfYnkiOiJ0ZXN0X3VzZXIifQ==",
         "headers": [
           {
             "trace_id": "dHJhY2UtMQ=="
@@ -25,7 +25,7 @@
         "timestamp": 1700000001000,
         "timestampType": "CREATE_TIME",
         "key": "cG9zdF9rZXlfMg==",
-        "value": "eyJwb3N0X2lkIjoxMjUsInRpdGxlIjoiU2Vjb25kIFBvc3QiLCJjYXRlZ29yeV9uYW1lIjoiVGVzdCIsImNhdGVnb3J5X3NsdWciOiJ0ZXN0In0=",
+        "value": "eyJwb3N0X2lkIjoxMjUsInRpdGxlIjoiU2Vjb25kIFBvc3QiLCJjb250ZW50IjoiQW5vdGhlciB0ZXN0IHBvc3QiLCJjYXRlZ29yeSI6IlRlc3QiLCJjYXRlZ29yeV9zbHVnIjoidGVzdCIsImNyZWF0ZWRfYXQiOiIyMDI0LTAxLTAxVDAwOjAwOjAxWiIsImNyZWF0ZWRfYnkiOiJ0ZXN0X3VzZXIyIn0=",
         "headers": []
       }
     ]
