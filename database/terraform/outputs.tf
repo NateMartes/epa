@@ -31,7 +31,7 @@ output "mongo_dns_id" {
 }
 
 output "mongo_node_dns_id" {
-  value = module.networking.mongo_discovery_service.zone_id
+  value = module.networking.private_dns_namespace.hosted_zone
 }
 
 output "route_table_id" {
