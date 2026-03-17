@@ -12,6 +12,7 @@
 """  # noqa: E501
 
 
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi import FastAPI, Request
 from mangum import Mangum
 from pathlib import Path
@@ -71,6 +72,21 @@ def custom_openapi() -> Dict[str, Any]:
         from fastapi.openapi.utils import get_openapi
         return get_openapi(title="EPA API (Generated from FastAPI)", version="1.0.0", routes=app.routes)
         
+@app.get("/docs", include_in_schema=False)
+def custom_swagger_ui_html(request: Request):
+    """Custom /docs route for OpenAPI"""
+    aws_event = request.scope.get("aws.event", {})
+    stage = aws_event.get("requestContext", {}).get("stage", "")
+    
+    # Construct the explicit path
+    prefix = f"/{stage}" if stage else ""
+    openapi_url = f"{prefix}/openapi.json"
+    
+    return get_swagger_ui_html(
+        openapi_url=openapi_url,
+        title="EPA API (Generated with FastAPI)"
+    )
+            
 app.include_router(AuthenticationApiRouter)
 app.include_router(SystemApiRouter)
 app.include_router(PostsApiRouter)
