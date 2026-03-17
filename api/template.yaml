@@ -367,7 +367,7 @@ Resources:
         HealthCheck:
           Type: Api
           Properties:
-            Path: /{proxy+}
+            Path: /v1/{proxy+}
             Method: ANY
       Environment:
         Variables:

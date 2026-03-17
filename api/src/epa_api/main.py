@@ -12,12 +12,8 @@
 """  # noqa: E501
 
 
-from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi import FastAPI, Request
 from mangum import Mangum
-from pathlib import Path
-from typing import Dict, Any
-import yaml
 
 from epa_api.apis.authentication_api import router as AuthenticationApiRouter
 from epa_api.apis.system_api import router as SystemApiRouter
@@ -51,42 +47,7 @@ async def persist_auth_context(request: Request, call_next):
     # Proceed to the Router -> Security Dependency -> Implementation
     response = await call_next(request)
     return response
-  
-def custom_openapi() -> Dict[str, Any]:
-    """Generated OpenAPI schema if does not exist"""
-    if app.openapi_schema:
-        return app.openapi_schema
-    
-    current_dir = Path(__file__).parent
-    
-    yaml_path = current_dir / "openapi.yml"
-    
-    try:
-        with open(yaml_path, "r") as file:
-            openapi_schema = yaml.safe_load(file)
-            
-        app.openapi_schema = openapi_schema
-        return app.openapi_schema
-        
-    except FileNotFoundError:
-        from fastapi.openapi.utils import get_openapi
-        return get_openapi(title="EPA API (Generated from FastAPI)", version="1.0.0", routes=app.routes)
-        
-@app.get("/docs", include_in_schema=False)
-def custom_swagger_ui_html(request: Request):
-    """Custom /docs route for OpenAPI"""
-    aws_event = request.scope.get("aws.event", {})
-    stage = aws_event.get("requestContext", {}).get("stage", "")
-    
-    # Construct the explicit path
-    prefix = f"/{stage}" if stage else ""
-    openapi_url = f"{prefix}/openapi.json"
-    
-    return get_swagger_ui_html(
-        openapi_url=openapi_url,
-        title="EPA API (Generated with FastAPI)"
-    )
-            
+              
 app.include_router(AuthenticationApiRouter)
 app.include_router(SystemApiRouter)
 app.include_router(PostsApiRouter)
@@ -94,6 +55,3 @@ app.include_router(CategoryApiRouter)
 
 # Lambda Handler
 handler = Mangum(app)
-
-# OpenAPI work in Lambda
-app.openapi = custom_openapi
