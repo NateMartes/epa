@@ -33,10 +33,12 @@ jobs:
        AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
        DATABASE_VPC_ID: ${{ needs.deploy-database.outputs.vpc_id }}
        DATABASE_ROUTE53_ZONE_ID: ${{ needs.deploy-database.outputs.route53_zone_id }}
+       DATABASE_NODE_ROUTE53_ZONE_ID: ${{ needs.deploy-database.outputs.node_route53_zone_id }}
        DATABASE_VPC_CIDR: ${{ needs.deploy-database.outputs.vpc_cidr }}
        DATABASE_ROUTE_TABLE_ID: ${{ needs.deploy-database.outputs.route_table_id }}
        KAFKA_VPC_ID: ${{ needs.deploy-kafka.outputs.vpc_id }}
        KAFKA_ROUTE53_ZONE_ID: ${{ needs.deploy-kafka.outputs.route53_zone_id }}
+       KAFKA_NODE_ROUTE53_ZONE_ID: ${{ needs.deploy-kafka.outputs.node_route53_zone_id }}
        KAFKA_VPC_CIDR: ${{ needs.deploy-kafka.outputs.vpc_cidr }}
        KAFKA_ROUTE_TABLE_ID: ${{ needs.deploy-kafka.outputs.route_table_id }}
        
@@ -142,19 +144,20 @@ jobs:
             --stack-name "$STACK_NAME" \
             --query "StackResources[?ResourceType=='AWS::EC2::VPC'].PhysicalResourceId" \
             --output text)
-            
-          if [[ -z $API_VPC_ID ]]; then
-            echo "VPC of API unknown"
-            exit 1
-          fi
           
           # MongoDB DNS
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $DATABASE_ROUTE53_ZONE_ID \
             --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 \
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id $DATABASE_NODE_ROUTE53_ZONE_ID \
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 \
           
           # Kafka DNS
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $KAFKA_ROUTE53_ZONE_ID \
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 \
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id $KAFKA_NODE_ROUTE53_ZONE_ID \
             --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 \
       
