@@ -30,8 +30,8 @@ output "mongo_dns_id" {
   value = module.networking.mongo_dns_id
 }
 
-output "kafka_node_dns_id" {
-  value = module.networking.kafka_discovery_service.zone_id
+output "mongo_node_dns_id" {
+  value = module.networking.mongo_discovery_service.zone_id
 }
 
 output "route_table_id" {
