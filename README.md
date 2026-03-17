@@ -8,28 +8,31 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?logo=mongodb&logoColor=white)](#)
 [![Redis](https://img.shields.io/badge/Redis-%23DD0031.svg?logo=redis&logoColor=white)](#)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=fff)](#)
+[![Terraform](https://img.shields.io/badge/Terraform-844FBA?logo=terraform&logoColor=fff)](#)
 
 Safety is important and as technology gets more sophisticated, so should our ability to stay safe. Our project EPA, the Event Posting App, will be a mobile application that allows users to post about safety concerns in local areas to ensure that users know what is going on in their community. Users can subscribe to categories and specific tags within those categories and be notified as soon as an event occurs.
 
-## System Architecture
-
-The overview of EPA can appear as such:
-
-![EPA System Architecture](./system_diagram/event-posting-app.png "EPA System Architecture")
-
-### System Architecture Choices
-
-Some chocies we want to highlight are the following:
-- **Contract First API**: The main EPA API uses a Contract First approach, so that we can always serve a client apporiately.
-- **Cache Aside Pattern**: The application focuses on a Cache Aside Pattern, meaning we cache posts for users for that access is faster. We include 2 caching layers, a client side and a server side.
-
-## Quick Start
-If you have Docker installed, then you can use the `docker compose` plugin for starting services:
-```bash
-docker compose up
-```
-
-Some microservices (like the cache_loader, notify_service) operate using AWS Serverless Application Model (see below)
+## Table of Contents
+- [Useful Commands](#useful-commands)
+- [System Architecture](#system-architecture)
+  - [System Architecture Choices](#system-architecture-choices)
+- [Quick Start](#quick-start)
+- [The Client](#the-client)
+- [The API](#the-api)
+  - [Adding Endpoints](#adding-endpoints)
+- [The Database](#the-database)
+  - [Configuration Syntax](#configuration-syntax)
+- [User Timeline Caching](#user-timeline-caching)
+  - [Connecting to the Cahce](#connecting-to-the-cahce)
+- [The Post Queue](#the-post-queue)
+  - [Authorization](#authorization)
+- [The Notifier, The Post Ingestor, and The User Cache Loader](#the-notifier-the-post-ingestor-and-the-user-cache-loader)
+- [Deployments and Environments](#deployments-and-environments)
+  - [Terraform](#terraform)
+- [Technical Resources](#technical-resources)
+  - [Frameworks & Languages](#frameworks--languages)
+  - [Infrastructure & Tools](#infrastructure--tools)
+  - [Databases & Messaging](#databases--messaging)
 
 ## Useful Commands
 
@@ -52,6 +55,43 @@ Run AWS Lambda function locally:
 ```bash
 sudo sam build && sudo sam local invoke
 ```
+
+## System Architecture
+
+The overview of EPA can appear as such:
+
+![EPA System Architecture](./system_diagram/event-posting-app.png "EPA System Architecture")
+
+### System Architecture Choices
+
+Some chocies we want to highlight are the following:
+- **Contract First API**: The main EPA API uses a Contract First approach, so that we can always serve a client apporiately.
+- **Cache Aside Pattern**: The application focuses on a Cache Aside Pattern, meaning we cache posts for users for that access is faster. We include 2 caching layers, a client side and a server side.
+
+## Quick Start
+If you have Docker installed, then you can use the `docker compose` plugin for starting services:
+```bash
+docker compose up
+```
+
+Some microservices (like the cache_loader, notify_service) operate using AWS Serverless Application Model (see below)
+
+## The Client
+The Client uses React Native Expo to build an application for web and moblie. You can start the application
+using npm
+
+```bash
+npm install && npm start
+```
+
+This by default will generate a QR code for use on [Expo Go](https://expo.dev/go). If you would like to simulate a moblie device on your machine, you can use [Android Studio](https://developer.android.com/studio). Make Sure an Android Device Emulator is running with Expo Go installed and then run:
+
+```bash
+npm start --android
+```
+
+*Note*: Development is tested for web and moblie (specfically Android). We do not test for Apple devices but since Expo can complie to apple devices, it is expected to work.
+
 ## The API
 
 The EPA API uses a Contract-First approach, meaning endpoints are auto generated from an OpenAPI spec using the `openapi-generator-cli` tool:
@@ -101,6 +141,7 @@ class EpaAPIImplementation(BaseDefaultApi):
 ```
 
 ## The Database
+![EPA Database Architecture](./system_diagram/database/epa-database.png "EPA Database Architecture")
 The database uses MongoDB for storing information such as `users`, `posts`, `session_tokens`, `categories`, and more.
 The database is initialized using a Python script and the `config.json` file found within the `./database` directory.
 The database `docker-compose.yml` file includes a database initializer to add the defined collections.
@@ -151,6 +192,7 @@ func connectToRedis() *redis.Client {
 ```
 
 ## The Post Queue
+![EPA Post Queue Architecture](./system_diagram/kafka/epa-kafka.png "EPA Post Queue Architecture")
 The post queue uses Kafka to store posts for later consumers to pick up (e.g post_ingestor, cache_loader).
 You can use `docker-compose` to spin up a local Kafka instance.
 
@@ -161,6 +203,15 @@ The defined Kafka consumer groups include:
 - `post_ingestor_consumer`
 - `cache_loader_consumer`
 - `notify_service_consumer`
+
+### Authorization
+For connecting to the cluster, you'll need to use the information depending on if the client
+is a consumer or a producer.
+
+- consumer: 'post_consumer':'consumer-password'
+- producer: 'post_producer':'producer-password
+
+Authorization is only set on the external Kafka port (9094) since the cluster runs in a private subnet.
 
 More Kafka topics can be added to the local instance by updating the `init.sh` script:
 ```bash
@@ -183,6 +234,26 @@ The flow of the Lamdba functions are:
 - **The Cache Loader**: On Kafka event, for each record, for each user that pertains to this record, update their cache line with that post
 - **The Post Ingestor**: On Kafka event, for each record, insert the record into the global database
 
+
+## Deployments and Environments
+EPA has 2 main environments for running Github Actions:
+- `Development`: Used for pull requests to test code before merging
+- `Production`: Used for pushes to `main` to update cloud production resources
+
+### Terraform
+Terraform is primarly used for deploying resources into the cloud. The process for writing a Terraform Github Action for deployment is:
+1. Run a terraform plan setup in the pull request
+2. Run a terraform apply in a push to `main`
+
+You can use [this](https://developer.hashicorp.com/terraform/tutorials/automation/github-actions) document to ensure your workflows follows
+good standards.
+
+### When Failures Occur
+During a workflow failure, specifcally during deployment, some resources make exist in the cloud and others not.
+A user will need to enter the EPA HCP Terraform Dashboard to then run a Destory Plan:
+- EPA Workspace > Settings > Destruction and Deletion > Queue Destroy Plan
+- Then you must navigate to the Terraform runs and after the destroy plan is complete, apply the changes
+
 ## Technical Resources
 
 ### Frameworks & Languages
@@ -197,6 +268,7 @@ The flow of the Lamdba functions are:
 * [AWS SAM (Serverless Application Model)](https://aws.amazon.com/serverless/sam/) - Toolkit for building serverless applications.
 * [Docker](https://www.docker.com/) - Containerization for local development.
 * [OpenAPI Generator](https://openapi-generator.tech/) - Tool for generating API clients and server stubs.
+* [Terraform](https://developer.hashicorp.com/terraform) - Used for deploying resources into the cloud.
 
 ### Databases & Messaging
 

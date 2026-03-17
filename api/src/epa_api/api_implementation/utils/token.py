@@ -140,7 +140,11 @@ class TokenUtils:
         least_ttl = None
         for t in tokens:
             actual_token = t["session_token"]
-            ttl = TokenUtils.get_ttl_in_seconds(TokenUtils.get_expire_date(actual_token))
+            time = TokenUtils.get_expire_date(actual_token)
+            if not time:
+                continue
+                
+            ttl = TokenUtils.get_ttl_in_seconds(time)
             if not least_ttl:
                 least_ttl = ttl
                 output = t
@@ -247,7 +251,7 @@ class TokenUtils:
         return token
     
     @staticmethod        
-    def get_expire_date(token: str) -> datetime:
+    def get_expire_date(token: str) -> datetime | None:
         """
         Get the expire time of a token.
         
@@ -256,11 +260,15 @@ class TokenUtils:
         :return: The time the token expires
         :rtype: datetime.datetime
         """
-        payload = TokenUtils.get_token_payload(token)
-        return datetime.fromtimestamp(payload["exp"])
+        
+        try:
+            payload = TokenUtils.get_token_payload(token)
+            return datetime.fromtimestamp(payload["exp"])
+        except jwt.ExpiredSignatureError:
+            return None
         
     @staticmethod        
-    def get_user_id(token: str) -> str:
+    def get_user_id(token: str) -> str | None:
         """
         Get the user id of a token. This function assumes the token has the user_id field.
         
@@ -269,9 +277,13 @@ class TokenUtils:
         :return: A user's id
         :rtype: str
         """
-        payload = TokenUtils.get_token_payload(token)
-        return payload["user_id"]
         
+        try:
+            payload = TokenUtils.get_token_payload(token)
+            return payload["user_id"]
+        except jwt.ExpiredSignatureError:
+            return None
+       
     @staticmethod        
     def get_ttl_in_seconds(date: datetime) -> int:
         """

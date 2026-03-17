@@ -6,6 +6,4 @@ services:
       hostname: epa-redis
       command: /bin/sh -c "redis-server --requirepass ${EPA_REDIS_PASSWORD}"
       environment:
-         EPA_REDIS_HOSTNAME: ${EPA_REDIS_HOSTNAME}
-         EPA_REDIS_PORT: ${EPA_REDIS_PORT}
          EPA_REDIS_PASSWORD: ${EPA_REDIS_PASSWORD}

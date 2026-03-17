@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.collection import Collection
 import os
+import logging
 
 class MongoUtils:
     """A class with helpful methods to interact with MongoDB"""
@@ -64,8 +65,24 @@ class MongoUtils:
         :rtype: Tuple[pymongo.MongoClient, pymongo.database.Database]
         """
         
+        is_cluster = 1
+        try:
+            tmp = os.getenv("EPA_MONGODB_IS_CLUSTER")
+            if not tmp:
+                logging.getLogger(__name__).warning("Environment variable EPA_MONGODB_IS_CLUSTER not given, assuming MongoDB is a cluster")
+            else:
+               if int(tmp) == 0:
+                   is_cluster = 0
+                
+        except TypeError:
+            logging.getLogger(__name__).warning("Environment variable EPA_MONGODB_IS_CLUSTER not right type, assuming MongoDB is a cluster")
+            
         hostname, port, username, password, _ = MongoUtils.get_mongodb_env_variables()
-        uri = f"mongodb://{username}:{password}@{hostname}:{port}/"
+        if is_cluster:
+            uri = f"mongodb+srv://{username}:{password}@{hostname}/"
+        else:
+            uri = f"mongodb://{username}:{password}@{hostname}:{port}/"
+            
         client = MongoClient(uri, timeoutMS=5000)
         try:
             db = client["epa_database"]

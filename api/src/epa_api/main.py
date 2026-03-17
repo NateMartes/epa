@@ -13,6 +13,7 @@
 
 
 from fastapi import FastAPI, Request
+from mangum import Mangum
 
 from epa_api.apis.authentication_api import router as AuthenticationApiRouter
 from epa_api.apis.system_api import router as SystemApiRouter
@@ -20,6 +21,8 @@ from epa_api.apis.posts_api import router as PostsApiRouter
 from epa_api.apis.category_api import router as CategoryApiRouter
 from epa_api.api_implementation.utils.context import current_token_data
 from epa_api.models.extra_models import TokenModel
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 app = FastAPI(
     title="EPA (Event Posting App) API",
@@ -49,3 +52,6 @@ app.include_router(AuthenticationApiRouter)
 app.include_router(SystemApiRouter)
 app.include_router(PostsApiRouter)
 app.include_router(CategoryApiRouter)
+
+# Lambda Handler
+handler = Mangum(app)

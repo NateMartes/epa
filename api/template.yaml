@@ -1,0 +1,301 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: epa-api
+
+Globals:
+  Function:
+    Timeout: 3
+    LoggingConfig:
+      LogFormat: JSON
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+    Default: epa-api
+
+  DatabaseVPCId:
+    Description: Database VPC ID
+    Type: String
+    
+  DatabaseRoute53ZoneId:
+    Description: Hosted zone containing Database DNS resolution
+    Type: String
+
+  DatabaseVpcCidr:
+    Description: CIDR block of the Database VPC (Needed for routing)
+    Type: String
+    
+  KafkaVPCId:
+    Description: Kafka VPC ID
+    Type: String
+    
+  KafkaRoute53ZoneId:
+    Description: Hosted zone containing Kafka DNS resolution
+    Type: String
+
+  KafkaVpcCidr:
+    Description: CIDR block of the Kafka VPC (Needed for routing)
+    Type: String
+    
+  KafkaRouteTableId:
+    Description: Route table ID of the Kafka VPC (for return route)
+    Type: String
+
+  DatabaseRouteTableId:
+    Description: Route table ID of the Database VPC (for return route)
+    Type: String
+    
+Resources:
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.2.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-igw
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: 10.2.0.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ1)
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: 10.2.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ2)
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-public-rt
+
+  PublicRouteToInternet:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    DependsOn: PublicRouteToInternet
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-nat-gw
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: 10.2.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: 10.2.3.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-private-rt
+
+  PrivateRouteToInternet:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+  VPCPeeringConnectionToDatabase:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref VPC
+      PeerVpcId: !Ref DatabaseVPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-peering-database
+        
+  VPCPeeringConnectionToKafka:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref VPC
+      PeerVpcId: !Ref KafkaVPCId
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-peering-kafka
+
+  PrivateRouteToDatabase:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: !Ref DatabaseVpcCidr
+      VpcPeeringConnectionId: !Ref VPCPeeringConnectionToDatabase
+
+  DatabaseReturnRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref DatabaseRouteTableId
+      DestinationCidrBlock: 10.2.0.0/16
+      VpcPeeringConnectionId: !Ref VPCPeeringConnectionToDatabase
+      
+  PrivateRouteToKafka:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: !Ref KafkaVpcCidr
+      VpcPeeringConnectionId: !Ref VPCPeeringConnectionToKafka
+      
+  KafkaReturnRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref KafkaRouteTableId
+      DestinationCidrBlock: 10.2.0.0/16
+      VpcPeeringConnectionId: !Ref VPCPeeringConnectionToKafka
+
+  ApiSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EPA API Lambda
+      VpcId: !Ref VPC
+      
+  SGIngress:  
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: -1
+      GroupId: !Ref ApiSG
+      SourceSecurityGroupId: !Ref ApiSG
+  
+  SGEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      IpProtocol: -1
+      GroupId: !Ref ApiSG
+      CidrIp: 0.0.0.0/0
+
+  EpaApiFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      PackageType: Zip
+      CodeUri: .
+      Handler: epa_api.main.handler
+      Runtime: python3.12
+      Architectures:
+      - x86_64
+      Events:
+        HealthCheck:
+          Type: Api
+          Properties:
+            Path: /v1/{proxy+}
+            Method: ANY
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref ApiSG
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+    Metadata:
+      BuildMethod: makefile
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name: !Sub ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+        
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName: !Ref ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+      
+Outputs:
+  EpaApi:
+    Description: API Gateway endpoint URL for Prod stage
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/"
+  EpaApiFunction:
+    Description: Hello World Lambda Function ARN
+    Value: !GetAtt EpaApiFunction.Arn
+  EpaApiFunctionRole:
+    Description: Implicit IAM Role created for Hello World function
+    Value: !GetAtt EpaApiFunctionRole.Arn

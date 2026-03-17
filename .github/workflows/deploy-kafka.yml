@@ -1,0 +1,162 @@
+name: "Terraform Apply Kafka"
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform-apply:    
+    name: "Terraform Apply Kafka"
+    runs-on: ubuntu-latest
+    environment: production
+    
+    env:
+      TF_CLOUD_ORGANIZATION: "epa-terraform"
+      TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
+      TF_WORKSPACE: "terraform-github-actions-kafka"
+      CONFIG_DIRECTORY: "./post_queue/terraform"
+      
+    permissions: # granular permissions
+      # so GitHub can check out this repo using the default github.token
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Upload Configuration
+        uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
+        id: apply-upload
+        with:
+          workspace: ${{ env.TF_WORKSPACE }}
+          directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: Create Apply Run
+        uses: hashicorp/tfc-workflows-github/actions/create-run@v1.0.0
+        id: apply-run
+        with:
+          workspace: ${{ env.TF_WORKSPACE }}
+          configuration_version: ${{ steps.apply-upload.outputs.configuration_version_id }}
+
+      - name: Apply
+        uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.0.0
+        if: fromJSON(steps.apply-run.outputs.payload).data.attributes.actions.IsConfirmable
+        id: apply
+        with:
+          run: ${{ steps.apply-run.outputs.run_id }}
+          comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
+  init-kafka:
+    needs: terraform-apply
+    name: "Init Kafka"
+    runs-on: ubuntu-latest
+    environment: production
+  
+    env:
+      TF_CLOUD_ORGANIZATION: "epa-terraform"
+      TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
+      TF_WORKSPACE: "terraform-github-actions-kafka"
+      CONFIG_DIRECTORY: "./post_queue/terraform"
+    
+    permissions: # granular permissions
+      # so GitHub can check out this repo using the default github.token
+      contents: read
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      
+    - name: Setup Terraform CLI
+      uses: hashicorp/setup-terraform@v3
+      with:
+        cli_config_credentials_token: ${{ secrets.EPA_TF_API_TOKEN }}
+        
+    - name: Install AWS CLI
+      run: |
+        sudo apt update && sudo apt install -y unzip curl
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install --update
+        rm -rf awscliv2.zip aws
+        
+    - name: Configure AWS CLI Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
+        aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
+        aws-region: "us-east-1"
+        
+    - name: Init terraform CLI
+      working-directory: ${{ env.CONFIG_DIRECTORY }}
+      run: terraform init
+      
+    - name: Init the Kafka Cluster
+      working-directory: ${{ env.CONFIG_DIRECTORY }}   
+      run: |
+          
+          # For ECS Exec
+          sudo apt install -y expect
+
+          # Get variables for ecs command
+          cluster_name=$(terraform output -raw kafka_cluster_name)
+          service_name=$(terraform output -raw first_kafka_service)
+          
+          # Move to ./post_queue
+          cd ../
+          
+          # Get script files (encode in Base64 for special characters)
+          SCRIPT_B64=$(base64 -w 0 ./init.sh)
+          
+          success=0
+          for i in $(seq 1 10); do
+            echo "Trying to connect to Kafka cluster instances (Attempt $i/10)..."
+            
+            # Get Task ARN for one of the nodes in the cluster
+            task_arn=$(aws ecs list-tasks \
+              --cluster "$cluster_name" \
+              --service-name "$service_name" \
+              --desired-status RUNNING \
+              --query 'taskArns[0]' --output text)
+              
+            echo "Target Task ARN: $task_arn"
+          
+            if [ "$task_arn" == "None" ] || [ -z "$task_arn" ]; then
+              echo "No RUNNING task found yet. Retrying in 10 seconds..."
+              sleep 10
+              continue
+            fi
+          
+            echo "Running Init Script..."
+            EXEC_OUTPUT=$(unbuffer aws ecs execute-command \
+                --cluster "$cluster_name" \
+                --task "$task_arn" \
+                --container "kafka" \
+                --interactive \
+                --command "sh -c '
+                
+                  # Move needed files over
+                  echo $SCRIPT_B64 | base64 -d > /tmp/init.sh
+                  chmod +x /tmp/init.sh
+                  
+                  # Run
+                  /tmp/init.sh --is-started
+                  
+                  # Finish
+                  echo SUCCESS_TOKEN: Kafka initialized
+                  '" 2>&1) || true
+            
+            echo "$EXEC_OUTPUT"
+          
+            # Validate the actual container output
+            if echo "$EXEC_OUTPUT" | grep -q "SUCCESS_TOKEN"; then
+              echo "Kafka initialize successfully"
+              success=1
+              break
+            elif echo "$EXEC_OUTPUT"; then
+              echo "Connection failed or SSM tunnel not ready. Retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+          
+          if [ $success -ne 1 ]; then
+            echo "Failed to initialize cluster in 10 tries with ECS command, exiting"
+            exit 1
+          fi

@@ -78,11 +78,15 @@ class AuthAPIImplementation(BaseAuthenticationApi):
         new_session_token = TokenUtils.generate_new_session_token(user, MongoUtils.get_session_tokens_collection(db))
         client.close()
         
+        expire_time = TokenUtils.get_expire_date(new_access_token)
+        if not expire_time:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
         return AuthToken(
             access_token=new_access_token,
             session_token=new_session_token,
             token_type="Bearer",
-            access_expires_in=TokenUtils.get_ttl_in_seconds(TokenUtils.get_expire_date(new_access_token))
+            access_expires_in=TokenUtils.get_ttl_in_seconds(expire_time)
         )
         
     async def renew_session_token(self) -> AuthToken:
@@ -97,18 +101,26 @@ class AuthAPIImplementation(BaseAuthenticationApi):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid Session")
             
         user_collection = MongoUtils.get_user_collection(db)
-        user = UserUtils.get_user_from_user_id(TokenUtils.get_user_id(token), user_collection)
+        user_id = TokenUtils.get_user_id(token)
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        user = UserUtils.get_user_from_user_id(user_id, user_collection)
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
             
         new_access_token = TokenUtils.generate_new_access_token(user, user_collection)
         client.close()
         
+        expire_time = TokenUtils.get_expire_date(new_access_token)
+        if not expire_time:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    
         return AuthToken(
             access_token=new_access_token,
             session_token=token,
             token_type="Bearer",
-            access_expires_in=TokenUtils.get_ttl_in_seconds(TokenUtils.get_expire_date(new_access_token))
+            access_expires_in=TokenUtils.get_ttl_in_seconds(expire_time)
         )        
         
     async def authenticate_with_google_web(self):
@@ -147,9 +159,13 @@ class AuthAPIImplementation(BaseAuthenticationApi):
         new_session_token = TokenUtils.generate_new_session_token(user_object, MongoUtils.get_session_tokens_collection(db))
         client.close()
         
+        expire_time = TokenUtils.get_expire_date(new_access_token)
+        if not expire_time:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    
         return AuthToken(
             access_token=new_access_token,
             session_token=new_session_token,
             token_type="Bearer",
-            access_expires_in=TokenUtils.get_ttl_in_seconds(TokenUtils.get_expire_date(new_access_token))
+            access_expires_in=TokenUtils.get_ttl_in_seconds(expire_time)
         )        

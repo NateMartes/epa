@@ -240,6 +240,18 @@ paths:
         schema:
           type: string
         style: form
+      - description: "If true, then return all posts that the user requesting is subscribed\
+          \ to."
+        explode: true
+        in: query
+        name: is_subscribed
+        required: false
+        schema:
+          enum:
+          - "true"
+          - "false"
+          type: string
+        style: form
       responses:
         "200":
           content:
