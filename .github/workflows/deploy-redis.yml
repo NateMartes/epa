@@ -65,7 +65,7 @@ jobs:
         
       - name: Get Hostname and Port
         id: get-hostname-and-port
-        working-driectory: ${{ env.CONFIG_DIRECTORY }}
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
         run: |
             echo "endpoint=$(terraform output -raw endpoint)" >> $GITHUB_OUTPUT
             echo "port=$(terraform output -raw port)" >> $GITHUB_OUTPUT
