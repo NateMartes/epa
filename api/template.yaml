@@ -48,105 +48,105 @@ Parameters:
     
   # Environment Variables
   # --- MongoDB Parameters ---
-    EpaMongodbHostname:
-      Type: String
-      Description: Hostname for the MongoDB connection
-      
-    EpaMongodbPort:
-      Type: Number
-      Description: Port for the MongoDB connection
-      
-    EpaMongodbDatabaseName:
-      Type: String
-      Description: Name of the MongoDB database
-      
-    EpaMongodbUsername:
-      Type: String
-      Description: Username for MongoDB authentication
-      
-    EpaMongodbPassword:
-      Type: String
-      NoEcho: true
-      Description: Password for MongoDB authentication
-      
-    EpaMongodbIsCluster:
-      Type: String
-      Description: Boolean string indicating if MongoDB is a cluster
-      
-    EpaMongodbUserCollection:
-      Type: String
-      Description: Collection name for users
-      
-    EpaMongodbSessionTokenCollection:
-      Type: String
-      Description: Collection name for session tokens
-      
-    EpaMongodbPostsCollection:
-      Type: String
-      Description: Collection name for posts
-      
-    EpaMongodbCategoriesCollection:
-      Type: String
-      Description: Collection name for categories
-  
-    # --- JWT & Authentication Parameters ---
-    EpaJwtSecret:
-      Type: String
-      NoEcho: true
-      Description: Secret key for signing JWTs
-      
-    EpaGoogleWebClientId:
-      Type: String
-      Description: Google Web Client ID for OAuth
-      
-    EpaGoogleWebClientSecret:
-      Type: String
-      NoEcho: true
-      Description: Google Web Client Secret for OAuth
-      
-    EpaGoogleWebRedirectUri:
-      Type: String
-      Description: Redirect URI for Google OAuth
-  
-    # --- Kafka Parameters ---
-    EpaKafkaBrokerHostname:
-      Type: String
-      Description: Hostname for the Kafka broker
-      
-    EpaKafkaBrokerPort:
-      Type: Number
-      Description: Port for the Kafka broker
-      
-    EpaKafkaPostTopicName:
-      Type: String
-      Description: Kafka topic name for posts
-      
-    EpaKafkaProducerUsername:
-      Type: String
-      Description: Username for the Kafka producer
-      
-    EpaKafkaProducerPassword:
-      Type: String
-      NoEcho: true
-      Description: Password for the Kafka producer
-  
-    # --- Redis Parameters ---
-    EpaRedisHostname:
-      Type: String
-      Description: Hostname for Redis
-      
-    EpaRedisPort:
-      Type: Number
-      Description: Port for Redis
-      
-    EpaRedisPassword:
-      Type: String
-      NoEcho: true
-      Description: Password for Redis
-      
-    EpaRedisUseSSL:
-      Type: String
-      Description: To use SSL connection for Redis
+  EpaMongodbHostname:
+    Type: String
+    Description: Hostname for the MongoDB connection
+    
+  EpaMongodbPort:
+    Type: Number
+    Description: Port for the MongoDB connection
+    
+  EpaMongodbDatabaseName:
+    Type: String
+    Description: Name of the MongoDB database
+    
+  EpaMongodbUsername:
+    Type: String
+    Description: Username for MongoDB authentication
+    
+  EpaMongodbPassword:
+    Type: String
+    NoEcho: true
+    Description: Password for MongoDB authentication
+    
+  EpaMongodbIsCluster:
+    Type: String
+    Description: Boolean string indicating if MongoDB is a cluster
+    
+  EpaMongodbUserCollection:
+    Type: String
+    Description: Collection name for users
+    
+  EpaMongodbSessionTokenCollection:
+    Type: String
+    Description: Collection name for session tokens
+    
+  EpaMongodbPostsCollection:
+    Type: String
+    Description: Collection name for posts
+    
+  EpaMongodbCategoriesCollection:
+    Type: String
+    Description: Collection name for categories
+
+  # --- JWT & Authentication Parameters ---
+  EpaJwtSecret:
+    Type: String
+    NoEcho: true
+    Description: Secret key for signing JWTs
+    
+  EpaGoogleWebClientId:
+    Type: String
+    Description: Google Web Client ID for OAuth
+    
+  EpaGoogleWebClientSecret:
+    Type: String
+    NoEcho: true
+    Description: Google Web Client Secret for OAuth
+    
+  EpaGoogleWebRedirectUri:
+    Type: String
+    Description: Redirect URI for Google OAuth
+
+  # --- Kafka Parameters ---
+  EpaKafkaBrokerHostname:
+    Type: String
+    Description: Hostname for the Kafka broker
+    
+  EpaKafkaBrokerPort:
+    Type: Number
+    Description: Port for the Kafka broker
+    
+  EpaKafkaPostTopicName:
+    Type: String
+    Description: Kafka topic name for posts
+    
+  EpaKafkaProducerUsername:
+    Type: String
+    Description: Username for the Kafka producer
+    
+  EpaKafkaProducerPassword:
+    Type: String
+    NoEcho: true
+    Description: Password for the Kafka producer
+
+  # --- Redis Parameters ---
+  EpaRedisHostname:
+    Type: String
+    Description: Hostname for Redis
+    
+  EpaRedisPort:
+    Type: Number
+    Description: Port for Redis
+    
+  EpaRedisPassword:
+    Type: String
+    NoEcho: true
+    Description: Password for Redis
+    
+  EpaRedisUseSSL:
+    Type: String
+    Description: To use SSL connection for Redis
     
 Resources:
 
