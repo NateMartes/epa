@@ -102,7 +102,6 @@ jobs:
         sam deploy --no-confirm-changeset \
                            --no-fail-on-empty-changeset \
                            --parameter-overrides \
-                          DatabaseRoute53ZoneId="$DATABASE_ROUTE53_ZONE_ID" \
                           DatabaseRouteTableId="$DATABASE_ROUTE_TABLE_ID" \
                           DatabaseVpcCidr="$DATABASE_VPC_CIDR" \
                           DatabaseVPCId="$DATABASE_VPC_ID" \
@@ -129,7 +128,33 @@ jobs:
                           EpaRedisPassword=$EPA_REDIS_PASSWORD \
                           EpaRedisPort=$EPA_REDIS_PORT \
                           EpaRedisUseSSL=$EPA_REDIS_USE_SSL \
-                          KafkaRoute53ZoneId="$KAFKA_ROUTE53_ZONE_ID" \
                           KafkaRouteTableId="$KAFKA_ROUTE_TABLE_ID" \
                           KafkaVpcCidr="$KAFKA_VPC_CIDR" \
                           KafkaVPCId="$KAFKA_VPC_ID"
+                          
+    - name: Add DNS to API
+      working-directory: ./api/
+      run: |
+          
+          STACK_NAME=$(grep 'stack_name' samconfig.toml | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
+          
+          API_VPC_ID=$(aws cloudformation describe-stack-resources \
+            --stack-name "$STACK_NAME" \
+            --query "StackResources[?ResourceType=='AWS::EC2::VPC'].PhysicalResourceId" \
+            --output text)
+            
+          if [[ $API_VPC_ID -eq "" ]]; then
+            echo "VPC of API unknown"
+            exit 1
+          fi
+          
+          # MongoDB DNS
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id $DATABASE_ROUTE53_ZONE_ID \
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 \
+          
+          # Kafka DNS
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id $KAFKA_ROUTE53_ZONE_ID \
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 \
+      

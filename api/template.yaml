@@ -17,10 +17,6 @@ Parameters:
   DatabaseVPCId:
     Description: Database VPC ID
     Type: String
-    
-  DatabaseRoute53ZoneId:
-    Description: Hosted zone containing Database DNS resolution
-    Type: String
 
   DatabaseVpcCidr:
     Description: CIDR block of the Database VPC (Needed for routing)
@@ -32,10 +28,6 @@ Parameters:
     
   KafkaVPCId:
     Description: Kafka VPC ID
-    Type: String
-    
-  KafkaRoute53ZoneId:
-    Description: Hosted zone containing Kafka DNS resolution
     Type: String
 
   KafkaVpcCidr:
