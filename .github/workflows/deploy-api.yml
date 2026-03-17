@@ -4,22 +4,19 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
   # Deploy dependencies
   deploy-database:
-    uses: NateMartes/epa/.github/workflows/deploy-db.yml@feature/create-api-workflow
+    uses: NateMartes/epa/.github/workflows/deploy-db.yml@main
     secrets: inherit
     
   deploy-kafka:
-    uses: NateMartes/epa/.github/workflows/deploy-kafka.yml@feature/create-api-workflow
+    uses: NateMartes/epa/.github/workflows/deploy-kafka.yml@main
     secrets: inherit
     
   deploy-redis:
-    uses: NateMartes/epa/.github/workflows/deploy-redis.yml@feature/create-api-workflow
+    uses: NateMartes/epa/.github/workflows/deploy-redis.yml@main
     secrets: inherit
 
   deploy-api:
