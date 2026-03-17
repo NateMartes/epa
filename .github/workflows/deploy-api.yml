@@ -11,15 +11,15 @@ on:
 jobs:
   # Deploy dependencies
   deploy-database:
-    uses: NateMartes/epa/.github/workflows/deploy-db.yml@feature/create-api-workflow
+    uses: NateMartes/epa/.github/workflows/deploy-db.yml@main
     secrets: inherit
     
   deploy-kafka:
-    uses: NateMartes/epa/.github/workflows/deploy-kafka.yml@feature/create-api-workflow
+    uses: NateMartes/epa/.github/workflows/deploy-kafka.yml@main
     secrets: inherit
     
   deploy-redis:
-    uses: NateMartes/epa/.github/workflows/deploy-redis.yml@feature/create-api-workflow
+    uses: NateMartes/epa/.github/workflows/deploy-redis.yml@main
     secrets: inherit
 
   deploy-api:
@@ -143,7 +143,7 @@ jobs:
             --query "StackResources[?ResourceType=='AWS::EC2::VPC'].PhysicalResourceId" \
             --output text)
             
-          if [[ $API_VPC_ID -eq "" ]]; then
+          if [[ -z $API_VPC_ID ]]; then
             echo "VPC of API unknown"
             exit 1
           fi
