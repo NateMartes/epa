@@ -1,9 +1,14 @@
 name: "Terraform Apply Redis"
 
 on:
-  push:
-    branches:
-      - main
+  workflow_call:
+    outputs:
+      hostname:
+        description: "The hostname of the Redis instance"
+        value: ${{ jobs.terraform-apply.outputs.hostname }}
+      port:
+        description: "The port of the Redis instance"
+        value: ${{ jobs.terraform-apply.outputs.port }}
 
 jobs:
   terraform-apply:    
@@ -11,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     
+    outputs:
+      hostname: ${{ steps.setup-replica-set.outputs.endpoint }}
+      port: ${{ steps.get-hostname-and-port.outputs.port }}
     env:
       TF_CLOUD_ORGANIZATION: "epa-terraform"
       TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
@@ -45,3 +53,19 @@ jobs:
         with:
           run: ${{ steps.apply-run.outputs.run_id }}
           comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
+          
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.EPA_TF_API_TOKEN }}
+          
+      - name: Init terraform CLI
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: terraform init
+        
+      - name: Get Hostname and Port
+        id: get-hostname-and-port
+        working-driectory: ${{ env.CONFIG_DIRECTORY }}
+        run: |
+            echo "endpoint=$(terraform output -raw endpoint)" >> $GITHUB_OUTPUT
+            echo "port=$(terraform output -raw port)" >> $GITHUB_OUTPUT
