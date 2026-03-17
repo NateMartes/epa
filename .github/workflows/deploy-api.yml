@@ -33,12 +33,12 @@ jobs:
        AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
        DATABASE_VPC_ID: ${{ needs.deploy-database.outputs.vpc_id }}
        DATABASE_ROUTE53_ZONE_ID: ${{ needs.deploy-database.outputs.route53_zone_id }}
-       DATABASE_NODE_ROUTE53_ZONE_ID: ${{ needs.deploy-database.outputs.node_route53_zone_id }}
+       DATABASE_NODE_ROUTE53_ZONE_ID: ${{ needs.deploy-database.outputs.route53_node_zone_id }}
        DATABASE_VPC_CIDR: ${{ needs.deploy-database.outputs.vpc_cidr }}
        DATABASE_ROUTE_TABLE_ID: ${{ needs.deploy-database.outputs.route_table_id }}
        KAFKA_VPC_ID: ${{ needs.deploy-kafka.outputs.vpc_id }}
        KAFKA_ROUTE53_ZONE_ID: ${{ needs.deploy-kafka.outputs.route53_zone_id }}
-       KAFKA_NODE_ROUTE53_ZONE_ID: ${{ needs.deploy-kafka.outputs.node_route53_zone_id }}
+       KAFKA_NODE_ROUTE53_ZONE_ID: ${{ needs.deploy-kafka.outputs.route53_node_zone_id }}
        KAFKA_VPC_CIDR: ${{ needs.deploy-kafka.outputs.vpc_cidr }}
        KAFKA_ROUTE_TABLE_ID: ${{ needs.deploy-kafka.outputs.route_table_id }}
        

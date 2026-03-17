@@ -9,9 +9,9 @@ on:
       route53_zone_id:
         description: "The ID of the DNS hosted zone that the database uses"
         value: ${{ jobs.init-db.outputs.route53_zone_id }}
-      node_route53_zone_id:
+      route53_node_zone_id:
         description: "The ID of the DNS hosted zone that kafka nodes uses"
-        value: ${{ jobs.init-kafka.outputs.node_route53_zone_id }}
+        value: ${{ jobs.init-kafka.outputs.route53_node_zone_id }}
       vpc_cidr:
         description: "The CIDR block the database uses"
         value: ${{ jobs.init-db.outputs.vpc_cidr }}
@@ -116,7 +116,7 @@ jobs:
         # Store output
         echo "vpc_id=$(terraform output -raw vpc_id)" >> $GITHUB_OUTPUT
         echo "route53_zone_id=$(terraform output -raw mongo_dns_id)" >> $GITHUB_OUTPUT
-        echo "node_route53_zone_id=$(terraform output -raw node_mongo_dns_id)" >> $GITHUB_OUTPUT
+        echo "route53_node_zone_id=$(terraform output -raw mongo_node_dns_id)" >> $GITHUB_OUTPUT
         echo "vpc_cidr=$(terraform output -raw vpc_cidr_block)" >> $GITHUB_OUTPUT
         echo "route_table_id=$(terraform output -raw route_table_id)" >> $GITHUB_OUTPUT
 
