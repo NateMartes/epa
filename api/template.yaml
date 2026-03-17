@@ -362,7 +362,7 @@ Resources:
           Properties:
             Path: /v1/{proxy+}
             Method: ANY
-      Timeout: 30 
+      Timeout: 7
       Environment:
         Variables:
           EPA_MONGODB_HOSTNAME: !Ref EpaMongodbHostname
