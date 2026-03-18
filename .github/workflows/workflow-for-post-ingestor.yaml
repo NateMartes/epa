@@ -94,7 +94,7 @@ jobs:
 
           echo "Verifying test files..."
           test -f env.json && echo "env.json exists" || { echo "Missing env.json"; exit 1; }
-          test -f events/ingest_posts.json && echo "ingest_posts.json exists" || { echo "Missing ingest_posts.json"; exit 1; }
+          test -f ./ingest_posts.json && echo "ingest_posts.json exists" || { echo "Missing ingest_posts.json"; exit 1; }
 
           echo ""
           echo "Invoking Lambda function with Kafka-formatted event..."
@@ -102,7 +102,7 @@ jobs:
           #   stdout → Lambda response JSON
           #   stderr → SAM diagnostics (not mixed into response)
           sam local invoke PostIngestorFunction \
-            --event ./events/ingest_posts.json \
+            --event ./ingest_posts.json \
             --env-vars ./env.json \
             --docker-network sam-test_default \
             --log-file sam-test.log \
