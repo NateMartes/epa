@@ -94,6 +94,8 @@ npm start --android
 
 ## The API
 
+![EPA API](./system_diagram/api/epa-api.png "EPA API")
+
 The EPA API uses a Contract-First approach, meaning endpoints are auto generated from an OpenAPI spec using the `openapi-generator-cli` tool:
 
 Installing the tool uses `npm`:
@@ -239,6 +241,8 @@ The flow of the Lamdba functions are:
 EPA has 2 main environments for running Github Actions:
 - `Development`: Used for pull requests to test code before merging
 - `Production`: Used for pushes to `main` to update cloud production resources
+
+![EPA Workflows](./system_diagram/workflows/epa-workflows.png "EPA Workflows")
 
 ### Terraform
 Terraform is primarly used for deploying resources into the cloud. The process for writing a Terraform Github Action for deployment is:
