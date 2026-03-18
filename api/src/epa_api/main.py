@@ -47,7 +47,7 @@ async def persist_auth_context(request: Request, call_next):
     # Proceed to the Router -> Security Dependency -> Implementation
     response = await call_next(request)
     return response
-    
+              
 app.include_router(AuthenticationApiRouter)
 app.include_router(SystemApiRouter)
 app.include_router(PostsApiRouter)

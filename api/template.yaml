@@ -17,21 +17,17 @@ Parameters:
   DatabaseVPCId:
     Description: Database VPC ID
     Type: String
-    
-  DatabaseRoute53ZoneId:
-    Description: Hosted zone containing Database DNS resolution
-    Type: String
 
   DatabaseVpcCidr:
     Description: CIDR block of the Database VPC (Needed for routing)
     Type: String
     
-  KafkaVPCId:
-    Description: Kafka VPC ID
+  DatabaseRouteTableId:
+    Description: Route table ID of the Database VPC (for return route)
     Type: String
     
-  KafkaRoute53ZoneId:
-    Description: Hosted zone containing Kafka DNS resolution
+  KafkaVPCId:
+    Description: Kafka VPC ID
     Type: String
 
   KafkaVpcCidr:
@@ -41,10 +37,108 @@ Parameters:
   KafkaRouteTableId:
     Description: Route table ID of the Kafka VPC (for return route)
     Type: String
-
-  DatabaseRouteTableId:
-    Description: Route table ID of the Database VPC (for return route)
+    
+  # Environment Variables
+  # --- MongoDB Parameters ---
+  EpaMongodbHostname:
     Type: String
+    Description: Hostname for the MongoDB connection
+    
+  EpaMongodbPort:
+    Type: String
+    Description: Port for the MongoDB connection
+    
+  EpaMongodbDatabaseName:
+    Type: String
+    Description: Name of the MongoDB database
+    
+  EpaMongodbUsername:
+    Type: String
+    Description: Username for MongoDB authentication
+    
+  EpaMongodbPassword:
+    Type: String
+    NoEcho: true
+    Description: Password for MongoDB authentication
+    
+  EpaMongodbIsCluster:
+    Type: String
+    Description: Boolean string indicating if MongoDB is a cluster
+    
+  EpaMongodbUserCollection:
+    Type: String
+    Description: Collection name for users
+    
+  EpaMongodbSessionTokenCollection:
+    Type: String
+    Description: Collection name for session tokens
+    
+  EpaMongodbPostsCollection:
+    Type: String
+    Description: Collection name for posts
+    
+  EpaMongodbCategoriesCollection:
+    Type: String
+    Description: Collection name for categories
+
+  # --- JWT & Authentication Parameters ---
+  EpaJwtSecret:
+    Type: String
+    NoEcho: true
+    Description: Secret key for signing JWTs
+    
+  EpaGoogleWebClientId:
+    Type: String
+    Description: Google Web Client ID for OAuth
+    
+  EpaGoogleWebClientSecret:
+    Type: String
+    NoEcho: true
+    Description: Google Web Client Secret for OAuth
+    
+  EpaGoogleWebRedirectUri:
+    Type: String
+    Description: Redirect URI for Google OAuth
+
+  # --- Kafka Parameters ---
+  EpaKafkaBrokerHostname:
+    Type: String
+    Description: Hostname for the Kafka broker
+    
+  EpaKafkaBrokerPort:
+    Type: String
+    Description: Port for the Kafka broker
+    
+  EpaKafkaPostTopicName:
+    Type: String
+    Description: Kafka topic name for posts
+    
+  EpaKafkaProducerUsername:
+    Type: String
+    Description: Username for the Kafka producer
+    
+  EpaKafkaProducerPassword:
+    Type: String
+    NoEcho: true
+    Description: Password for the Kafka producer
+
+  # --- Redis Parameters ---
+  EpaRedisHostname:
+    Type: String
+    Description: Hostname for Redis
+    
+  EpaRedisPort:
+    Type: String
+    Description: Port for Redis
+    
+  EpaRedisPassword:
+    Type: String
+    NoEcho: true
+    Description: Password for Redis
+    
+  EpaRedisUseSSL:
+    Type: String
+    Description: To use SSL connection for Redis
     
 Resources:
 
@@ -244,7 +338,7 @@ Resources:
       IpProtocol: -1
       GroupId: !Ref ApiSG
       SourceSecurityGroupId: !Ref ApiSG
-  
+        
   SGEgress:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
@@ -255,6 +349,7 @@ Resources:
   EpaApiFunction:
     Type: AWS::Serverless::Function 
     Properties:
+      Tracing: Active
       PackageType: Zip
       CodeUri: .
       Handler: epa_api.main.handler
@@ -267,6 +362,32 @@ Resources:
           Properties:
             Path: /v1/{proxy+}
             Method: ANY
+      Timeout: 7
+      Environment:
+        Variables:
+          EPA_MONGODB_HOSTNAME: !Ref EpaMongodbHostname
+          EPA_MONGODB_PORT: !Ref EpaMongodbPort
+          EPA_MONGODB_DATABASE_NAME: !Ref EpaMongodbDatabaseName
+          EPA_MONGODB_USERNAME: !Ref EpaMongodbUsername
+          EPA_MONGODB_PASSWORD: !Ref EpaMongodbPassword
+          EPA_MONGODB_IS_CLUSTER: !Ref EpaMongodbIsCluster
+          EPA_MONGODB_USER_COLLECTION: !Ref EpaMongodbUserCollection
+          EPA_MONGODB_SESSION_TOKEN_COLLECTION: !Ref EpaMongodbSessionTokenCollection
+          EPA_MONGODB_POSTS_COLLECTION: !Ref EpaMongodbPostsCollection
+          EPA_MONGODB_CATEGORIES_COLLECTION: !Ref EpaMongodbCategoriesCollection
+          EPA_JWT_SECRET: !Ref EpaJwtSecret
+          EPA_GOOGLE_WEB_CLIENT_ID: !Ref EpaGoogleWebClientId
+          EPA_GOOGLE_WEB_CLIENT_SECRET: !Ref EpaGoogleWebClientSecret
+          EPA_GOOGLE_WEB_REDIRECT_URI: !Ref EpaGoogleWebRedirectUri
+          EPA_KAFKA_BROKER_HOSTNAME: !Ref EpaKafkaBrokerHostname
+          EPA_KAFKA_BROKER_PORT: !Ref EpaKafkaBrokerPort
+          EPA_KAFKA_POST_TOPIC_NAME: !Ref EpaKafkaPostTopicName
+          EPA_KAFKA_PRODUCER_USERNAME: !Ref EpaKafkaProducerUsername
+          EPA_KAFKA_PRODUCER_PASSWORD: !Ref EpaKafkaProducerPassword
+          EPA_REDIS_HOSTNAME: !Ref EpaRedisHostname
+          EPA_REDIS_PORT: !Ref EpaRedisPort
+          EPA_REDIS_PASSWORD: !Ref EpaRedisPassword
+          EPA_REDIS_USE_SSL: !Ref EpaRedisUseSSL
       VpcConfig:
         SecurityGroupIds:
           - !Ref ApiSG

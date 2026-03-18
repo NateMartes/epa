@@ -1,0 +1,165 @@
+name: "Deploy API and Dependencies"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # Deploy dependencies
+  deploy-database:
+    uses: NateMartes/epa/.github/workflows/deploy-db.yml@main
+    secrets: inherit
+    
+  deploy-kafka:
+    uses: NateMartes/epa/.github/workflows/deploy-kafka.yml@main
+    secrets: inherit
+    
+  deploy-redis:
+    uses: NateMartes/epa/.github/workflows/deploy-redis.yml@main
+    secrets: inherit
+
+  deploy-api:
+    runs-on: ubuntu-latest
+    environment: production
+    needs: 
+      - deploy-database
+      - deploy-kafka
+      - deploy-redis
+    env:
+       AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
+       DATABASE_VPC_ID: ${{ needs.deploy-database.outputs.vpc_id }}
+       DATABASE_ROUTE53_ZONE_ID: ${{ needs.deploy-database.outputs.route53_zone_id }}
+       DATABASE_NODE_ROUTE53_ZONE_ID: ${{ needs.deploy-database.outputs.route53_node_zone_id }}
+       DATABASE_VPC_CIDR: ${{ needs.deploy-database.outputs.vpc_cidr }}
+       DATABASE_ROUTE_TABLE_ID: ${{ needs.deploy-database.outputs.route_table_id }}
+       KAFKA_VPC_ID: ${{ needs.deploy-kafka.outputs.vpc_id }}
+       KAFKA_ROUTE53_ZONE_ID: ${{ needs.deploy-kafka.outputs.route53_zone_id }}
+       KAFKA_NODE_ROUTE53_ZONE_ID: ${{ needs.deploy-kafka.outputs.route53_node_zone_id }}
+       KAFKA_VPC_CIDR: ${{ needs.deploy-kafka.outputs.vpc_cidr }}
+       KAFKA_ROUTE_TABLE_ID: ${{ needs.deploy-kafka.outputs.route_table_id }}
+       
+      # MongoDB
+       EPA_MONGODB_HOSTNAME: ${{ vars.EPA_MONGODB_HOSTNAME }}
+       EPA_MONGODB_PORT: ${{ vars.EPA_MONGODB_PORT }}
+       EPA_MONGODB_DATABASE_NAME: ${{ vars.EPA_MONGODB_DATABASE_NAME }}
+       EPA_MONGODB_USERNAME: ${{ secrets.EPA_MONGODB_USERNAME }}
+       EPA_MONGODB_PASSWORD: ${{ secrets.EPA_MONGODB_PASSWORD }}
+       EPA_MONGODB_IS_CLUSTER: ${{ vars.EPA_MONGODB_IS_CLUSTER }}
+       EPA_MONGODB_USER_COLLECTION: ${{ vars.EPA_MONGODB_USER_COLLECTION }}
+       EPA_MONGODB_SESSION_TOKEN_COLLECTION: ${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }}
+       EPA_MONGODB_POSTS_COLLECTION: ${{ vars.EPA_MONGODB_POSTS_COLLECTION }}
+       EPA_MONGODB_CATEGORIES_COLLECTION: ${{ vars.EPA_MONGODB_CATEGORIES_COLLECTION }}
+
+       # JWT & Google OAuth
+       EPA_JWT_SECRET: ${{ secrets.EPA_JWT_SECRET }}
+       EPA_GOOGLE_WEB_CLIENT_ID: ${{ secrets.EPA_GOOGLE_WEB_CLIENT_ID }}
+       EPA_GOOGLE_WEB_CLIENT_SECRET: ${{ secrets.EPA_GOOGLE_WEB_CLIENT_SECRET }}
+       EPA_GOOGLE_WEB_REDIRECT_URI: ${{ vars.EPA_GOOGLE_WEB_REDIRECT_URI }}
+
+       # Kafka
+       EPA_KAFKA_BROKER_HOSTNAME: ${{ vars.EPA_KAFKA_BROKER_HOSTNAME }}
+       EPA_KAFKA_BROKER_PORT: ${{ vars.EPA_KAFKA_BROKER_PORT }}
+       EPA_KAFKA_POST_TOPIC_NAME: ${{ vars.EPA_KAFKA_POST_TOPIC_NAME }}
+       EPA_KAFKA_PRODUCER_USERNAME: ${{ vars.EPA_KAFKA_PRODUCER_USERNAME }}
+       EPA_KAFKA_PRODUCER_PASSWORD: ${{ secrets.EPA_KAFKA_PRODUCER_PASSWORD }}
+
+       # Redis
+       EPA_REDIS_HOSTNAME: ${{ needs.deploy-redis.outputs.hostname }}
+       EPA_REDIS_PORT: ${{ needs.deploy-redis.outputs.port }}
+       EPA_REDIS_PASSWORD: ${{ secrets.EPA_UPSTASH_API_TOKEN }}
+       EPA_REDIS_USE_SSL: ${{ vars.EPA_REDIS_USE_SSL }}
+       
+    steps:
+      
+    - name: Checkout
+      uses: actions/checkout@v3
+        
+    - name: Install AWS CLI
+      run: |
+        sudo apt update && sudo apt install -y unzip curl
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install --update
+        rm -rf awscliv2.zip aws
+        
+    - name: Configure AWS CLI Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
+        aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      
+    - name: Build SAM project
+      working-directory: ./api/
+      run: |
+          sam build --use-container
+          
+    - name: Deploy SAM project
+      working-directory: ./api/
+      run: |
+        sam deploy --no-confirm-changeset \
+                           --no-fail-on-empty-changeset \
+                           --parameter-overrides \
+                          DatabaseRouteTableId="$DATABASE_ROUTE_TABLE_ID" \
+                          DatabaseVpcCidr="$DATABASE_VPC_CIDR" \
+                          DatabaseVPCId="$DATABASE_VPC_ID" \
+                          EpaGoogleWebClientId=$EPA_GOOGLE_WEB_CLIENT_ID \
+                          EpaGoogleWebClientSecret=$EPA_GOOGLE_WEB_CLIENT_SECRET \
+                          EpaGoogleWebRedirectUri=$EPA_GOOGLE_WEB_REDIRECT_URI \
+                          EpaJwtSecret=$EPA_JWT_SECRET \
+                          EpaKafkaBrokerHostname=$EPA_KAFKA_BROKER_HOSTNAME \
+                          EpaKafkaBrokerPort=$EPA_KAFKA_BROKER_PORT \
+                          EpaKafkaPostTopicName=$EPA_KAFKA_POST_TOPIC_NAME \
+                          EpaKafkaProducerPassword=$EPA_KAFKA_PRODUCER_PASSWORD \
+                          EpaKafkaProducerUsername=$EPA_KAFKA_PRODUCER_USERNAME \
+                          EpaMongodbCategoriesCollection=$EPA_MONGODB_CATEGORIES_COLLECTION \
+                          EpaMongodbDatabaseName=$EPA_MONGODB_DATABASE_NAME \
+                          EpaMongodbHostname=$EPA_MONGODB_HOSTNAME \
+                          EpaMongodbIsCluster=$EPA_MONGODB_IS_CLUSTER \
+                          EpaMongodbPassword=$EPA_MONGODB_PASSWORD \
+                          EpaMongodbPort=$EPA_MONGODB_PORT \
+                          EpaMongodbPostsCollection=$EPA_MONGODB_POSTS_COLLECTION \
+                          EpaMongodbSessionTokenCollection=$EPA_MONGODB_SESSION_TOKEN_COLLECTION \
+                          EpaMongodbUserCollection=$EPA_MONGODB_USER_COLLECTION \
+                          EpaMongodbUsername=$EPA_MONGODB_USERNAME \
+                          EpaRedisHostname=$EPA_REDIS_HOSTNAME \
+                          EpaRedisPassword=$EPA_REDIS_PASSWORD \
+                          EpaRedisPort=$EPA_REDIS_PORT \
+                          EpaRedisUseSSL=$EPA_REDIS_USE_SSL \
+                          KafkaRouteTableId="$KAFKA_ROUTE_TABLE_ID" \
+                          KafkaVpcCidr="$KAFKA_VPC_CIDR" \
+                          KafkaVPCId="$KAFKA_VPC_ID"
+                          
+    - name: Add DNS to API
+      working-directory: ./api/
+      run: |
+          
+          STACK_NAME=$(grep 'stack_name' samconfig.toml | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
+          
+          API_VPC_ID=$(aws cloudformation describe-stack-resources \
+            --stack-name "$STACK_NAME" \
+            --query "StackResources[?ResourceType=='AWS::EC2::VPC'].PhysicalResourceId" \
+            --output text)
+          
+          # MongoDB DNS
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id $DATABASE_ROUTE53_ZONE_ID \
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "MongoDB DNS server already attached to API VPC"
+            
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id $DATABASE_NODE_ROUTE53_ZONE_ID \
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "MongoDB Node DNS server already attached to API VPC"
+          
+          # Kafka DNS
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id $KAFKA_ROUTE53_ZONE_ID \
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "Kafka DNS server already attached to API VPC"
+            
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id $KAFKA_NODE_ROUTE53_ZONE_ID \
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "Kafka Node DNS server already attached to API VPC"
+      

@@ -79,7 +79,7 @@ class MongoUtils:
             
         hostname, port, username, password, _ = MongoUtils.get_mongodb_env_variables()
         if is_cluster:
-            uri = f"mongodb+srv://{username}:{password}@{hostname}/"
+            uri = f"mongodb+srv://{username}:{password}@{hostname}/?ssl=false"
         else:
             uri = f"mongodb://{username}:{password}@{hostname}:{port}/"
             

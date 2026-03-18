@@ -1,9 +1,23 @@
 name: "Terraform Apply Database"
 
 on:
-  push:
-    branches:
-      - main
+  workflow_call:
+    outputs:
+      vpc_id:
+        description: "The ID of the AWS VPC the database was deployed to"
+        value: ${{ jobs.init-db.outputs.vpc_id }}
+      route53_zone_id:
+        description: "The ID of the DNS hosted zone that the database uses"
+        value: ${{ jobs.init-db.outputs.route53_zone_id }}
+      route53_node_zone_id:
+        description: "The ID of the DNS hosted zone that database nodes uses"
+        value: ${{ jobs.init-db.outputs.route53_node_zone_id }}
+      vpc_cidr:
+        description: "The CIDR block the database uses"
+        value: ${{ jobs.init-db.outputs.vpc_cidr }}
+      route_table_id:
+        description: "The ID of the route table that belongs to the database nodes"
+        value: ${{ jobs.init-db.outputs.route_table_id }}
 
 jobs:
   terraform-apply:    
@@ -20,6 +34,7 @@ jobs:
     permissions: # granular permissions
       # so GitHub can check out this repo using the default github.token
       contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -50,12 +65,18 @@ jobs:
     name: "Init the Database"
     runs-on: ubuntu-latest
     environment: production
-  
+    outputs:
+      vpc_id: ${{ steps.setup-replica-set.outputs.vpc_id }}
+      route53_zone_id: ${{ steps.setup-replica-set.outputs.route53_zone_id }}
+      route53_node_zone_id: ${{ steps.setup-replica-set.outputs.route53_node_zone_id }}
+      vpc_cidr: ${{ steps.setup-replica-set.outputs.vpc_cidr }}
+      route_table_id: ${{ steps.setup-replica-set.outputs.route_table_id }}
     env:
       TF_CLOUD_ORGANIZATION: "epa-terraform"
       TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
       TF_WORKSPACE: "terraform-github-actions-database"
       CONFIG_DIRECTORY: "./database/terraform"
+      AWS_DEFAULT_REGION: "${{ vars.AWS_REGION }}"
     
     permissions: # granular permissions
       # so GitHub can check out this repo using the default github.token
@@ -82,7 +103,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
         aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
-        aws-region: "us-east-1"
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
         
     - name: Init terraform CLI
       working-directory: ${{ env.CONFIG_DIRECTORY }}
@@ -90,8 +111,16 @@ jobs:
           
     - name: Setup Replica Set on MongoDB Cluster
       working-directory: ${{ env.CONFIG_DIRECTORY }}
+      id: setup-replica-set
       run: |
         
+        # Store output
+        echo "vpc_id=$(terraform output -raw vpc_id)" >> $GITHUB_OUTPUT
+        echo "route53_zone_id=$(terraform output -raw mongo_dns_id)" >> $GITHUB_OUTPUT
+        echo "route53_node_zone_id=$(terraform output -raw mongo_node_dns_id)" >> $GITHUB_OUTPUT
+        echo "vpc_cidr=$(terraform output -raw vpc_cidr_block)" >> $GITHUB_OUTPUT
+        echo "route_table_id=$(terraform output -raw route_table_id)" >> $GITHUB_OUTPUT
+
         sudo apt install -y jq
         
         # For ECS Exec

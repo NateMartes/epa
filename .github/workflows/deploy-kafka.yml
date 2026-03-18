@@ -1,16 +1,31 @@
 name: "Terraform Apply Kafka"
 
 on:
-  push:
-    branches:
-      - main
+  workflow_call:
+    outputs:
+      vpc_id:
+        description: "The ID of the AWS VPC kafka was deployed to"
+        value: ${{ jobs.init-kafka.outputs.vpc_id }}
+      route53_zone_id:
+        description: "The ID of the DNS hosted zone that kafka uses"
+        value: ${{ jobs.init-kafka.outputs.route53_zone_id }}
+      route53_node_zone_id:
+        description: "The ID of the DNS hosted zone that kafka nodes uses"
+        value: ${{ jobs.init-kafka.outputs.route53_node_zone_id }}        
+      vpc_cidr:
+        description: "The CIDR block kafka uses"
+        value: ${{ jobs.init-kafka.outputs.vpc_cidr }}
+      route_table_id:
+        description: "The ID of the route table that belongs to kafka nodes"
+        value: ${{ jobs.init-kafka.outputs.route_table_id }}
+    
 
 jobs:
   terraform-apply:    
     name: "Terraform Apply Kafka"
     runs-on: ubuntu-latest
     environment: production
-    
+
     env:
       TF_CLOUD_ORGANIZATION: "epa-terraform"
       TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
@@ -50,12 +65,18 @@ jobs:
     name: "Init Kafka"
     runs-on: ubuntu-latest
     environment: production
-  
+    outputs:
+      vpc_id: ${{ steps.init-kafka-cluster.outputs.vpc_id }}
+      route53_zone_id: ${{ steps.init-kafka-cluster.outputs.route53_zone_id }}
+      route53_node_zone_id: ${{ steps.init-kafka-cluster.outputs.route53_node_zone_id }}
+      vpc_cidr: ${{ steps.init-kafka-cluster.outputs.vpc_cidr }}
+      route_table_id: ${{ steps.init-kafka-cluster.outputs.route_table_id }}
     env:
       TF_CLOUD_ORGANIZATION: "epa-terraform"
       TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
       TF_WORKSPACE: "terraform-github-actions-kafka"
       CONFIG_DIRECTORY: "./post_queue/terraform"
+      AWS_DEFAULT_REGION: "${{ vars.AWS_REGION }}"
     
     permissions: # granular permissions
       # so GitHub can check out this repo using the default github.token
@@ -82,15 +103,23 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
         aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
-        aws-region: "us-east-1"
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
         
     - name: Init terraform CLI
       working-directory: ${{ env.CONFIG_DIRECTORY }}
       run: terraform init
       
     - name: Init the Kafka Cluster
-      working-directory: ${{ env.CONFIG_DIRECTORY }}   
+      working-directory: ${{ env.CONFIG_DIRECTORY }}
+      id: "init-kafka-cluster"
       run: |
+          
+          # Store output
+          echo "vpc_id=$(terraform output -raw vpc_id)" >> $GITHUB_OUTPUT
+          echo "route53_zone_id=$(terraform output -raw kafka_dns_id)" >> $GITHUB_OUTPUT
+          echo "route53_node_zone_id=$(terraform output -raw kafka_node_dns_id)" >> $GITHUB_OUTPUT
+          echo "vpc_cidr=$(terraform output -raw vpc_cidr_block)" >> $GITHUB_OUTPUT
+          echo "route_table_id=$(terraform output -raw route_table_id)" >> $GITHUB_OUTPUT
           
           # For ECS Exec
           sudo apt install -y expect

@@ -18,12 +18,20 @@ output "vpc_id" {
   value = module.networking.vpc.id
 }
 
+output "vpc_cidr_block" {
+  value = module.networking.vpc.cidr_block
+}
+
 output "first_mongodb_service" {
   value = module.compute.first_mongodb_service
 }
 
 output "mongo_dns_id" {
   value = module.networking.mongo_dns_id
+}
+
+output "mongo_node_dns_id" {
+  value = module.networking.private_dns_namespace.hosted_zone
 }
 
 output "route_table_id" {

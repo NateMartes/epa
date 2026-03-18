@@ -10,8 +10,16 @@ output "vpc_id" {
   value = module.networking.vpc.id
 }
 
+output "vpc_cidr_block" {
+  value = module.networking.vpc.cidr_block
+}
+
 output "kafka_dns_id" { 
   value = module.networking.kafka_dns_id
+}
+
+output "kafka_node_dns_id" {
+  value = module.networking.private_dns_namespace.hosted_zone
 }
 
 output "route_table_id" {
