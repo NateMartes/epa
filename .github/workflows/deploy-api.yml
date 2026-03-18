@@ -148,18 +148,18 @@ jobs:
           # MongoDB DNS
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $DATABASE_ROUTE53_ZONE_ID \
-            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "MongoDB DNS server already attached to API VPC"
             
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $DATABASE_NODE_ROUTE53_ZONE_ID \
-            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 \
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "MongoDB Node DNS server already attached to API VPC"
           
           # Kafka DNS
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $KAFKA_ROUTE53_ZONE_ID \
-            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "Kafka DNS server already attached to API VPC"
             
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $KAFKA_NODE_ROUTE53_ZONE_ID \
-            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 \
+            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "Kafka Node DNS server already attached to API VPC"
       
