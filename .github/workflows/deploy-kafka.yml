@@ -68,8 +68,9 @@ jobs:
     outputs:
       vpc_id: ${{ steps.init-kafka-cluster.outputs.vpc_id }}
       route53_zone_id: ${{ steps.init-kafka-cluster.outputs.route53_zone_id }}
+      route53_node_zone_id: ${{ steps.init-kafka-cluster.outputs.route53_node_zone_id }}
       vpc_cidr: ${{ steps.init-kafka-cluster.outputs.vpc_cidr }}
-      route_table_id: ${{ steps.init-kafka-cluster.outputs.route_table_id }}  
+      route_table_id: ${{ steps.init-kafka-cluster.outputs.route_table_id }}
     env:
       TF_CLOUD_ORGANIZATION: "epa-terraform"
       TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"

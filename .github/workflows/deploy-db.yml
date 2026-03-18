@@ -68,6 +68,7 @@ jobs:
     outputs:
       vpc_id: ${{ steps.setup-replica-set.outputs.vpc_id }}
       route53_zone_id: ${{ steps.setup-replica-set.outputs.route53_zone_id }}
+      route53_node_zone_id: ${{ steps.setup-replica-set.outputs.route53_node_zone_id }}
       vpc_cidr: ${{ steps.setup-replica-set.outputs.vpc_cidr }}
       route_table_id: ${{ steps.setup-replica-set.outputs.route_table_id }}
     env:
