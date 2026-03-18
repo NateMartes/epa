@@ -10,8 +10,8 @@ on:
         description: "The ID of the DNS hosted zone that the database uses"
         value: ${{ jobs.init-db.outputs.route53_zone_id }}
       route53_node_zone_id:
-        description: "The ID of the DNS hosted zone that kafka nodes uses"
-        value: ${{ jobs.init-kafka.outputs.route53_node_zone_id }}
+        description: "The ID of the DNS hosted zone that database nodes uses"
+        value: ${{ jobs.init-db.outputs.route53_node_zone_id }}
       vpc_cidr:
         description: "The CIDR block the database uses"
         value: ${{ jobs.init-db.outputs.vpc_cidr }}
