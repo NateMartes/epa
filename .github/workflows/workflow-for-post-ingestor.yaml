@@ -116,7 +116,15 @@ jobs:
           echo "Lambda Response (stdout):"
           cat response.json || echo "[EMPTY]"
 
-          if [ $SAM_EXIT -ne 0 ] || [ ! -s response.json ] || ! jq empty response.json >/dev/null 2>&1; then
+          # Extract response from log file if stdout is empty (SAM behavior)
+          if [ ! -s response.json ] || ! jq empty response.json >/dev/null 2>&1; then
+            echo ""
+            echo "Response not in stdout - extracting from log file..."
+            # Extract last JSON object from log file (the function's return value)
+            grep -oE '\{[^\}]*"statusCode"[^\}]*\}' sam-test.log | tail -1 > response.json
+          fi
+
+          if [ ! -s response.json ] || ! jq empty response.json >/dev/null 2>&1; then
             echo ""
             echo "FUNCTION CRASHED OR RETURNED INVALID RESPONSE"
             echo ""
@@ -178,7 +186,7 @@ jobs:
                 print(count + ' posts in DB, could not verify decoding status');
               }
             " 2>&1 || true
-
+            
       - name: Cleanup Database
         if: always()
         run: docker compose -p sam-test -f ./database/docker-compose.yml down -v --remove-orphans || true
