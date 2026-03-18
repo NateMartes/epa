@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Event Source Mapping for Self Managed Kafka Cluster"
+
+Parameters:
+  KafkaClusterHostname:
+    Description: The hostname of the Kafka Cluster
+    Type: String
+  KafkaClusterPort:
+    Description: The port of the Kafka Cluster
+    Type: String
+  KafkaTopicName:
+    Description: The Kafka topic this event will look at
+    Type: String
+  KafkaConsumerGroupName:
+    Description: The name of the consumer group this event belongs to
+    Type: String
+  KafkaUsername:
+    Description: The SASL/PLAIN username for the Kafka cluster
+    Type: String
+  KafkaPassword:
+    Description: The SASL/PLAIN password for the Kafka cluster
+    Type: String
+    NoEcho: true
+  TargetLambdaFunctionArn:
+    Description: The ARN of the Lambda function to trigger
+    Type: String
+  TargetLambdaExecutionRoleName:
+      Description: The exact name of the existing Lambda Execution Role
+      Type: String
+  
+Resources:
+  KafkaCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "EPA-KafkaCredentials-${AWS::StackName}"
+      Description: "SASL credentials for Kafka Event Source Mapping"
+      SecretString: !Sub '{"username":"${KafkaUsername}","password":"${KafkaPassword}"}'
+    
+  KafkaSecretAccessPolicy:
+      Type: AWS::IAM::Policy
+      Properties:
+        PolicyName: !Sub "EPA-KafkaSecretAccess-${AWS::StackName}"
+        Roles: 
+          - !Ref TargetLambdaExecutionRoleName
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref KafkaCredentialsSecret
+              
+  SelfManagedKafkaEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    DependsOn: KafkaSecretAccessPolicy
+    Properties:
+      FunctionName: !Ref TargetLambdaFunctionArn
+      BatchSize: 100
+      BisectBatchOnFunctionError: True
+      Enabled: True
+      Topics: 
+        - !Ref KafkaTopicName
+      SelfManagedKafkaEventSourceConfig: 
+        ConsumerGroupId: !Ref KafkaConsumerGroupName
+      SelfManagedEventSource: 
+        Endpoints:
+          KAFKA_BOOTSTRAP_SERVERS:
+            - !Sub "${KafkaClusterHostname}:${KafkaClusterPort}"
+      SourceAccessConfigurations:
+        - Type: BASIC_AUTH
+          URI: !Ref KafkaCredentialsSecret
