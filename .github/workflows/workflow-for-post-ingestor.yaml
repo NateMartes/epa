@@ -61,25 +61,36 @@ jobs:
           docker compose -p sam-test -f ./database/docker-compose.yml logs epa_database || true
           exit 1
 
-      - name: Create env.json for SAM test
+      - name: Validate env.json
         working-directory: ./post_ingestor
         run: |
-          cat > env.json <<'EOF'
-          {
-            "PostIngestorFunction": {
-              "EPA_MONGODB_USERNAME": "test",
-              "EPA_MONGODB_PASSWORD": "test",
-              "EPA_MONGODB_HOSTNAME": "epa_database",
-              "EPA_MONGODB_PORT": "27017",
-              "EPA_MONGODB_DATABASE_NAME": "epa_database",
-              "EPA_MONGODB_POSTS_COLLECTION": "posts",
-              "EPA_MONGODB_USER_COLLECTION": "users",
-              "EPA_MONGODB_SESSION_TOKEN_COLLECTION": "sessions"
-            }
-          }
-          EOF
-          echo "env.json created:"
-          cat env.json
+          if [ ! -f env.json ]; then
+            echo "FATAL: env.json not found in ./post_ingestor/"
+            echo "Please commit a valid env.json file with required EPA_* variables"
+            exit 1
+          fi
+          echo "env.json exists - validating structure..."
+          jq -e '
+            has("PostIngestorFunction") and
+            .PostIngestorFunction |
+            has("EPA_MONGODB_HOSTNAME") and
+            has("EPA_MONGODB_PORT") and
+            has("EPA_MONGODB_USERNAME") and
+            has("EPA_MONGODB_PASSWORD") and
+            has("EPA_MONGODB_DATABASE_NAME") and
+            has("EPA_MONGODB_POSTS_COLLECTION")
+          ' env.json >/dev/null
+          if [ $? -ne 0 ]; then
+            echo "FATAL: env.json missing required fields"
+            echo "Required top-level key: PostIngestorFunction"
+            echo "Required EPA_* keys under PostIngestorFunction:"
+            echo "  EPA_MONGODB_HOSTNAME, EPA_MONGODB_PORT, EPA_MONGODB_USERNAME"
+            echo "  EPA_MONGODB_PASSWORD, EPA_MONGODB_DATABASE_NAME, EPA_MONGODB_POSTS_COLLECTION"
+            cat env.json
+            exit 1
+          fi
+          echo "env.json validation passed:"
+          jq '.PostIngestorFunction | {EPA_MONGODB_HOSTNAME, EPA_MONGODB_PORT, EPA_MONGODB_DATABASE_NAME}' env.json
 
       - name: SAM Build
         working-directory: ./post_ingestor
