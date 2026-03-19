@@ -69,28 +69,50 @@ jobs:
             echo "Please commit a valid env.json file with required EPA_* variables"
             exit 1
           fi
-          echo "env.json exists - validating structure..."
-          jq -e '
+          echo "env.json exists - showing content:"
+          cat env.json
+          echo ""
+          echo "Validating structure..."
+          
+          # Robust validation with explicit grouping to avoid jq precedence issues
+          if ! jq -e '
+            type == "object" and
             has("PostIngestorFunction") and
-            .PostIngestorFunction |
-            has("EPA_MONGODB_HOSTNAME") and
-            has("EPA_MONGODB_PORT") and
-            has("EPA_MONGODB_USERNAME") and
-            has("EPA_MONGODB_PASSWORD") and
-            has("EPA_MONGODB_DATABASE_NAME") and
-            has("EPA_MONGODB_POSTS_COLLECTION")
-          ' env.json >/dev/null
-          if [ $? -ne 0 ]; then
-            echo "FATAL: env.json missing required fields"
-            echo "Required top-level key: PostIngestorFunction"
-            echo "Required EPA_* keys under PostIngestorFunction:"
-            echo "  EPA_MONGODB_HOSTNAME, EPA_MONGODB_PORT, EPA_MONGODB_USERNAME"
-            echo "  EPA_MONGODB_PASSWORD, EPA_MONGODB_DATABASE_NAME, EPA_MONGODB_POSTS_COLLECTION"
+            .PostIngestorFunction | 
+            (type == "object" and
+             has("EPA_MONGODB_HOSTNAME") and
+             has("EPA_MONGODB_PORT") and
+             has("EPA_MONGODB_USERNAME") and
+             has("EPA_MONGODB_PASSWORD") and
+             has("EPA_MONGODB_DATABASE_NAME") and
+             has("EPA_MONGODB_POSTS_COLLECTION"))
+          ' env.json >/dev/null 2>&1; then
+            echo ""
+            echo "FATAL: env.json validation failed"
+            echo "Required structure:"
+            echo '{'
+            echo '  "PostIngestorFunction": {'
+            echo '    "EPA_MONGODB_HOSTNAME": "...",'
+            echo '    "EPA_MONGODB_PORT": "...",'
+            echo '    "EPA_MONGODB_USERNAME": "...",'
+            echo '    "EPA_MONGODB_PASSWORD": "...",'
+            echo '    "EPA_MONGODB_DATABASE_NAME": "...",'
+            echo '    "EPA_MONGODB_POSTS_COLLECTION": "..."'
+            echo '    ...'
+            echo '  }'
+            echo '}'
+            echo ""
+            echo "Actual content of env.json:"
             cat env.json
             exit 1
           fi
-          echo "env.json validation passed:"
-          jq '.PostIngestorFunction | {EPA_MONGODB_HOSTNAME, EPA_MONGODB_PORT, EPA_MONGODB_DATABASE_NAME}' env.json
+          
+          echo "env.json validation passed. Critical values:"
+          jq -r '
+            "  EPA_MONGODB_HOSTNAME: \(.PostIngestorFunction.EPA_MONGODB_HOSTNAME)",
+            "  EPA_MONGODB_PORT: \(.PostIngestorFunction.EPA_MONGODB_PORT)",
+            "  EPA_MONGODB_DATABASE_NAME: \(.PostIngestorFunction.EPA_MONGODB_DATABASE_NAME)"
+          ' env.json
 
       - name: SAM Build
         working-directory: ./post_ingestor
