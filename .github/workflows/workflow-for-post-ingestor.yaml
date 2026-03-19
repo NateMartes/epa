@@ -189,9 +189,25 @@ jobs:
 
           echo ""
           echo "Verifying Decoded Storage in MongoDB"
+          # Extract credentials dynamically from env.json (same values used by Lambda function)
+          USERNAME=$(jq -r '.PostIngestorFunction.EPA_MONGODB_USERNAME' env.json)
+          PASSWORD=$(jq -r '.PostIngestorFunction.EPA_MONGODB_PASSWORD' env.json)
+          DATABASE=$(jq -r '.PostIngestorFunction.EPA_MONGODB_DATABASE_NAME' env.json)
+          
+          # Validate extracted values
+          if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ] || [ -z "$DATABASE" ]; then
+            echo "ERROR: Failed to extract MongoDB credentials from env.json"
+            echo "Extracted values:"
+            echo "  USERNAME: [$USERNAME]"
+            echo "  PASSWORD: [$PASSWORD]"
+            echo "  DATABASE: [$DATABASE]"
+            cat env.json
+            exit 1
+          fi
+          
+          # Connect using credentials from env.json (avoids hardcoded values)
           docker compose -p sam-test -f ./database/docker-compose.yml exec -T epa_database \
-            mongosh --quiet --eval "
-              db = db.getSiblingDB('epa_database');
+            mongosh --username "$USERNAME" --password "$PASSWORD" --authenticationDatabase admin "$DATABASE" --quiet --eval "
               count = db.posts.countDocuments();
               doc = db.posts.findOne();
               if (count > 0 && doc && doc.title && typeof doc.title === 'string' && !doc.title.includes('eyJ')) {
@@ -203,7 +219,7 @@ jobs:
               } else {
                 print(count + ' posts in database');
               }
-            " 2>&1 || true
+            " 2>&1 || echo "Database verification skipped (non-critical)"
 
       - name: Cleanup Database
         if: always()
