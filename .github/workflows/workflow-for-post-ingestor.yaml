@@ -73,41 +73,37 @@ jobs:
           cat env.json
           echo ""
           echo "Validating structure..."
-          
-          # Robust validation with explicit grouping to avoid jq precedence issues
-          if ! jq -e '
-            type == "object" and
-            has("PostIngestorFunction") and
-            .PostIngestorFunction | 
-            (type == "object" and
-             has("EPA_MONGODB_HOSTNAME") and
-             has("EPA_MONGODB_PORT") and
-             has("EPA_MONGODB_USERNAME") and
-             has("EPA_MONGODB_PASSWORD") and
-             has("EPA_MONGODB_DATABASE_NAME") and
-             has("EPA_MONGODB_POSTS_COLLECTION"))
-          ' env.json >/dev/null 2>&1; then
+
+          # STEP 1: Verify top-level structure
+          if ! jq -e 'type == "object" and has("PostIngestorFunction")' env.json >/dev/null 2>&1; then
             echo ""
-            echo "FATAL: env.json validation failed"
-            echo "Required structure:"
-            echo '{'
-            echo '  "PostIngestorFunction": {'
-            echo '    "EPA_MONGODB_HOSTNAME": "...",'
-            echo '    "EPA_MONGODB_PORT": "...",'
-            echo '    "EPA_MONGODB_USERNAME": "...",'
-            echo '    "EPA_MONGODB_PASSWORD": "...",'
-            echo '    "EPA_MONGODB_DATABASE_NAME": "...",'
-            echo '    "EPA_MONGODB_POSTS_COLLECTION": "..."'
-            echo '    ...'
-            echo '  }'
-            echo '}'
-            echo ""
-            echo "Actual content of env.json:"
-            cat env.json
+            echo "FATAL: env.json must be a JSON object containing 'PostIngestorFunction' key"
             exit 1
           fi
-          
-          echo "env.json validation passed. Critical values:"
+          echo "✓ Top-level structure valid"
+
+          # STEP 2: Verify PostIngestorFunction contains required keys
+          if ! jq -e '
+            .PostIngestorFunction | 
+            type == "object" and 
+            has("EPA_MONGODB_HOSTNAME") and 
+            has("EPA_MONGODB_PORT") and 
+            has("EPA_MONGODB_USERNAME") and 
+            has("EPA_MONGODB_PASSWORD") and 
+            has("EPA_MONGODB_DATABASE_NAME") and 
+            has("EPA_MONGODB_POSTS_COLLECTION")
+          ' env.json >/dev/null 2>&1; then
+            echo ""
+            echo "FATAL: PostIngestorFunction missing required EPA_* environment variables"
+            echo "Required keys:"
+            echo "  EPA_MONGODB_HOSTNAME, EPA_MONGODB_PORT, EPA_MONGODB_USERNAME"
+            echo "  EPA_MONGODB_PASSWORD, EPA_MONGODB_DATABASE_NAME, EPA_MONGODB_POSTS_COLLECTION"
+            exit 1
+          fi
+          echo "✓ PostIngestorFunction structure valid"
+
+          echo ""
+          echo "env.json validation PASSED. Critical values:"
           jq -r '
             "  EPA_MONGODB_HOSTNAME: \(.PostIngestorFunction.EPA_MONGODB_HOSTNAME)",
             "  EPA_MONGODB_PORT: \(.PostIngestorFunction.EPA_MONGODB_PORT)",
@@ -143,7 +139,6 @@ jobs:
           # Always create response.json from log file (robust extraction)
           echo ""
           echo "Extracting response from log file..."
-          # Extract last complete JSON object containing statusCode
           awk 'BEGIN {found=""; brace=0; line=""} 
                /{.*"statusCode".*}/ {
                  line=$0; 
