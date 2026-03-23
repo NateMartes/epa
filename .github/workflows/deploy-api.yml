@@ -1,4 +1,4 @@
-name: "Deploy API and Dependencies"
+name: "Deploy Applications to Production"
 
 on:
   push:
@@ -159,4 +159,9 @@ jobs:
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $KAFKA_NODE_ROUTE53_ZONE_ID \
             --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "Kafka Node DNS server already attached to API VPC"
-      
+            
+  deploy-operations-environment:
+    uses: NateMartes/epa/.github/workflows/deploy-operations-environment.yml@main
+    secrets: inherit
+    runs-on: ubuntu-latest
+    environment: production     

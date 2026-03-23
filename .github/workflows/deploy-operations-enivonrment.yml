@@ -1,0 +1,87 @@
+name: "Terraform Apply Operations Environment"
+
+on:
+  workflow_call:
+    outputs:
+      vpc_id:
+        description: "The VPC ID of the environment"
+        value: ${{ jobs.terraform-apply.outputs.vpc_id }}
+      subnet_1_id:
+        description: "The Subnet ID 1 of the environment"
+        value: ${{ jobs.terraform-apply.outputs.subnet_1_id }}  
+      subnet_2_id:
+        description: "The Subnet ID 2 of the environment"
+        value: ${{ jobs.terraform-apply.outputs.subnet_2_id }}
+      route_table_id:
+        description: "The Route Table ID of the environment"
+        value: ${{ jobs.terraform-apply.outputs.route_table_id }}
+      vpc_cidr_block:
+        description: "VPC Cidr Block of the environment"
+        value: ${{ jobs.terraform-apply.outputs.vpc_cidr_block }}
+        
+
+jobs:
+  terraform-apply:    
+    name: "Terraform Apply Operations Environment"
+    runs-on: ubuntu-latest
+    environment: production
+    
+    outputs:
+      vpc_id: ${{ steps.get-output.outputs.vpc_id }}
+      subnet_1_id: ${{ steps.get-output.outputs.subnet_1_id }}
+      subnet_2_id: ${{ steps.get-output.outputs.subnet_2_id }}
+      route_table_id: ${{ steps.get-output.outputs.route_table_id }}
+      vpc_cidr_block: ${{ steps.get-output.outputs.vpc_cidr_block }}
+    env:
+      TF_CLOUD_ORGANIZATION: "epa-terraform"
+      TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
+      TF_WORKSPACE: "terraform-github-actions-operations"
+      CONFIG_DIRECTORY: "./epa_operations/terraform"
+      
+    permissions: # granular permissions
+      # so GitHub can check out this repo using the default github.token
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Upload Configuration
+        uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
+        id: apply-upload
+        with:
+          workspace: ${{ env.TF_WORKSPACE }}
+          directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - name: Create Apply Run
+        uses: hashicorp/tfc-workflows-github/actions/create-run@v1.0.0
+        id: apply-run
+        with:
+          workspace: ${{ env.TF_WORKSPACE }}
+          configuration_version: ${{ steps.apply-upload.outputs.configuration_version_id }}
+
+      - name: Apply
+        uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.0.0
+        if: fromJSON(steps.apply-run.outputs.payload).data.attributes.actions.IsConfirmable
+        id: apply
+        with:
+          run: ${{ steps.apply-run.outputs.run_id }}
+          comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
+          
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.EPA_TF_API_TOKEN }}
+          
+      - name: Init terraform CLI
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: terraform init
+        
+      - name: Get Output
+        id: get-output
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: |
+            echo "vpc_id=$(terraform output -raw vpc_id)" >> $GITHUB_OUTPUT
+            echo "subnet_1_id=$(terraform output -raw subnet_1_id)" >> $GITHUB_OUTPUT
+            echo "subnet_2_id=$(terraform output -raw subnet_2_id)" >> $GITHUB_OUTPUT
+            echo "route_table_id=$(terraform output -raw route_table_id)" >> $GITHUB_OUTPUT
+            echo "vpc_cidr_block=$(terraform output -raw vpc_cidr_block)" >> $GITHUB_OUTPUT
