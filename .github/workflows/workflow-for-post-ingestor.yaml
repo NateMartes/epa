@@ -7,6 +7,14 @@ on:
 jobs:
   build-and-test-post-ingestor:
     runs-on: ubuntu-latest
+    environment: development
+    env:
+      EPA_MONGODB_HOSTNAME: ${{ vars.EPA_MONGODB_HOSTNAME }}
+      EPA_MONGODB_PORT: ${{ vars.EPA_MONGODB_PORT }}
+      EPA_MONGODB_DATABASE_NAME: ${{ vars.EPA_MONGODB_DATABASE_NAME }}
+      EPA_MONGODB_POSTS_COLLECTION: ${{ vars.EPA_MONGODB_POSTS_COLLECTION }}
+      EPA_MONGODB_USER_COLLECTION: ${{ vars.EPA_MONGODB_USER_COLLECTION }}
+      EPA_MONGODB_SESSION_TOKEN_COLLECTION: ${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }}
 
     steps:
       - name: Check out pull request
@@ -39,11 +47,11 @@ jobs:
 
       - name: Start Database Stack
         run: |
-          export EPA_MONGODB_USERNAME=test
-          export EPA_MONGODB_PASSWORD=test
-          export EPA_MONGODB_HOSTNAME=epa_database
-          export EPA_MONGODB_PORT=27017
-          export EPA_MONGODB_DATABASE_NAME=epa_database
+          export EPA_MONGODB_USERNAME=${{ secrets.EPA_MONGODB_USERNAME }}
+          export EPA_MONGODB_PASSWORD=${{ secrets.EPA_MONGODB_PASSWORD }}
+          export EPA_MONGODB_HOSTNAME=${{ vars.EPA_MONGODB_HOSTNAME }}
+          export EPA_MONGODB_PORT=${{ vars.EPA_MONGODB_PORT }}
+          export EPA_MONGODB_DATABASE_NAME=${{ vars.EPA_MONGODB_DATABASE_NAME }}
           
           docker compose -p sam-test -f ./database/docker-compose.yml up -d --build
 
@@ -61,54 +69,27 @@ jobs:
           docker compose -p sam-test -f ./database/docker-compose.yml logs epa_database || true
           exit 1
 
-      - name: Validate env.json
+      - name: Generate SAM environment variables file
         working-directory: ./post_ingestor
         run: |
-          if [ ! -f env.json ]; then
-            echo "FATAL: env.json not found in ./post_ingestor/"
-            echo "Please commit a valid env.json file with required EPA_* variables"
-            exit 1
-          fi
-          echo "env.json exists - showing content:"
-          cat env.json
-          echo ""
-          echo "Validating structure..."
-
-          # STEP 1: Verify top-level structure
-          if ! jq -e 'type == "object" and has("PostIngestorFunction")' env.json >/dev/null 2>&1; then
-            echo ""
-            echo "FATAL: env.json must be a JSON object containing 'PostIngestorFunction' key"
-            exit 1
-          fi
-          echo "✓ Top-level structure valid"
-
-          # STEP 2: Verify PostIngestorFunction contains required keys
-          if ! jq -e '
-            .PostIngestorFunction | 
-            type == "object" and 
-            has("EPA_MONGODB_HOSTNAME") and 
-            has("EPA_MONGODB_PORT") and 
-            has("EPA_MONGODB_USERNAME") and 
-            has("EPA_MONGODB_PASSWORD") and 
-            has("EPA_MONGODB_DATABASE_NAME") and 
-            has("EPA_MONGODB_POSTS_COLLECTION")
-          ' env.json >/dev/null 2>&1; then
-            echo ""
-            echo "FATAL: PostIngestorFunction missing required EPA_* environment variables"
-            echo "Required keys:"
-            echo "  EPA_MONGODB_HOSTNAME, EPA_MONGODB_PORT, EPA_MONGODB_USERNAME"
-            echo "  EPA_MONGODB_PASSWORD, EPA_MONGODB_DATABASE_NAME, EPA_MONGODB_POSTS_COLLECTION"
-            exit 1
-          fi
-          echo "✓ PostIngestorFunction structure valid"
-
-          echo ""
-          echo "env.json validation PASSED. Critical values:"
-          jq -r '
-            "  EPA_MONGODB_HOSTNAME: \(.PostIngestorFunction.EPA_MONGODB_HOSTNAME)",
-            "  EPA_MONGODB_PORT: \(.PostIngestorFunction.EPA_MONGODB_PORT)",
-            "  EPA_MONGODB_DATABASE_NAME: \(.PostIngestorFunction.EPA_MONGODB_DATABASE_NAME)"
-          ' env.json
+          # Dynamically generate env.json using GitHub Actions secrets and variables
+          # This is REQUIRED for SAM local invoke to pass env vars to Lambda container
+          cat > env.json <<EOF
+          {
+            "PostIngestorFunction": {
+              "EPA_MONGODB_USERNAME": "${{ secrets.EPA_MONGODB_USERNAME }}",
+              "EPA_MONGODB_PASSWORD": "${{ secrets.EPA_MONGODB_PASSWORD }}",
+              "EPA_MONGODB_HOSTNAME": "${{ vars.EPA_MONGODB_HOSTNAME }}",
+              "EPA_MONGODB_PORT": "${{ vars.EPA_MONGODB_PORT }}",
+              "EPA_MONGODB_DATABASE_NAME": "${{ vars.EPA_MONGODB_DATABASE_NAME }}",
+              "EPA_MONGODB_POSTS_COLLECTION": "${{ vars.EPA_MONGODB_POSTS_COLLECTION }}",
+              "EPA_MONGODB_USER_COLLECTION": "${{ vars.EPA_MONGODB_USER_COLLECTION }}",
+              "EPA_MONGODB_SESSION_TOKEN_COLLECTION": "${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }}"
+            }
+          }
+          EOF
+          echo "Generated env.json for SAM:"
+          jq '.' env.json
 
       - name: SAM Build
         working-directory: ./post_ingestor
@@ -136,7 +117,6 @@ jobs:
           echo "Lambda Response (stdout):"
           cat response-stdout.json || echo "[EMPTY]"
 
-          # Always create response.json from log file (robust extraction)
           echo ""
           echo "Extracting response from log file..."
           awk 'BEGIN {found=""; brace=0; line=""} 
@@ -154,7 +134,6 @@ jobs:
           echo "Extracted response content:"
           cat response.json || echo "[NO CONTENT EXTRACTED]"
 
-          # Validate response exists and is valid JSON
           if [ ! -s response.json ] || ! jq empty response.json >/dev/null 2>&1; then
             echo ""
             echo "ERROR: Could not extract valid response from logs"
@@ -189,23 +168,17 @@ jobs:
 
           echo ""
           echo "Verifying Decoded Storage in MongoDB"
-          # Extract credentials dynamically from env.json (same values used by Lambda function)
+          # Extract credentials from generated env.json
           USERNAME=$(jq -r '.PostIngestorFunction.EPA_MONGODB_USERNAME' env.json)
           PASSWORD=$(jq -r '.PostIngestorFunction.EPA_MONGODB_PASSWORD' env.json)
           DATABASE=$(jq -r '.PostIngestorFunction.EPA_MONGODB_DATABASE_NAME' env.json)
           
-          # Validate extracted values
           if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ] || [ -z "$DATABASE" ]; then
             echo "ERROR: Failed to extract MongoDB credentials from env.json"
-            echo "Extracted values:"
-            echo "  USERNAME: [$USERNAME]"
-            echo "  PASSWORD: [$PASSWORD]"
-            echo "  DATABASE: [$DATABASE]"
             cat env.json
             exit 1
           fi
           
-          # Connect using credentials from env.json (avoids hardcoded values)
           docker compose -p sam-test -f ./database/docker-compose.yml exec -T epa_database \
             mongosh --username "$USERNAME" --password "$PASSWORD" --authenticationDatabase admin "$DATABASE" --quiet --eval "
               count = db.posts.countDocuments();
