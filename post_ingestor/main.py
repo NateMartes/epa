@@ -5,143 +5,194 @@ from typing import List, Dict, Any
 from pymongo import MongoClient
 
 
-
 def lambda_handler(event, context):
     """
-    Supports
-    1) MSK / Kafka trigger event shape (records dict, base64 values)
+    Handles:
+    1) MSK/Kafka events (case-insensitive eventSource matching)
+    2) Custom test events with event type 'ingest_posts' (case-insensitive)
     """
+    try:
+        env_vars = load_env()
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "body": {"error": "Failed to load environment variables", "details": str(e)}
+        }
 
-    env_vars = load_env()
+    # Case-insensitive Kafka event detection
+    event_source = str(event.get("eventSource", "")).lower()
+    if event_source == "aws:kafka" and isinstance(event.get("records"), dict):
+        try:
+            posts = parse_kafka_event(event)
+            inserted = ingest_posts(posts, env_vars)
+            return {"statusCode": 200, "body": {"inserted": inserted}}
+        except Exception as e:
+            return {
+                "statusCode": 500,
+                "body": {"error": "Kafka event processing failed", "details": str(e)}
+            }
 
-    # MSK/Kafka event
-    if event.get("eventSource") == "aws:kafka" and isinstance(event.get("records"), dict):
-        posts = parse_kafka_event(event)
-        inserted = ingest_posts(posts, env_vars)
-        return {"statusCode": 200, "body": {"inserted": inserted}}
+    # Case-insensitive custom event detection
+    event_type = str(event.get("event", "")).lower()
+    if event_type == "ingest_posts" and isinstance(event.get("records"), list):
+        try:
+            inserted = ingest_posts(event["records"], env_vars)
+            return {"statusCode": 200, "body": {"inserted": inserted}}
+        except Exception as e:
+            return {
+                "statusCode": 500,
+                "body": {"error": "Test event processing failed", "details": str(e)}
+            }
 
-    # Custom test event
-    if event.get("event") != "INGEST_POSTS":
-        return {"statusCode": 400, "body": "Unsupported event type"}
-    
-    records = event.get("records") or []
-    inserted = ingest_posts(records, env_vars)
-    return {"statusCode": 200, "body": {"inserted": inserted}}
+    # Unsupported event format
+    return {
+        "statusCode": 400,
+        "body": {
+            "error": "Unsupported event format",
+            "received_eventSource": event.get("eventSource"),
+            "received_event_type": event.get("event"),
+            "has_records_dict": isinstance(event.get("records"), dict),
+            "has_records_list": isinstance(event.get("records"), list)
+        }
+    }
 
 
 def load_env() -> Dict[str, str]:
-    """
-    Reads environment variables needed for Mongo insertion.
-    Script will function fully once these are set.
-    """
+    """Loads all required EPA_* environment variables."""
+    username = os.getenv("EPA_MONGODB_USERNAME", "")
+    password = os.getenv("EPA_MONGODB_PASSWORD", "")
+    hostname = os.getenv("EPA_MONGODB_HOSTNAME", "")
+    port = os.getenv("EPA_MONGODB_PORT", "")
+    
     return {
-        "KAFKA_TOKEN": os.getenv("KAFKA_TOKEN", ""),
-        "MONGO_SECRET": os.getenv("MONGO_SECRET", ""),
-        "MONGO_URI": os.getenv("MONGO_URI", ""),
-        "MONGO_DB": os.getenv("MONGO_DB", ""),
-        "MONGO_COLLECTION": os.getenv("MONGO_COLLECTION", "posts"),
+        "EPA_MONGODB_HOSTNAME": hostname,
+        "EPA_MONGODB_PORT": port,
+        "EPA_MONGODB_USERNAME": username,
+        "EPA_MONGODB_PASSWORD": password,
+        "EPA_MONGODB_SESSION_TOKEN_COLLECTION": os.getenv("EPA_MONGODB_SESSION_TOKEN_COLLECTION", ""),
+        "EPA_MONGODB_DATABASE_NAME": os.getenv("EPA_MONGODB_DATABASE_NAME", ""),
+        "EPA_MONGODB_USER_COLLECTION": os.getenv("EPA_MONGODB_USER_COLLECTION", ""),
+        "EPA_MONGODB_POSTS_COLLECTION": os.getenv("EPA_MONGODB_POSTS_COLLECTION", ""),
+        "EPA_MONGO_URI": f"mongodb://{username}:{password}@{hostname}:{port}/"
     }
 
 
 def parse_kafka_event(event: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    Kafka MSK events store record payload in base64.
-    Decode each record["value"] into JSON dicts.
+    Decodes base64-encoded Kafka records into JSON objects.
+    CRITICAL: All values are decoded BEFORE reaching ingestion logic.
     """
     posts = []
+    records = event.get("records", {})
+    
+    if not isinstance(records, dict):
+        print("Warning: records field is not a dict")
+        return posts
 
-    for _tp, rec_list in event.get("records", {}).items():
-        for rec in rec_list:
-            b64_value = rec.get("value")
+    for topic_partition, record_list in records.items():
+        if not isinstance(record_list, list):
+            print(f"Warning: records[{topic_partition}] is not a list")
+            continue
+            
+        for idx, record in enumerate(record_list):
+            if not isinstance(record, dict):
+                print(f"Warning: records[{topic_partition}][{idx}] is not a dict")
+                continue
+                
+            b64_value = record.get("value")
             if not b64_value:
+                print(f"Warning: records[{topic_partition}][{idx}] has no value field")
                 continue
-
+                
             try:
-                decoded = base64.b64decode(b64_value).decode("utf-8")
-                payload = json.loads(decoded)
+                decoded_bytes = base64.b64decode(b64_value)
+                decoded_str = decoded_bytes.decode("utf-8")
+                payload = json.loads(decoded_str)
                 posts.append(payload)
-            except Exception:
-                # Passes any errors
+                print(f"Decoded record {idx} from {topic_partition}: post_id={payload.get('post_id')}")
+            except Exception as e:
+                print(f"Failed to decode record {idx} from {topic_partition}: {e}")
                 continue
-
+                
+    print(f"Successfully decoded {len(posts)} records from Kafka event")
     return posts
 
-def post_validation (payload):
-    validFields = {"post_id", "title", "content", "category", "category_slug", "created_at", "created_by"}
-    output = False
 
-    if (not payload):
-        return output
-    else:
-        for field in payload:
-            if not (field in validFields):
-                return output
-            else: 
-                if payload[field] is "":
-                    return output
-            validFields.pop(field)
-    output = True   
-    return output
+def post_validation(payload: Dict[str, Any]) -> bool:
+    """
+    Validates post structure before insertion.
+    Returns True if valid, False otherwise.
+    """
+    required_fields = {
+        "post_id", "title", "content", "category", 
+        "category_slug", "created_at", "created_by"
+    }
+    
+    if not isinstance(payload, dict):
+        return False
+        
+    for field in required_fields:
+        value = payload.get(field)
+        if value is None or value == "":
+            print(f"Validation failed: missing/empty field {field} in post {payload.get('post_id')}")
+            return False
+            
+    return True
+
 
 def get_mongo_collection(env_vars: Dict[str, str]):
-    """
-    Creates and returns a pymongo collection object.
-    This is a "skeleton":
-    - It will work as soon as MONGO_URI / DB / COLLECTION are correct.
-    - Uses TLS by default
-    """
+    """Validates env vars and returns MongoDB collection object."""
+    required_vars = {
+        "EPA_MONGODB_USERNAME": env_vars.get("EPA_MONGODB_USERNAME"),
+        "EPA_MONGODB_PASSWORD": env_vars.get("EPA_MONGODB_PASSWORD"),
+        "EPA_MONGODB_HOSTNAME": env_vars.get("EPA_MONGODB_HOSTNAME"),
+        "EPA_MONGODB_PORT": env_vars.get("EPA_MONGODB_PORT"),
+        "EPA_MONGODB_DATABASE_NAME": env_vars.get("EPA_MONGODB_DATABASE_NAME"),
+        "EPA_MONGODB_POSTS_COLLECTION": env_vars.get("EPA_MONGODB_POSTS_COLLECTION")
+    }
 
-    mongo_uri = env_vars.get("MONGO_URI")
-    mongo_db = env_vars.get("MONGO_DB")
-    mongo_collection = env_vars.get("MONGO_COLLECTION")
+    missing = [k for k, v in required_vars.items() if not v]
+    if missing:
+        raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
 
-    if not mongo_uri or not mongo_db or not mongo_collection:
-        raise ValueError(
-            "Missing required Mongo environment variables: "
-            "MONGO_URI, MONGO_DB, MONGO_COLLECTION"
-        )
+    mongo_uri = env_vars["EPA_MONGO_URI"]
+    mongo_db = env_vars["EPA_MONGODB_DATABASE_NAME"]
+    mongo_collection = env_vars["EPA_MONGODB_POSTS_COLLECTION"]
 
-    client = MongoClient(
-        mongo_uri,
-        serverSelectionTimeoutMS=5000,
-    )
-
+    client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
     db = client[mongo_db]
     return db[mongo_collection]
 
 
 def ingest_posts(records: List[Dict[str, Any]], env_vars: Dict[str, str]) -> int:
     """
-    Inserts post records into MongoDB.
-
-    - Uses upsert so duplicates overwrite instead of duplicating
-    - Uses post_id as the unique key (adjust if your schema differs)
+    Inserts validated, DECODED post records into MongoDB.
+    CRITICAL: Only DECODED JSON objects are stored (never base64 strings).
     """
-
     if not records:
+        print("No records to ingest")
         return 0
 
-    collection = get_mongo_collection(env_vars)
+    try:
+        collection = get_mongo_collection(env_vars)
+    except Exception as e:
+        print(f"Failed to get MongoDB collection: {e}")
+        raise
 
     inserted = 0
-
     for post in records:
-        # Can change this key in future
-        post_id = post.get("post_id")
-
-        if post_id is None:
-            # Skip bad record
+        if not post_validation(post):
+            print(f"Skipping invalid post: {post.get('post_id')}")
+            continue
+            
+        try:
+            result = collection.insert_one(post)
+            if result.acknowledged and result.inserted_id:
+                inserted += 1
+                print(f"Inserted post {post.get('post_id')} (MongoDB ID: {result.inserted_id})")
+        except Exception as e:
+            print(f"Failed to insert post {post.get('post_id')}: {e}")
             continue
 
-        # Upsert based on post_id
-        result = collection.insert_one(
-            post
-        )
-        print(result)
-        print(post)
-
-        # Count "inserted" only when a new doc was created
-        #if result.upserted_id is not None:
-         #   inserted += 1
-
+    print(f"Ingestion complete: {inserted} of {len(records)} records inserted")
     return inserted
