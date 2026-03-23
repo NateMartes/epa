@@ -36,7 +36,7 @@ jobs:
       TF_CLOUD_ORGANIZATION: "epa-terraform"
       TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
       TF_WORKSPACE: "terraform-github-actions-operations"
-      CONFIG_DIRECTORY: "./epa-operations/terraform"
+      CONFIG_DIRECTORY: "./epa_operations/terraform"
       
     permissions: # granular permissions
       # so GitHub can check out this repo using the default github.token
