@@ -163,5 +163,3 @@ jobs:
   deploy-operations-environment:
     uses: NateMartes/epa/.github/workflows/deploy-operations-environment.yml@main
     secrets: inherit
-    runs-on: ubuntu-latest
-    environment: production     
