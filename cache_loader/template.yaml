@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
   cache_loader
-  Sample SAM Template for cache_loader
+  
 Globals:
   Function:
     Timeout: 5

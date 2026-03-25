@@ -63,7 +63,7 @@ Resources:
         ConsumerGroupId: !Ref KafkaConsumerGroupName
       SelfManagedEventSource: 
         Endpoints:
-          KAFKA_BOOTSTRAP_SERVERS:
+          KafkaBootstrapServers:
             - !Sub "${KafkaClusterHostname}:${KafkaClusterPort}"
       SourceAccessConfigurations:
         - Type: BASIC_AUTH
