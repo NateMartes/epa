@@ -339,6 +339,7 @@ jobs:
     needs:
       - deploy-operations-environment
       - connect-operations-environment-dependencies
+      - deploy-redis
     uses: NateMartes/epa/.github/workflows/deploy-cache-loader.yml@feature/create-github-action-to-deploy-cache-loader-into-cloud
     secrets: inherit
     with:
