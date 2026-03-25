@@ -55,7 +55,6 @@ Resources:
     Properties:
       FunctionName: !Ref TargetLambdaFunctionArn
       BatchSize: 100
-      BisectBatchOnFunctionError: True
       Enabled: True
       Topics: 
         - !Ref KafkaTopicName
