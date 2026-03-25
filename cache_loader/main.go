@@ -127,7 +127,7 @@ func getUserCollection(client *mongo.Client) *mongo.Collection {
  */
 func getUsers(collection *mongo.Collection, filter any) *mongo.Cursor {
 	
-	searchCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	searchCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	res, err := collection.Find(searchCtx, filter)
 	if err != nil {
