@@ -1,0 +1,126 @@
+name: "Deploy Cache Loader Service"
+
+on:
+  workflow_call:
+    inputs:
+      vpc-id:
+        description: The VPC ID to deploy the cache loader into
+        required: true
+        type: string
+      vpc-cidr-block:
+        description: The Cidr Block of the VPC
+        required: true
+        type: string
+      subnet-1-id:
+        description: The ID of the first subnet to deploy into
+        required: true
+        type: string
+      subnet-2-id:
+        description: The ID of the second subnet to deploy into
+        required: true
+        type: string
+      route-table-id:
+        description: The ID of the route table to use for dependency routing
+        required: true
+        type: string
+      epa-redis-hostname:
+        description: Redis hostname
+        required: true
+        type: string
+      epa-redis-port:
+        description: Redis port number
+        required: true
+        type: string
+        
+jobs:
+   deploy:
+      name: "Deploy Cache Loader into EPA Operations"
+      runs-on: ubuntu-latest
+      environment: production
+      
+      permissions: # granular permissions
+        # so GitHub can check out this repo using the default github.token
+        contents: read
+        
+      steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Install AWS CLI
+        run: |
+          sudo apt update && sudo apt install -y unzip curl
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install --update
+          rm -rf awscliv2.zip aws
+          
+      - name: Configure AWS CLI Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+          
+      - name: SAM Build
+        working-directory: ./cache_loader/
+        run: |
+            sam build --use-container
+            
+      - name: Deploy SAM project
+        working-directory: ./cache_loader/
+        run: |
+          sam deploy --no-confirm-changeset \
+                    --no-fail-on-empty-changeset \
+                    --parameter-overrides \
+                      VPCId=${{ inputs.vpc-id }} \
+                      VPCCidrBlock=${{ inputs.vpc-cidr-block }} \
+                      Subnet1Id=${{ inputs.subnet-1-id }} \
+                      Subnet2Id=${{ inputs.subnet-2-id }} \
+                      RouteTableId=${{ inputs.route-table-id }} \
+                      EpaRedisHostname=${{ inputs.epa-redis-hostname }} \
+                      EpaRedisPort=${{ inputs.epa-redis-port }} \
+                      EpaRedisPassword=${{ secrets.EPA_UPSTASH_API_TOKEN }} \
+                      EpaMongodbHostname=${{ vars.EPA_MONGODB_HOSTNAME }} \
+                      EpaMongodbPort=${{ vars.EPA_MONGODB_PORT }} \
+                      EpaMongodbDatabaseName=${{ vars.EPA_MONGODB_DATABASE_NAME }} \
+                      EpaMongodbUsername=${{ secrets.EPA_MONGODB_USERNAME }} \
+                      EpaMongodbPassword=${{ secrets.EPA_MONGODB_PASSWORDS }} \
+                      EpaMongodbUserCollection=${{ vars.EPA_MONGODB_USER_COLLECTION }} \
+                      EpaKafkaPostTopicName=${{ vars.EPA_KAFKA_POST_TOPIC_NAME }}
+                      
+      - name: Add Event Source Map to Cache Loader
+        working-directory: ./post_queue/
+        run: |
+          
+          STACK_NAME=$(grep 'stack_name' ../cache_loader/samconfig.toml | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
+          
+          CACHE_LOADER_ARN=$(aws lambda get-function \
+            --function-name $(aws cloudformation describe-stack-resources \
+              --stack-name "$STACK_NAME" \
+              --query "StackResources[?ResourceType=='AWS::Serverless::Function'].PhysicalResourceId" \
+              --output text) \
+            --query 'Configuration.FunctionArn' \
+            --output text)
+          
+          CACHE_LOADER_ROLE_NAME=$(aws lambda get-function \
+            --function-name $(aws cloudformation describe-stack-resources \
+              --stack-name "$STACK_NAME" \
+              --query "StackResources[?ResourceType=='AWS::Serverless::Function'].PhysicalResourceId" \
+              --output text) \
+            --query 'Configuration.Role' \
+            --output text | rev | cut -d'/' -f1 | rev)
+          
+          aws cloudformation deploy \
+            --template-file ./cloudformation/event-source-mapping.yml \
+            --stack-name $STACK_NAME \
+            --parameter-overrides \
+              KafkaClusterHostname=${{ vars.EPA_KAFKA_BROKER_HOSTNAME }} \
+              KafkaClusterPort=${{ vars.EPA_KAFKA_BROKER_PORT }} \
+              KafkaTopicName=${{ vars.EPA_KAFKA_POST_TOPIC_NAME }} \
+              KafkaConsumerGroupName=${{ vars.EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_CACHELOADER }} \
+              KafkaUsername=${{ vars.EPA_KAFKA_CONSUMER_USERNAME }} \
+              KafkaPassword=${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }} \
+              TargetLambdaFunctionArn=$CACHE_LOADER_ARN \
+              TargetLambdaExecutionRoleName=$CACHE_LOADER_ROLE_NAME
+
+            
