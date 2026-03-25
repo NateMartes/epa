@@ -94,16 +94,14 @@ jobs:
           
           STACK_NAME=$(grep 'stack_name' ../cache_loader/samconfig.toml | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
           
-          CACHE_LOADER_ARN=$(aws lambda get-function \
-            --function-name $(aws cloudformation describe-stack-resources \
+          CACHE_LOADER_ARN=$(aws cloudformation describe-stack-resources \
               --stack-name "$STACK_NAME" \
               --query "StackResources[?ResourceType=='AWS::Serverless::Function'].PhysicalResourceId" \
               --output text) \
             --query 'Configuration.FunctionArn' \
             --output text)
           
-          CACHE_LOADER_ROLE_NAME=$(aws lambda get-function \
-            --function-name $(aws cloudformation describe-stack-resources \
+          CACHE_LOADER_ROLE_NAME=$(aws cloudformation describe-stack-resources \
               --stack-name "$STACK_NAME" \
               --query "StackResources[?ResourceType=='AWS::Serverless::Function'].PhysicalResourceId" \
               --output text) \
