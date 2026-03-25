@@ -127,7 +127,7 @@ func getUserCollection(client *mongo.Client) *mongo.Collection {
  */
 func getUsers(collection *mongo.Collection, filter any) *mongo.Cursor {
 	
-	searchCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	searchCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	res, err := collection.Find(searchCtx, filter)
 	if err != nil {
@@ -190,7 +190,7 @@ func mongoCursorToSlice[T any](cursor *mongo.Cursor) []T {
       	}
 	}()
 	
-	cursorCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	cursorCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	
 	var output []T
@@ -289,7 +289,7 @@ func getUserCahceLineValue(userId string, rdb *redis.Client) (string, error) {
  * 	(string, error): The value of the cache line as a string, an error if an error occured
  */
 func setUserCahceLineValue(userId string, val string, exprAt time.Duration, rdb *redis.Client) (error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return rdb.Set(ctx, userId, val, exprAt).Err()
 }
