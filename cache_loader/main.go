@@ -89,7 +89,7 @@ func connectToMongoDB() (*mongo.Client, error) {
 		return nil, errors.New("Not all MongoDB environment variables set or are empty")
 	}
 	
-	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s/", username, password, hostname, port)
+	uri := fmt.Sprintf("mongodb+srv://%s:%s@%s/?ssl=false", username, password, hostname)
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
 	return mongo.Connect(opts)
