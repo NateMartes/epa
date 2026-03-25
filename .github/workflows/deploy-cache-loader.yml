@@ -94,19 +94,20 @@ jobs:
           
           STACK_NAME=$(grep 'stack_name' ../cache_loader/samconfig.toml | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
           
-          CACHE_LOADER_ARN=$(aws cloudformation describe-stack-resources \
+          FUNCTION_NAME=$(aws cloudformation describe-stack-resources \
               --stack-name "$STACK_NAME" \
-              --query "StackResources[?ResourceType=='AWS::Serverless::Function'].PhysicalResourceId" \
-              --output text) \
-            --query 'Configuration.FunctionArn' \
-            --output text)
+              --query "StackResources[?ResourceType=='AWS::Serverless::Function'].PhysicalResourceId | [0]" \
+              --output text)
           
-          CACHE_LOADER_ROLE_NAME=$(aws cloudformation describe-stack-resources \
-              --stack-name "$STACK_NAME" \
-              --query "StackResources[?ResourceType=='AWS::Serverless::Function'].PhysicalResourceId" \
-              --output text) \
-            --query 'Configuration.Role' \
-            --output text | rev | cut -d'/' -f1 | rev)
+          CACHE_LOADER_ARN=$(aws lambda get-function-configuration \
+              --function-name "$FUNCTION_NAME" \
+              --query "FunctionArn" \
+              --output text)
+          
+          CACHE_LOADER_ROLE_NAME=$(aws lambda get-function-configuration \
+              --function-name "$FUNCTION_NAME" \
+              --query "Role" \
+              --output text | rev | cut -d'/' -f1 | rev)
           
           aws cloudformation deploy \
             --template-file ./cloudformation/event-source-mapping.yml \
