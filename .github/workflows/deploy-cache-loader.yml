@@ -84,7 +84,7 @@ jobs:
                       EpaMongodbPort=${{ vars.EPA_MONGODB_PORT }} \
                       EpaMongodbDatabaseName=${{ vars.EPA_MONGODB_DATABASE_NAME }} \
                       EpaMongodbUsername=${{ secrets.EPA_MONGODB_USERNAME }} \
-                      EpaMongodbPassword=${{ secrets.EPA_MONGODB_PASSWORDS }} \
+                      EpaMongodbPassword=${{ secrets.EPA_MONGODB_PASSWORD }} \
                       EpaMongodbUserCollection=${{ vars.EPA_MONGODB_USER_COLLECTION }} \
                       EpaKafkaPostTopicName=${{ vars.EPA_KAFKA_POST_TOPIC_NAME }}
                       
