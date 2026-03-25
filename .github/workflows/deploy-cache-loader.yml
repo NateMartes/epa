@@ -112,6 +112,7 @@ jobs:
           aws cloudformation deploy \
             --template-file ./cloudformation/event-source-mapping.yml \
             --stack-name $STACK_NAME \
+            --capabilities CAPABILITY_IAM \
             --parameter-overrides \
               KafkaClusterHostname=${{ vars.EPA_KAFKA_BROKER_HOSTNAME }} \
               KafkaClusterPort=${{ vars.EPA_KAFKA_BROKER_PORT }} \
