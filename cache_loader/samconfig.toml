@@ -3,7 +3,7 @@
 version = 0.1
 
 [default.global.parameters]
-stack_name = "cache_loader"
+stack_name = "cache-loader"
 
 [default.build.parameters]
 parallel = true
