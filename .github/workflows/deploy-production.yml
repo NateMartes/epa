@@ -144,6 +144,8 @@ jobs:
             --stack-name "$STACK_NAME" \
             --query "StackResources[?ResourceType=='AWS::EC2::VPC'].PhysicalResourceId" \
             --output text)
+            
+          echo "API_VPC_ID=$API_VPC_ID" >> $GITHUB_ENV
           
           # MongoDB DNS
           aws route53 associate-vpc-with-hosted-zone \
@@ -162,6 +164,55 @@ jobs:
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $KAFKA_NODE_ROUTE53_ZONE_ID \
             --vpc VPCId=$API_VPC_ID,VPCRegion=${{ env.AWS_DEFAULT_REGION }} ||echo "Kafka Node DNS server already attached to API VPC"
+            
+    - name: Enable DNS Name Resoultion for Peering Connections
+      working-directory: ./api/
+      run: |
+          
+          PEERING_CONNECTION_MONGO=$(aws ec2 describe-vpc-peering-connections \
+            --filters \
+              Name=requester-vpc-info.vpc-id,Values={{ env.API_VPC_ID }} \
+              Name=accepter-vpc-info.vpc-id,Values=$DATABASE_VPC_ID \
+              Name=status-code,Values=pending-acceptance \
+            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+            --output text)
+            
+          if [[ -n $PEERING_CONNECTION_MONGO && $PEERING_CONNECTION_MONGO != "None" ]]; then
+            echo "Peering connection to MongoDB already exists"
+            exit 0
+          fi
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
+            --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+                    
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
+            --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+            
+          sleep 2
+          
+          PEERING_CONNECTION_KAFKA=$(aws ec2 describe-vpc-peering-connections \
+            --filters \
+              Name=requester-vpc-info.vpc-id,Values={{ env.API_VPC_ID }} \
+              Name=accepter-vpc-info.vpc-id,Values=$KAFKA_VPC_ID \
+              Name=status-code,Values=pending-acceptance \
+            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+            --output text)
+            
+          if [[ -n $PEERING_CONNECTION_KAFKA && $PEERING_CONNECTION_KAFKA != "None" ]]; then
+            echo "Peering connection to Kafka already exists"
+            exit 0
+          fi
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
+            --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+                    
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
+            --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+          
             
   deploy-operations-environment:
     uses: NateMartes/epa/.github/workflows/deploy-operations-environment.yml@main

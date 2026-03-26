@@ -316,24 +316,6 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName}-peering-kafka
           
-  PeeringOptionsRequesterKafka:
-    Type: AWS::EC2::VPCPeeringConnectionVpcInfo
-    DependsOn: VPCPeeringConnectionToKafka
-    Properties:
-      VpcPeeringConnectionId: !Ref VPCPeeringConnectionToKafka
-      PeeringConnectionOptionsRequest:
-        RequesterPeeringConnectionOptions:
-          AllowDnsResolutionFromRemoteVpc: true
-
-  PeeringOptionsAccepterKafka:
-    Type: AWS::EC2::VPCPeeringConnectionVpcInfo
-    DependsOn: VPCPeeringConnectionToKafka
-    Properties:
-      VpcPeeringConnectionId: !Ref VPCPeeringConnectionToKafka
-      PeeringConnectionOptionsRequest:
-        AccepterPeeringConnectionOptions:
-          AllowDnsResolutionFromRemoteVpc: true
-          
   PrivateRouteToDatabase:
     Type: AWS::EC2::Route
     Properties:
