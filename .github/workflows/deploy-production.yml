@@ -226,6 +226,8 @@ jobs:
               Name=status-code,Values=active \
             --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
             --output text)
+            
+            sleep 2
           
           if [[ -n $PEERING_CONNECTION_MONGO && $PEERING_CONNECTION_MONGO != "None" ]]; then
             echo "Peering connection to MongoDB already exists"
@@ -238,6 +240,8 @@ jobs:
             --peer-vpc-id ${{ needs.deploy-database.outputs.vpc_id }} \
             --peer-region ${{ env.AWS_DEFAULT_REGION }} || echo "Peering Connection to MongoDB VPC already exists"
             
+          sleep 2
+          
           PEERING_CONNECTION_MONGO=$(aws ec2 describe-vpc-peering-connections \
             --filters \
               Name=requester-vpc-info.vpc-id,Values=${{ env.OPERATIONS_VPC_ID }} \
@@ -248,8 +252,20 @@ jobs:
             
           aws ec2 accept-vpc-peering-connection \
             --vpc-peering-connection-id $PEERING_CONNECTION_MONGO
-  
+          
+          sleep 2
+          
           echo "PEERING_CONNECTION_MONGO=$PEERING_CONNECTION_MONGO" >> $GITHUB_ENV
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
+            --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+          
+          sleep 2
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
+            --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
   
       - name: Connect Operations VPC to MongoDB DNS
         working-directory: ${{ env.CONFIG_DIRECTORY }}
@@ -257,7 +273,9 @@ jobs:
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id ${{ needs.deploy-database.outputs.route53_zone_id }} \
             --vpc VPCId=${{ env.OPERATIONS_VPC_ID }},VPCRegion=${{ env.AWS_DEFAULT_REGION }} || echo "MongoDB DNS server already attached to Operations VPC"
-            
+          
+          sleep 2
+          
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id ${{ needs.deploy-database.outputs.route53_node_zone_id }} \
             --vpc VPCId=${{ env.OPERATIONS_VPC_ID }},VPCRegion=${{ env.AWS_DEFAULT_REGION }} || echo "MongoDB Node DNS server already attached to Operations VPC"
@@ -270,6 +288,8 @@ jobs:
             --destination-cidr-block ${{ needs.deploy-database.outputs.vpc_cidr }} \
             --vpc-peering-connection-id ${{ env.PEERING_CONNECTION_MONGO }} || echo "Route to MongoDB VPC already exists"
         
+          sleep 2
+          
           aws ec2 create-route \
             --route-table-id ${{ needs.deploy-database.outputs.route_table_id }} \
             --destination-cidr-block ${{ env.OPERATIONS_VPC_CIDR_BLOCK }} \
@@ -293,11 +313,15 @@ jobs:
             exit 0
           fi
           
+          sleep 2
+          
           aws ec2 create-vpc-peering-connection \
             --vpc-id ${{ env.OPERATIONS_VPC_ID }} \
             --peer-vpc-id ${{ needs.deploy-kafka.outputs.vpc_id }} \
             --peer-region ${{ env.AWS_DEFAULT_REGION }} || echo "Peering Connection to Kafka VPC already exists"
             
+          sleep 2
+          
           PEERING_CONNECTION_KAFKA=$(aws ec2 describe-vpc-peering-connections \
             --filters \
               Name=requester-vpc-info.vpc-id,Values=${{ env.OPERATIONS_VPC_ID }} \
@@ -308,8 +332,20 @@ jobs:
             
           aws ec2 accept-vpc-peering-connection \
             --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA
-  
+
+          sleep 2
+          
           echo "PEERING_CONNECTION_KAFKA=$PEERING_CONNECTION_KAFKA" >> $GITHUB_ENV
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
+            --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+          
+          sleep 2
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
+            --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
             
       - name: Connect Operations VPC to Kafka DNS
         working-directory: ${{ env.CONFIG_DIRECTORY }}
@@ -318,6 +354,8 @@ jobs:
             --hosted-zone-id ${{ needs.deploy-kafka.outputs.route53_zone_id }} \
             --vpc VPCId=${{ env.OPERATIONS_VPC_ID }},VPCRegion=${{ env.AWS_DEFAULT_REGION }} || echo "Kafka DNS server already attached to Operations VPC"
             
+          sleep 2
+          
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id ${{ needs.deploy-kafka.outputs.route53_node_zone_id }} \
             --vpc VPCId=${{ env.OPERATIONS_VPC_ID }},VPCRegion=${{ env.AWS_DEFAULT_REGION }} || echo "Kafka Node DNS server already attached to Operations VPC"
@@ -330,6 +368,8 @@ jobs:
             --destination-cidr-block ${{ needs.deploy-kafka.outputs.vpc_cidr }} \
             --vpc-peering-connection-id ${{ env.PEERING_CONNECTION_KAFKA }} || echo "Route to Kafka VPC already exists"
         
+          sleep 2
+          
           aws ec2 create-route \
             --route-table-id ${{ needs.deploy-kafka.outputs.route_table_id }} \
             --destination-cidr-block ${{ env.OPERATIONS_VPC_CIDR_BLOCK }} \

@@ -99,15 +99,21 @@ jobs:
               --query "StackResources[?ResourceType=='AWS::Lambda::Function'].PhysicalResourceId | [0]" \
               --output text)
           
+          sleep 2
+          
           CACHE_LOADER_ARN=$(aws lambda get-function-configuration \
               --function-name "$FUNCTION_NAME" \
               --query "FunctionArn" \
               --output text)
           
+          sleep 2
+          
           CACHE_LOADER_ROLE_NAME=$(aws lambda get-function-configuration \
               --function-name "$FUNCTION_NAME" \
               --query "Role" \
               --output text | rev | cut -d'/' -f1 | rev)
+          
+          sleep 2
           
           aws cloudformation deploy \
             --template-file ./cloudformation/event-source-mapping.yml \

@@ -85,12 +85,12 @@ Resources:
           IpProtocol: tcp
           FromPort: !Ref EpaMongodbPort
           ToPort: !Ref EpaMongodbPort
-          CidrIp: !Ref VPCCidrBlock
+          CidrIp: 0.0.0.0/0
         - Description: Allow outbound to Redis
           IpProtocol: tcp
           FromPort: !Ref EpaRedisPort
           ToPort: !Ref EpaRedisPort
-          CidrIp: !Ref VPCCidrBlock
+          CidrIp: 0.0.0.0/0
         - Description: Allow outbound HTTPS for AWS API calls
           IpProtocol: tcp
           FromPort: 443
