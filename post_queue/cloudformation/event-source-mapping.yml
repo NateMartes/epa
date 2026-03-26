@@ -55,7 +55,6 @@ Resources:
     Properties:
       FunctionName: !Ref TargetLambdaFunctionArn
       BatchSize: 100
-      BisectBatchOnFunctionError: True
       Enabled: True
       Topics: 
         - !Ref KafkaTopicName
@@ -63,7 +62,7 @@ Resources:
         ConsumerGroupId: !Ref KafkaConsumerGroupName
       SelfManagedEventSource: 
         Endpoints:
-          KAFKA_BOOTSTRAP_SERVERS:
+          KafkaBootstrapServers:
             - !Sub "${KafkaClusterHostname}:${KafkaClusterPort}"
       SourceAccessConfigurations:
         - Type: BASIC_AUTH

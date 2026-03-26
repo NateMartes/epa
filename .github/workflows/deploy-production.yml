@@ -141,25 +141,300 @@ jobs:
             --stack-name "$STACK_NAME" \
             --query "StackResources[?ResourceType=='AWS::EC2::VPC'].PhysicalResourceId" \
             --output text)
+            
+          echo "API_VPC_ID=$API_VPC_ID" >> $GITHUB_ENV
           
           # MongoDB DNS
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $DATABASE_ROUTE53_ZONE_ID \
-            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "MongoDB DNS server already attached to API VPC"
+            --vpc VPCId=$API_VPC_ID,VPCRegion=${{ env.AWS_DEFAULT_REGION }} ||echo "MongoDB DNS server already attached to API VPC"
             
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $DATABASE_NODE_ROUTE53_ZONE_ID \
-            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "MongoDB Node DNS server already attached to API VPC"
+            --vpc VPCId=$API_VPC_ID,VPCRegion=${{ env.AWS_DEFAULT_REGION }} ||echo "MongoDB Node DNS server already attached to API VPC"
           
           # Kafka DNS
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $KAFKA_ROUTE53_ZONE_ID \
-            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "Kafka DNS server already attached to API VPC"
+            --vpc VPCId=$API_VPC_ID,VPCRegion=${{ env.AWS_DEFAULT_REGION }} ||echo "Kafka DNS server already attached to API VPC"
             
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $KAFKA_NODE_ROUTE53_ZONE_ID \
-            --vpc VPCId=$API_VPC_ID,VPCRegion=us-west-2 ||echo "Kafka Node DNS server already attached to API VPC"
+            --vpc VPCId=$API_VPC_ID,VPCRegion=${{ env.AWS_DEFAULT_REGION }} ||echo "Kafka Node DNS server already attached to API VPC"
+            
+    - name: Enable DNS Name Resoultion for Peering Connections
+      working-directory: ./api/
+      run: |
+          
+          PEERING_CONNECTION_MONGO=$(aws ec2 describe-vpc-peering-connections \
+            --filters \
+              Name=requester-vpc-info.vpc-id,Values={{ env.API_VPC_ID }} \
+              Name=accepter-vpc-info.vpc-id,Values=$DATABASE_VPC_ID \
+              Name=status-code,Values=pending-acceptance \
+            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+            --output text)
+            
+          if [[ -n $PEERING_CONNECTION_MONGO && $PEERING_CONNECTION_MONGO != "None" ]]; then
+            echo "Peering connection to MongoDB already exists"
+            exit 0
+          fi
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
+            --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+                    
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
+            --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+            
+          sleep 2
+          
+          PEERING_CONNECTION_KAFKA=$(aws ec2 describe-vpc-peering-connections \
+            --filters \
+              Name=requester-vpc-info.vpc-id,Values={{ env.API_VPC_ID }} \
+              Name=accepter-vpc-info.vpc-id,Values=$KAFKA_VPC_ID \
+              Name=status-code,Values=pending-acceptance \
+            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+            --output text)
+            
+          if [[ -n $PEERING_CONNECTION_KAFKA && $PEERING_CONNECTION_KAFKA != "None" ]]; then
+            echo "Peering connection to Kafka already exists"
+            exit 0
+          fi
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
+            --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+                    
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
+            --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+          
             
   deploy-operations-environment:
     uses: NateMartes/epa/.github/workflows/deploy-operations-environment.yml@main
     secrets: inherit
+    
+  connect-operations-environment-dependencies:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      TF_CLOUD_ORGANIZATION: "epa-terraform"
+      TF_API_TOKEN: "${{ secrets.EPA_TF_API_TOKEN }}"
+      TF_WORKSPACE: "terraform-github-actions-operations"
+      CONFIG_DIRECTORY: "./epa_operations/terraform"
+      AWS_DEFAULT_REGION: "${{ vars.AWS_REGION }}"
+    needs:
+      - deploy-operations-environment
+      # List of dependencies needed for every operations service
+      - deploy-database
+      - deploy-kafka
+      - deploy-redis
+      
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Install AWS CLI
+        run: |
+          sudo apt update && sudo apt install -y unzip curl
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install --update
+          rm -rf awscliv2.zip aws
+          
+      - name: Configure AWS CLI Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.EPA_TF_API_TOKEN }}
+        
+      - name: Init terraform CLI
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: |
+          terraform init
+          echo "OPERATIONS_VPC_ID=$(terraform output -raw vpc_id)" >> $GITHUB_ENV
+          echo "OPERATIONS_VPC_CIDR_BLOCK=$(terraform output -raw vpc_cidr_block)" >> $GITHUB_ENV
+          echo "OPERATIONS_ROUTE_TABLE_ID=$(terraform output -raw route_table_id)" >> $GITHUB_ENV
+      
+      # MONGODB (Peering Connection, DNS Servers, Route Tables)
+      - name: Connect Operations VPC to MongoDB VPC
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: |
+          PEERING_CONNECTION_MONGO=$(aws ec2 describe-vpc-peering-connections \
+            --filters \
+              Name=requester-vpc-info.vpc-id,Values=${{ env.OPERATIONS_VPC_ID }} \
+              Name=accepter-vpc-info.vpc-id,Values=${{ needs.deploy-database.outputs.vpc_id }} \
+              Name=status-code,Values=active \
+            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+            --output text)
+            
+            sleep 2
+          
+          if [[ -n $PEERING_CONNECTION_MONGO && $PEERING_CONNECTION_MONGO != "None" ]]; then
+            echo "Peering connection to MongoDB already exists"
+            echo "PEERING_CONNECTION_MONGO=$PEERING_CONNECTION_MONGO" >> $GITHUB_ENV
+            exit 0
+          fi
+          
+          aws ec2 create-vpc-peering-connection \
+            --vpc-id ${{ env.OPERATIONS_VPC_ID }} \
+            --peer-vpc-id ${{ needs.deploy-database.outputs.vpc_id }} \
+            --peer-region ${{ env.AWS_DEFAULT_REGION }} || echo "Peering Connection to MongoDB VPC already exists"
+            
+          sleep 2
+          
+          PEERING_CONNECTION_MONGO=$(aws ec2 describe-vpc-peering-connections \
+            --filters \
+              Name=requester-vpc-info.vpc-id,Values=${{ env.OPERATIONS_VPC_ID }} \
+              Name=accepter-vpc-info.vpc-id,Values=${{ needs.deploy-database.outputs.vpc_id }} \
+              Name=status-code,Values=pending-acceptance \
+            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+            --output text)
+            
+          aws ec2 accept-vpc-peering-connection \
+            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO
+          
+          sleep 2
+          
+          echo "PEERING_CONNECTION_MONGO=$PEERING_CONNECTION_MONGO" >> $GITHUB_ENV
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
+            --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+          
+          sleep 2
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
+            --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+  
+      - name: Connect Operations VPC to MongoDB DNS
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: |        
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id ${{ needs.deploy-database.outputs.route53_zone_id }} \
+            --vpc VPCId=${{ env.OPERATIONS_VPC_ID }},VPCRegion=${{ env.AWS_DEFAULT_REGION }} || echo "MongoDB DNS server already attached to Operations VPC"
+          
+          sleep 2
+          
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id ${{ needs.deploy-database.outputs.route53_node_zone_id }} \
+            --vpc VPCId=${{ env.OPERATIONS_VPC_ID }},VPCRegion=${{ env.AWS_DEFAULT_REGION }} || echo "MongoDB Node DNS server already attached to Operations VPC"
+  
+      - name: Set up Routing from Operations VPC to MongoDB VPC
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: |
+          aws ec2 create-route \
+            --route-table-id ${{ env.OPERATIONS_ROUTE_TABLE_ID }} \
+            --destination-cidr-block ${{ needs.deploy-database.outputs.vpc_cidr }} \
+            --vpc-peering-connection-id ${{ env.PEERING_CONNECTION_MONGO }} || echo "Route to MongoDB VPC already exists"
+        
+          sleep 2
+          
+          aws ec2 create-route \
+            --route-table-id ${{ needs.deploy-database.outputs.route_table_id }} \
+            --destination-cidr-block ${{ env.OPERATIONS_VPC_CIDR_BLOCK }} \
+            --vpc-peering-connection-id ${{ env.PEERING_CONNECTION_MONGO }} || echo "Route from MongoDB VPC already exists"
+      
+      # KAFKA (Peering Connection, DNS Servers, Route Tables)
+      - name: Connect Operations VPC to Kafka VPC
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: |        
+          PEERING_CONNECTION_KAFKA=$(aws ec2 describe-vpc-peering-connections \
+            --filters \
+              Name=requester-vpc-info.vpc-id,Values=${{ env.OPERATIONS_VPC_ID }} \
+              Name=accepter-vpc-info.vpc-id,Values=${{ needs.deploy-kafka.outputs.vpc_id }} \
+              Name=status-code,Values=active \
+            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+            --output text)
+          
+          if [[ -n $PEERING_CONNECTION_KAFKA && $PEERING_CONNECTION_KAFKA != "None" ]]; then
+            echo "Peering connection to Kafka already exists"
+            echo "PEERING_CONNECTION_KAFKA=$PEERING_CONNECTION_KAFKA" >> $GITHUB_ENV
+            exit 0
+          fi
+          
+          sleep 2
+          
+          aws ec2 create-vpc-peering-connection \
+            --vpc-id ${{ env.OPERATIONS_VPC_ID }} \
+            --peer-vpc-id ${{ needs.deploy-kafka.outputs.vpc_id }} \
+            --peer-region ${{ env.AWS_DEFAULT_REGION }} || echo "Peering Connection to Kafka VPC already exists"
+            
+          sleep 2
+          
+          PEERING_CONNECTION_KAFKA=$(aws ec2 describe-vpc-peering-connections \
+            --filters \
+              Name=requester-vpc-info.vpc-id,Values=${{ env.OPERATIONS_VPC_ID }} \
+              Name=accepter-vpc-info.vpc-id,Values=${{ needs.deploy-kafka.outputs.vpc_id }} \
+              Name=status-code,Values=pending-acceptance \
+            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+            --output text)
+            
+          aws ec2 accept-vpc-peering-connection \
+            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA
+
+          sleep 2
+          
+          echo "PEERING_CONNECTION_KAFKA=$PEERING_CONNECTION_KAFKA" >> $GITHUB_ENV
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
+            --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+          
+          sleep 2
+          
+          aws ec2 modify-vpc-peering-connection-options \
+            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
+            --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+            
+      - name: Connect Operations VPC to Kafka DNS
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: |        
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id ${{ needs.deploy-kafka.outputs.route53_zone_id }} \
+            --vpc VPCId=${{ env.OPERATIONS_VPC_ID }},VPCRegion=${{ env.AWS_DEFAULT_REGION }} || echo "Kafka DNS server already attached to Operations VPC"
+            
+          sleep 2
+          
+          aws route53 associate-vpc-with-hosted-zone \
+            --hosted-zone-id ${{ needs.deploy-kafka.outputs.route53_node_zone_id }} \
+            --vpc VPCId=${{ env.OPERATIONS_VPC_ID }},VPCRegion=${{ env.AWS_DEFAULT_REGION }} || echo "Kafka Node DNS server already attached to Operations VPC"
+              
+      - name: Set up Routing from Operations VPC to Kafka VPC
+        working-directory: ${{ env.CONFIG_DIRECTORY }}
+        run: |
+          aws ec2 create-route \
+            --route-table-id ${{ env.OPERATIONS_ROUTE_TABLE_ID }} \
+            --destination-cidr-block ${{ needs.deploy-kafka.outputs.vpc_cidr }} \
+            --vpc-peering-connection-id ${{ env.PEERING_CONNECTION_KAFKA }} || echo "Route to Kafka VPC already exists"
+        
+          sleep 2
+          
+          aws ec2 create-route \
+            --route-table-id ${{ needs.deploy-kafka.outputs.route_table_id }} \
+            --destination-cidr-block ${{ env.OPERATIONS_VPC_CIDR_BLOCK }} \
+            --vpc-peering-connection-id ${{ env.PEERING_CONNECTION_KAFKA }} || echo "Route from Kafka VPC already exists"
+            
+  deploy-cache-loader-to-operations-env:
+    needs:
+      - deploy-operations-environment
+      - connect-operations-environment-dependencies
+      - deploy-redis
+    uses: NateMartes/epa/.github/workflows/deploy-cache-loader.yml@main
+    secrets: inherit
+    with:
+      vpc-id: ${{ needs.deploy-operations-environment.outputs.vpc_id }}
+      vpc-cidr-block: ${{ needs.deploy-operations-environment.outputs.vpc_cidr_block }}
+      subnet-1-id: ${{ needs.deploy-operations-environment.outputs.subnet_1_id }}
+      subnet-2-id: ${{ needs.deploy-operations-environment.outputs.subnet_2_id }}
+      route-table-id: ${{ needs.deploy-operations-environment.outputs.route_table_id }}
+      epa-redis-hostname: ${{ needs.deploy-redis.outputs.hostname }}
+      epa-redis-port: ${{ needs.deploy-redis.outputs.port }}

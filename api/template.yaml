@@ -288,7 +288,25 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}-peering-database
-        
+    
+  PeeringOptionsRequesterMongo:
+    Type: AWS::EC2::VPCPeeringConnectionVpcInfo
+    DependsOn: VPCPeeringConnectionToDatabase
+    Properties:
+      VpcPeeringConnectionId: !Ref VPCPeeringConnectionToDatabase
+      PeeringConnectionOptionsRequest:
+        RequesterPeeringConnectionOptions:
+          AllowDnsResolutionFromRemoteVpc: true
+
+  PeeringOptionsAccepterMongo:
+    Type: AWS::EC2::VPCPeeringConnectionVpcInfo
+    DependsOn: VPCPeeringConnectionToDatabase
+    Properties:
+      VpcPeeringConnectionId: !Ref VPCPeeringConnectionToDatabase
+      PeeringConnectionOptionsRequest:
+        AccepterPeeringConnectionOptions:
+          AllowDnsResolutionFromRemoteVpc: true
+          
   VPCPeeringConnectionToKafka:
     Type: AWS::EC2::VPCPeeringConnection
     Properties:
@@ -297,7 +315,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}-peering-kafka
-
+          
   PrivateRouteToDatabase:
     Type: AWS::EC2::Route
     Properties:

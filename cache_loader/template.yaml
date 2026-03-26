@@ -2,47 +2,128 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
   cache_loader
-
-  Sample SAM Template for cache_loader
-
+  
 Globals:
   Function:
     Timeout: 5
     MemorySize: 128
     LoggingConfig:
       LogFormat: JSON
-      
+
+Parameters:
+  VPCId:
+    Description: The VPC ID to deploy the cache loader into
+    Type: String
+  
+  VPCCidrBlock:
+    Description: The Cidr Block of the VPC
+    Type: String
+  
+  Subnet1Id:
+    Description: The ID of the subnet to deploy into
+    Type: String
+ 
+  Subnet2Id:
+    Description: The ID of the subnet to deploy into
+    Type: String
+    
+  RouteTableId:
+    Description: The ID of the route table to use for dependency routing
+    Type: String
+
+  EpaRedisHostname:
+    Type: String
+    Description: Redis hostname
+
+  EpaRedisPort:
+    Type: String
+    Description: Redis port number
+
+  EpaRedisPassword:
+    Type: String
+    Description: Redis password
+    NoEcho: true
+
+  EpaMongodbHostname:
+    Type: String
+    Description: MongoDB hostname
+
+  EpaMongodbPort:
+    Type: String
+    Description: MongoDB port number
+
+  EpaMongodbDatabaseName:
+    Type: String
+    Description: MongoDB database name
+
+  EpaMongodbUsername:
+    Type: String
+    Description: MongoDB username
+
+  EpaMongodbPassword:
+    Type: String
+    Description: MongoDB password
+    NoEcho: true
+
+  EpaMongodbUserCollection:
+    Type: String
+    Description: MongoDB user collection name
+
+  EpaKafkaPostTopicName:
+    Type: String
+    Description: Kafka post topic name
+
 Resources:
+  
+  CacheLoaderSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Cache Loader Lambda function
+      VpcId: !Ref VPCId
+      SecurityGroupEgress:
+        - Description: Allow outbound to MongoDB
+          IpProtocol: tcp
+          FromPort: !Ref EpaMongodbPort
+          ToPort: !Ref EpaMongodbPort
+          CidrIp: 0.0.0.0/0
+        - Description: Allow outbound to Redis
+          IpProtocol: tcp
+          FromPort: !Ref EpaRedisPort
+          ToPort: !Ref EpaRedisPort
+          CidrIp: 0.0.0.0/0
+        - Description: Allow outbound HTTPS for AWS API calls
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-cache-loader-sg"
+          
   CacheLoaderServiceFunction:
     Type: AWS::Serverless::Function
     Properties:
       PackageType: Image
       Architectures:
-      - x86_64
-      Events:
-        MyMSKEvent:
-          Type: MSK
-          Properties:
-            StartingPosition: LATEST
-            # Stream: !Ref PUT MKS CLUSTER ARN HERE
-            Topics:
-              - new_posts
-            ConsumerGroupId: cache_loader_consumer_group
-            BatchSize: 100
-            MaximumBatchingWindowInSeconds: 5
-            Enabled: true
+        - x86_64
       Environment:
         Variables:
-          EPA_REDIS_HOSTNAME: ""
-          EPA_REDIS_PORT: ""
-          EPA_REDIS_PASSWORD: ""
-          EPA_MONGODB_HOSTNAME: ""
-          EPA_MONGODB_PORT: ""
-          EPA_MONGODB_DATABASE_NAME: ""
-          EPA_MONGODB_USERNAME: ""
-          EPA_MONGODB_PASSWORD: ""
-          EPA_MONGODB_USER_COLLECTION: ""
-          EPA_KAFKA_POST_TOPIC_NAME: ""
+          EPA_REDIS_HOSTNAME: !Ref EpaRedisHostname
+          EPA_REDIS_PORT: !Ref EpaRedisPort
+          EPA_REDIS_PASSWORD: !Ref EpaRedisPassword
+          EPA_MONGODB_HOSTNAME: !Ref EpaMongodbHostname
+          EPA_MONGODB_PORT: !Ref EpaMongodbPort
+          EPA_MONGODB_DATABASE_NAME: !Ref EpaMongodbDatabaseName
+          EPA_MONGODB_USERNAME: !Ref EpaMongodbUsername
+          EPA_MONGODB_PASSWORD: !Ref EpaMongodbPassword
+          EPA_MONGODB_USER_COLLECTION: !Ref EpaMongodbUserCollection
+          EPA_KAFKA_POST_TOPIC_NAME: !Ref EpaKafkaPostTopicName
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref CacheLoaderSG
+        SubnetIds:
+          - !Ref Subnet1Id
+          - !Ref Subnet2Id
     Metadata:
       DockerTag: provided.al2-v1
       DockerContext: .
@@ -55,20 +136,19 @@ Resources:
         Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
       ResourceQuery:
         Type: CLOUDFORMATION_STACK_1_0
+
   ApplicationInsightsMonitoring:
     Type: AWS::ApplicationInsights::Application
     Properties:
       ResourceGroupName:
         Ref: ApplicationResourceGroup
       AutoConfigurationEnabled: 'true'
+
 Outputs:
-  CacheLoaderSericeFunction:
-    Description: API Gateway endpoint URL for Prod environment for First 
-      Function
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/prod/cache-loader/"
-  CacheLoaderSericeFunction:
-    Description: First Lambda Function ARN
-    Value: !GetAtt CacheLoaderSericeFunction.Arn
-  CacheLoaderSericeFunction:
-    Description: Implicit IAM Role created for Cache Loader Service function
-    Value: !GetAtt CacheLoaderSericeFunctionRole.Arn
+  CacheLoaderServiceFunctionArn:
+    Description: Cache Loader Lambda Function ARN
+    Value: !GetAtt CacheLoaderServiceFunction.Arn
+
+  CacheLoaderServiceFunctionRoleName:
+    Description: Cache Loader Lambda Execution Role Name
+    Value: !Ref CacheLoaderServiceFunctionRole
