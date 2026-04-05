@@ -11,5 +11,5 @@ output "subnet_2" {
 }
 
 output "route_table_id" {
-  value = aws_route_table.operations_route_table.id
+  value = aws_route_table.private_rt.id
 }

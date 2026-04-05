@@ -2,12 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: epa-api
 
-Globals:
-  Function:
-    Timeout: 3
-    LoggingConfig:
-      LogFormat: JSON
-
 Parameters:
   EnvironmentName:
     Description: An environment name that is prefixed to resource names
@@ -288,24 +282,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}-peering-database
-    
-  PeeringOptionsRequesterMongo:
-    Type: AWS::EC2::VPCPeeringConnectionVpcInfo
-    DependsOn: VPCPeeringConnectionToDatabase
-    Properties:
-      VpcPeeringConnectionId: !Ref VPCPeeringConnectionToDatabase
-      PeeringConnectionOptionsRequest:
-        RequesterPeeringConnectionOptions:
-          AllowDnsResolutionFromRemoteVpc: true
-
-  PeeringOptionsAccepterMongo:
-    Type: AWS::EC2::VPCPeeringConnectionVpcInfo
-    DependsOn: VPCPeeringConnectionToDatabase
-    Properties:
-      VpcPeeringConnectionId: !Ref VPCPeeringConnectionToDatabase
-      PeeringConnectionOptionsRequest:
-        AccepterPeeringConnectionOptions:
-          AllowDnsResolutionFromRemoteVpc: true
           
   VPCPeeringConnectionToKafka:
     Type: AWS::EC2::VPCPeeringConnection
@@ -380,7 +356,7 @@ Resources:
           Properties:
             Path: /v1/{proxy+}
             Method: ANY
-      Timeout: 7
+      Timeout: 10
       Environment:
         Variables:
           EPA_MONGODB_HOSTNAME: !Ref EpaMongodbHostname

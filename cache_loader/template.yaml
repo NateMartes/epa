@@ -96,6 +96,11 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
+        - Description: Allow outbound to Kafka broker
+          IpProtocol: tcp
+          FromPort: 9094
+          ToPort: 9094
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-cache-loader-sg"
@@ -106,6 +111,19 @@ Resources:
       PackageType: Image
       Architectures:
         - x86_64
+      Policies: # For Kafka ESM
+        - AWSLambdaVPCAccessExecutionRole
+        - Statement:
+          - Effect: Allow
+            Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeSubnets
+              - ec2:DescribeSecurityGroups
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeVpcs
+              - secretsmanager:GetSecretValue
+            Resource: "*"
       Environment:
         Variables:
           EPA_REDIS_HOSTNAME: !Ref EpaRedisHostname

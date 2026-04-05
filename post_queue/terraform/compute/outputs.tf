@@ -14,6 +14,18 @@ output kafka_consumer_password {
   value = aws_ssm_parameter.kafka_consumer_password_ssm
 }
 
+output kafka_cert {
+  value = aws_ssm_parameter.kafka_cert
+}
+
+output kafka_key {
+  value = aws_ssm_parameter.kafka_key
+}
+
+output kafka_cert_arn {
+  value = aws_secretsmanager_secret.kafka_root_ca_cert.arn
+}
+
 output "kafka_cluster" {
   value = aws_ecs_cluster.epa_kafka_cluster
 }

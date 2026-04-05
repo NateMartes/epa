@@ -19,7 +19,7 @@ output "kafka_dns_id" {
 }
 
 output "route_table_id" {
-  value = aws_route_table.kafka_route_table.id
+  value = aws_route_table.private_rt.id
 }
 
 output "kafka_tg" {

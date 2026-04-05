@@ -61,6 +61,8 @@ resource "aws_iam_policy" "ecs_efs_access_policy" {
 variable kafka_producer_password { sensitive = true }
 variable kafka_consumer_password { sensitive = true }
 variable kafka_admin_password { sensitive = true }
+variable kafka_cert { sensitive = true }
+variable kafka_key { sensitive = true }
 resource "aws_iam_policy" "ecs_ssm_parameter_access" {
   name        = "kafka_ssm_parameter_access"
   description = "Allow ECS tasks to access SSM parameters"
@@ -79,7 +81,9 @@ resource "aws_iam_policy" "ecs_ssm_parameter_access" {
         Resource = [
           var.kafka_producer_password.arn,
           var.kafka_consumer_password.arn,
-          var.kafka_admin_password.arn
+          var.kafka_admin_password.arn,
+          var.kafka_cert.arn,
+          var.kafka_key.arn
         ]
       }
     ]

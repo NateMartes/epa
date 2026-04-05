@@ -2,6 +2,7 @@ from kafka import KafkaProducer
 from typing import Dict, Any, Tuple
 import os
 import json
+import ssl
 
 class KafkaUtils:
     """A class with helpful methods to interact with Apache Kafka"""
@@ -61,16 +62,22 @@ class KafkaUtils:
         :return: A new kafka producer object
         :rtype: kafka.KafkaProducer
         """
+                
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        
         server = KafkaUtils.get_kafka_bootstrap_server()
         username, password = KafkaUtils.get_kafka_producer_credentials()
         return KafkaProducer(
             bootstrap_servers=[server],
             allow_auto_create_topics=False,
             retries=3,
-            security_protocol="SASL_PLAINTEXT",
+            security_protocol="SASL_SSL",
             sasl_mechanism="PLAIN",
             sasl_plain_username=username,
-            sasl_plain_password=password
+            sasl_plain_password=password,
+            ssl_context=ssl_context,
         )
         
     @staticmethod

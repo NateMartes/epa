@@ -104,6 +104,39 @@ resource "aws_ssm_parameter" "kafka_consumer_password_ssm" {
     ignore_changes = [value]
   }
 }
+
+variable kafka_cert {}
+resource "aws_ssm_parameter" "kafka_cert" {
+  name = "/kafka/epa_post_queue.crt"
+  type = "String"
+  value = var.kafka_cert
+  overwrite = true
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+variable kafka_key { sensitive = true }
+resource "aws_ssm_parameter" "kafka_key" {
+  name = "/kafka/epa_post_queue.key"
+  type = "String"
+  value = var.kafka_key
+  overwrite = true
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+resource "aws_secretsmanager_secret" "kafka_root_ca_cert" {
+  name        = "EPA-KafkaRootCACert"
+  description = "Root CA certificate for Kafka TLS ESM"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "kafka_root_ca" {
+  secret_id     = aws_secretsmanager_secret.kafka_root_ca_cert.id
+  secret_string = "{\"certificate\": \"${var.kafka_cert}\"}"
+}
+
 resource "random_uuid" "cluster_id" {}
 variable kafka_lb_name {}
 resource "aws_ecs_task_definition" "kafka_task_definition" {
@@ -143,6 +176,18 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
                     user_post_consumer="$EPA_KAFKA_CONSUMER_PASSWORD";
                 };
                 EOF
+                
+                # Abide to Kafka's funkiness...
+                touch $KAFKA_SSL_KEYSTORE_LOCATION
+                echo "$SSL_KEY" > $KAFKA_SSL_KEYSTORE_LOCATION
+                echo "$SSL_CERT" >> $KAFKA_SSL_KEYSTORE_LOCATION
+                
+                cat /opt/kafka/config/kafka.crt
+                echo "---FILE END---"
+                echo "File size: $(wc -c < $KAFKA_SSL_KEYSTORE_LOCATION)"
+                
+                touch $KAFKA_SSL_TRUSTSTORE_LOCATION
+                echo "$SSL_CERT" > $KAFKA_SSL_TRUSTSTORE_LOCATION
                 
                 /etc/kafka/docker/run
               EOT
@@ -213,7 +258,7 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
         },
         {
           name  = "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"
-          value = "CONTROLLER:PLAINTEXT,EXTERNAL:SASL_PLAINTEXT,PLAINTEXT:PLAINTEXT"
+          value = "CONTROLLER:PLAINTEXT,EXTERNAL:SASL_SSL,PLAINTEXT:PLAINTEXT"
         },
         {
           name  = "KAFKA_CONTROLLER_LISTENER_NAMES"
@@ -242,7 +287,17 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
         {
           name  = "KAFKA_CONTROLLER_QUORUM_REQUEST_TIMEOUT_MS"
           value = "30000"
-        }
+        },
+        
+        // SSL Configuration
+        // This is useful https://docs.confluent.io/platform/current/installation/configuration/broker-configs.html
+        // Also very useful https://stackoverflow.com/questions/68742912/kafka-returns-no-matching-private-key-entries-in-pem-file-when-attempting-to-s
+        { name = "KAFKA_SECURITY_PROTOCOL",       value = "SSL"},
+        { name = "KAFKA_SSL_KEYSTORE_TYPE",       value = "PEM" },
+        { name = "KAFKA_SSL_TRUSTSTORE_TYPE",     value = "PEM" },
+        { name = "KAFKA_SSL_CLIENT_AUTH",         value = "none" },
+        { name = "KAFKA_SSL_KEYSTORE_LOCATION",   value = "/opt/kafka/config/kafka.crt"},
+        { name = "KAFKA_SSL_TRUSTSTORE_LOCATION", value = "/opt/kafka/config/kafka-ca.crt"},
       ],
       secrets = [
         {
@@ -257,6 +312,9 @@ resource "aws_ecs_task_definition" "kafka_task_definition" {
           name      = "EPA_KAFKA_CONSUMER_PASSWORD"
           valueFrom = aws_ssm_parameter.kafka_consumer_password_ssm.name
         },
+        // SSL Configuration
+        { name = "SSL_CERT", valueFrom = aws_ssm_parameter.kafka_cert.name },
+        { name = "SSL_KEY", valueFrom = aws_ssm_parameter.kafka_key.name },
       ],
       healthCheck = {
         command     = [

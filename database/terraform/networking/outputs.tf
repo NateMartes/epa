@@ -19,7 +19,7 @@ output "mongo_dns_id" {
 }
 
 output "route_table_id" {
-  value = aws_route_table.mongo_route_table.id
+  value = aws_route_table.private_rt.id
 }
 
 output "mongo_cluster_dns_name" {

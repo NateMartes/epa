@@ -15,3 +15,15 @@ variable "EPA_KAFKA_CONSUMER_PASSWORD" {
   sensitive = true
   default = "dummy"
 }
+
+variable "EPA_KAFKA_CERT_CONTENT" {
+  type      = string
+  sensitive = true
+  default = "dummy"
+}
+
+variable "EPA_KAFKA_CERT_KEY" {
+  type      = string
+  sensitive = true
+  default = "dummy"
+}

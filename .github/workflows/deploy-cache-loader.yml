@@ -54,6 +54,15 @@ jobs:
           sudo ./aws/install --update
           rm -rf awscliv2.zip aws
           
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.EPA_TF_API_TOKEN }}
+          
+      - name: Init terraform CLI
+        working-directory: ./post_queue/terraform
+        run: terraform init
+          
       - name: Configure AWS CLI Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -64,11 +73,13 @@ jobs:
       - name: SAM Build
         working-directory: ./cache_loader/
         run: |
+            sleep 5
             sam build --use-container
             
       - name: Deploy SAM project
         working-directory: ./cache_loader/
         run: |
+          sleep 5
           sam deploy --no-confirm-changeset \
                     --no-fail-on-empty-changeset \
                     --parameter-overrides \
@@ -87,7 +98,7 @@ jobs:
                       EpaMongodbPassword=${{ secrets.EPA_MONGODB_PASSWORD }} \
                       EpaMongodbUserCollection=${{ vars.EPA_MONGODB_USER_COLLECTION }} \
                       EpaKafkaPostTopicName=${{ vars.EPA_KAFKA_POST_TOPIC_NAME }}
-                      
+        
       - name: Add Event Source Map to Cache Loader
         working-directory: ./post_queue/
         run: |
@@ -115,6 +126,17 @@ jobs:
           
           sleep 2
           
+          CACHE_LOADER_SG=$(aws lambda get-function-configuration \
+              --function-name "$FUNCTION_NAME" \
+              --query "VpcConfig.SecurityGroupIds[0]" \
+              --output text)
+          
+          sleep 2
+          
+          cd ./terraform
+          KAFKA_CERT_ARN=$(terraform output -raw kafka_cert_arn)
+          cd ../
+          
           aws cloudformation deploy \
             --template-file ./cloudformation/event-source-mapping.yml \
             --stack-name "${STACK_NAME}-event-source-addon" \
@@ -126,7 +148,9 @@ jobs:
               KafkaConsumerGroupName=${{ vars.EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_CACHELOADER }} \
               KafkaUsername=${{ vars.EPA_KAFKA_CONSUMER_USERNAME }} \
               KafkaPassword=${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }} \
+              KafkaCertSSMArn=$KAFKA_CERT_ARN \
               TargetLambdaFunctionArn=$CACHE_LOADER_ARN \
-              TargetLambdaExecutionRoleName=$CACHE_LOADER_ROLE_NAME
-
-            
+              TargetLambdaExecutionRoleName=$CACHE_LOADER_ROLE_NAME \
+              TargetLambdaFunctionSubnetId1=${{ inputs.subnet-1-id }} \
+              TargetLambdaFunctionSubnetId2=${{ inputs.subnet-2-id }} \
+              TargetLambdaFunctionSG=$CACHE_LOADER_SG

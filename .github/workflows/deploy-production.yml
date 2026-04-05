@@ -98,52 +98,90 @@ jobs:
     - name: Deploy SAM project
       working-directory: ./api/
       run: |
-        sam deploy --no-confirm-changeset \
-                           --no-fail-on-empty-changeset \
-                           --parameter-overrides \
-                          DatabaseRouteTableId="$DATABASE_ROUTE_TABLE_ID" \
-                          DatabaseVpcCidr="$DATABASE_VPC_CIDR" \
-                          DatabaseVPCId="$DATABASE_VPC_ID" \
-                          EpaGoogleWebClientId=$EPA_GOOGLE_WEB_CLIENT_ID \
-                          EpaGoogleWebClientSecret=$EPA_GOOGLE_WEB_CLIENT_SECRET \
-                          EpaGoogleWebRedirectUri=$EPA_GOOGLE_WEB_REDIRECT_URI \
-                          EpaJwtSecret=$EPA_JWT_SECRET \
-                          EpaKafkaBrokerHostname=$EPA_KAFKA_BROKER_HOSTNAME \
-                          EpaKafkaBrokerPort=$EPA_KAFKA_BROKER_PORT \
-                          EpaKafkaPostTopicName=$EPA_KAFKA_POST_TOPIC_NAME \
-                          EpaKafkaProducerPassword=$EPA_KAFKA_PRODUCER_PASSWORD \
-                          EpaKafkaProducerUsername=$EPA_KAFKA_PRODUCER_USERNAME \
-                          EpaMongodbCategoriesCollection=$EPA_MONGODB_CATEGORIES_COLLECTION \
-                          EpaMongodbDatabaseName=$EPA_MONGODB_DATABASE_NAME \
-                          EpaMongodbHostname=$EPA_MONGODB_HOSTNAME \
-                          EpaMongodbIsCluster=$EPA_MONGODB_IS_CLUSTER \
-                          EpaMongodbPassword=$EPA_MONGODB_PASSWORD \
-                          EpaMongodbPort=$EPA_MONGODB_PORT \
-                          EpaMongodbPostsCollection=$EPA_MONGODB_POSTS_COLLECTION \
-                          EpaMongodbSessionTokenCollection=$EPA_MONGODB_SESSION_TOKEN_COLLECTION \
-                          EpaMongodbUserCollection=$EPA_MONGODB_USER_COLLECTION \
-                          EpaMongodbUsername=$EPA_MONGODB_USERNAME \
-                          EpaRedisHostname=$EPA_REDIS_HOSTNAME \
-                          EpaRedisPassword=$EPA_REDIS_PASSWORD \
-                          EpaRedisPort=$EPA_REDIS_PORT \
-                          EpaRedisUseSSL=$EPA_REDIS_USE_SSL \
-                          KafkaRouteTableId="$KAFKA_ROUTE_TABLE_ID" \
-                          KafkaVpcCidr="$KAFKA_VPC_CIDR" \
-                          KafkaVPCId="$KAFKA_VPC_ID"
+          sam deploy --no-confirm-changeset \
+                    --no-fail-on-empty-changeset \
+                    --parameter-overrides \
+                    DatabaseRouteTableId="$DATABASE_ROUTE_TABLE_ID" \
+                    DatabaseVpcCidr="$DATABASE_VPC_CIDR" \
+                    DatabaseVPCId="$DATABASE_VPC_ID" \
+                    EpaGoogleWebClientId="$EPA_GOOGLE_WEB_CLIENT_ID" \
+                    EpaGoogleWebClientSecret="$EPA_GOOGLE_WEB_CLIENT_SECRET" \
+                    EpaGoogleWebRedirectUri="$EPA_GOOGLE_WEB_REDIRECT_URI" \
+                    EpaJwtSecret="$EPA_JWT_SECRET" \
+                    EpaKafkaBrokerHostname="$EPA_KAFKA_BROKER_HOSTNAME" \
+                    EpaKafkaBrokerPort="$EPA_KAFKA_BROKER_PORT" \
+                    EpaKafkaPostTopicName="$EPA_KAFKA_POST_TOPIC_NAME" \
+                    EpaKafkaProducerPassword="$EPA_KAFKA_PRODUCER_PASSWORD" \
+                    EpaKafkaProducerUsername="$EPA_KAFKA_PRODUCER_USERNAME" \
+                    EpaMongodbCategoriesCollection="$EPA_MONGODB_CATEGORIES_COLLECTION" \
+                    EpaMongodbDatabaseName="$EPA_MONGODB_DATABASE_NAME" \
+                    EpaMongodbHostname="$EPA_MONGODB_HOSTNAME" \
+                    EpaMongodbIsCluster="$EPA_MONGODB_IS_CLUSTER" \
+                    EpaMongodbPassword="$EPA_MONGODB_PASSWORD" \
+                    EpaMongodbPort="$EPA_MONGODB_PORT" \
+                    EpaMongodbPostsCollection="$EPA_MONGODB_POSTS_COLLECTION" \
+                    EpaMongodbSessionTokenCollection="$EPA_MONGODB_SESSION_TOKEN_COLLECTION" \
+                    EpaMongodbUserCollection="$EPA_MONGODB_USER_COLLECTION" \
+                    EpaMongodbUsername="$EPA_MONGODB_USERNAME" \
+                    EpaRedisHostname="$EPA_REDIS_HOSTNAME" \
+                    EpaRedisPassword="$EPA_REDIS_PASSWORD" \
+                    EpaRedisPort="$EPA_REDIS_PORT" \
+                    EpaRedisUseSSL="$EPA_REDIS_USE_SSL" \
+                    KafkaRouteTableId="$KAFKA_ROUTE_TABLE_ID" \
+                    KafkaVpcCidr="$KAFKA_VPC_CIDR" \
+                    KafkaVPCId="$KAFKA_VPC_ID"
+                    
+          # For some reason, return routes for the API fail, so we manually put them here
+          sleep 5
+          
+          STACK_NAME=$(grep 'stack_name' samconfig.toml | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
+
+          API_VPC_ID=$(aws cloudformation describe-stack-resources \
+            --stack-name "$STACK_NAME" \
+            --query "StackResources[?ResourceType=='AWS::EC2::VPC'].PhysicalResourceId" \
+            --output text)
+            
+          PEERING_CONNECTION_MONGO=$(aws ec2 describe-vpc-peering-connections \
+            --filters \
+              Name=requester-vpc-info.vpc-id,Values=$API_VPC_ID \
+              Name=accepter-vpc-info.vpc-id,Values=$DATABASE_VPC_ID \
+              Name=status-code,Values=pending-acceptance,active \
+            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+            --output text)
+            
+          PEERING_CONNECTION_KAFKA=$(aws ec2 describe-vpc-peering-connections \
+            --filters \
+              Name=requester-vpc-info.vpc-id,Values=$API_VPC_ID \
+              Name=accepter-vpc-info.vpc-id,Values=$KAFKA_VPC_ID \
+              Name=status-code,Values=pending-acceptance,active \
+            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+            --output text)
+            
+          sleep 5
+          
+          # Database return route
+          aws ec2 create-route \
+            --route-table-id "$DATABASE_ROUTE_TABLE_ID" \
+            --destination-cidr-block 10.2.0.0/16 \
+            --vpc-peering-connection-id "$PEERING_CONNECTION_MONGO"
+          
+          # Kafka return route
+          aws ec2 create-route \
+            --route-table-id "$KAFKA_ROUTE_TABLE_ID" \
+            --destination-cidr-block 10.2.0.0/16 \
+            --vpc-peering-connection-id "$PEERING_CONNECTION_KAFKA"
+            
                           
     - name: Add DNS to API
       working-directory: ./api/
-      run: |
-          
+      run: |  
           STACK_NAME=$(grep 'stack_name' samconfig.toml | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
           
           API_VPC_ID=$(aws cloudformation describe-stack-resources \
             --stack-name "$STACK_NAME" \
             --query "StackResources[?ResourceType=='AWS::EC2::VPC'].PhysicalResourceId" \
             --output text)
-            
-          echo "API_VPC_ID=$API_VPC_ID" >> $GITHUB_ENV
-          
+                      
           # MongoDB DNS
           aws route53 associate-vpc-with-hosted-zone \
             --hosted-zone-id $DATABASE_ROUTE53_ZONE_ID \
@@ -165,19 +203,22 @@ jobs:
     - name: Enable DNS Name Resoultion for Peering Connections
       working-directory: ./api/
       run: |
+          STACK_NAME=$(grep 'stack_name' samconfig.toml | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
+          
+          API_VPC_ID=$(aws cloudformation describe-stack-resources \
+            --stack-name "$STACK_NAME" \
+            --query "StackResources[?ResourceType=='AWS::EC2::VPC'].PhysicalResourceId" \
+            --output text)
+          
+          sleep 2
           
           PEERING_CONNECTION_MONGO=$(aws ec2 describe-vpc-peering-connections \
             --filters \
-              Name=requester-vpc-info.vpc-id,Values={{ env.API_VPC_ID }} \
+              Name=requester-vpc-info.vpc-id,Values=$API_VPC_ID \
               Name=accepter-vpc-info.vpc-id,Values=$DATABASE_VPC_ID \
-              Name=status-code,Values=pending-acceptance \
+              Name=status-code,Values=pending-acceptance,active \
             --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
             --output text)
-            
-          if [[ -n $PEERING_CONNECTION_MONGO && $PEERING_CONNECTION_MONGO != "None" ]]; then
-            echo "Peering connection to MongoDB already exists"
-            exit 0
-          fi
           
           aws ec2 modify-vpc-peering-connection-options \
             --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
@@ -191,17 +232,12 @@ jobs:
           
           PEERING_CONNECTION_KAFKA=$(aws ec2 describe-vpc-peering-connections \
             --filters \
-              Name=requester-vpc-info.vpc-id,Values={{ env.API_VPC_ID }} \
+              Name=requester-vpc-info.vpc-id,Values=$API_VPC_ID \
               Name=accepter-vpc-info.vpc-id,Values=$KAFKA_VPC_ID \
-              Name=status-code,Values=pending-acceptance \
+              Name=status-code,Values=pending-acceptance,active \
             --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
             --output text)
             
-          if [[ -n $PEERING_CONNECTION_KAFKA && $PEERING_CONNECTION_KAFKA != "None" ]]; then
-            echo "Peering connection to Kafka already exists"
-            exit 0
-          fi
-          
           aws ec2 modify-vpc-peering-connection-options \
             --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
             --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
@@ -280,40 +316,39 @@ jobs:
           if [[ -n $PEERING_CONNECTION_MONGO && $PEERING_CONNECTION_MONGO != "None" ]]; then
             echo "Peering connection to MongoDB already exists"
             echo "PEERING_CONNECTION_MONGO=$PEERING_CONNECTION_MONGO" >> $GITHUB_ENV
-            exit 0
+          else  
+            aws ec2 create-vpc-peering-connection \
+              --vpc-id ${{ env.OPERATIONS_VPC_ID }} \
+              --peer-vpc-id ${{ needs.deploy-database.outputs.vpc_id }} \
+              --peer-region ${{ env.AWS_DEFAULT_REGION }} || echo "Peering Connection to MongoDB VPC already exists"  
+            
+            sleep 2
+          
+            PEERING_CONNECTION_MONGO=$(aws ec2 describe-vpc-peering-connections \
+              --filters \
+                Name=requester-vpc-info.vpc-id,Values=${{ env.OPERATIONS_VPC_ID }} \
+                Name=accepter-vpc-info.vpc-id,Values=${{ needs.deploy-database.outputs.vpc_id }} \
+                Name=status-code,Values=pending-acceptance \
+              --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+              --output text)
+              
+            aws ec2 accept-vpc-peering-connection \
+              --vpc-peering-connection-id $PEERING_CONNECTION_MONGO
+            
+            sleep 2
+            
+            echo "PEERING_CONNECTION_MONGO=$PEERING_CONNECTION_MONGO" >> $GITHUB_ENV
+        
+            aws ec2 modify-vpc-peering-connection-options \
+              --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
+              --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+            
+            sleep 2
+            
+            aws ec2 modify-vpc-peering-connection-options \
+              --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
+              --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
           fi
-          
-          aws ec2 create-vpc-peering-connection \
-            --vpc-id ${{ env.OPERATIONS_VPC_ID }} \
-            --peer-vpc-id ${{ needs.deploy-database.outputs.vpc_id }} \
-            --peer-region ${{ env.AWS_DEFAULT_REGION }} || echo "Peering Connection to MongoDB VPC already exists"
-            
-          sleep 2
-          
-          PEERING_CONNECTION_MONGO=$(aws ec2 describe-vpc-peering-connections \
-            --filters \
-              Name=requester-vpc-info.vpc-id,Values=${{ env.OPERATIONS_VPC_ID }} \
-              Name=accepter-vpc-info.vpc-id,Values=${{ needs.deploy-database.outputs.vpc_id }} \
-              Name=status-code,Values=pending-acceptance \
-            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
-            --output text)
-            
-          aws ec2 accept-vpc-peering-connection \
-            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO
-          
-          sleep 2
-          
-          echo "PEERING_CONNECTION_MONGO=$PEERING_CONNECTION_MONGO" >> $GITHUB_ENV
-          
-          aws ec2 modify-vpc-peering-connection-options \
-            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
-            --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
-          
-          sleep 2
-          
-          aws ec2 modify-vpc-peering-connection-options \
-            --vpc-peering-connection-id $PEERING_CONNECTION_MONGO \
-            --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
   
       - name: Connect Operations VPC to MongoDB DNS
         working-directory: ${{ env.CONFIG_DIRECTORY }}
@@ -359,41 +394,42 @@ jobs:
             echo "Peering connection to Kafka already exists"
             echo "PEERING_CONNECTION_KAFKA=$PEERING_CONNECTION_KAFKA" >> $GITHUB_ENV
             exit 0
+            
+          else
+            sleep 2
+            
+            aws ec2 create-vpc-peering-connection \
+              --vpc-id ${{ env.OPERATIONS_VPC_ID }} \
+              --peer-vpc-id ${{ needs.deploy-kafka.outputs.vpc_id }} \
+              --peer-region ${{ env.AWS_DEFAULT_REGION }} || echo "Peering Connection to Kafka VPC already exists"
+              
+            sleep 2
+            
+            PEERING_CONNECTION_KAFKA=$(aws ec2 describe-vpc-peering-connections \
+              --filters \
+                Name=requester-vpc-info.vpc-id,Values=${{ env.OPERATIONS_VPC_ID }} \
+                Name=accepter-vpc-info.vpc-id,Values=${{ needs.deploy-kafka.outputs.vpc_id }} \
+                Name=status-code,Values=pending-acceptance \
+              --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
+              --output text)
+              
+            aws ec2 accept-vpc-peering-connection \
+              --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA
+  
+            sleep 2
+            
+            echo "PEERING_CONNECTION_KAFKA=$PEERING_CONNECTION_KAFKA" >> $GITHUB_ENV
+            
+            aws ec2 modify-vpc-peering-connection-options \
+              --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
+              --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
+            
+            sleep 2
+            
+            aws ec2 modify-vpc-peering-connection-options \
+              --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
+              --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
           fi
-          
-          sleep 2
-          
-          aws ec2 create-vpc-peering-connection \
-            --vpc-id ${{ env.OPERATIONS_VPC_ID }} \
-            --peer-vpc-id ${{ needs.deploy-kafka.outputs.vpc_id }} \
-            --peer-region ${{ env.AWS_DEFAULT_REGION }} || echo "Peering Connection to Kafka VPC already exists"
-            
-          sleep 2
-          
-          PEERING_CONNECTION_KAFKA=$(aws ec2 describe-vpc-peering-connections \
-            --filters \
-              Name=requester-vpc-info.vpc-id,Values=${{ env.OPERATIONS_VPC_ID }} \
-              Name=accepter-vpc-info.vpc-id,Values=${{ needs.deploy-kafka.outputs.vpc_id }} \
-              Name=status-code,Values=pending-acceptance \
-            --query "VpcPeeringConnections[0].VpcPeeringConnectionId" \
-            --output text)
-            
-          aws ec2 accept-vpc-peering-connection \
-            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA
-
-          sleep 2
-          
-          echo "PEERING_CONNECTION_KAFKA=$PEERING_CONNECTION_KAFKA" >> $GITHUB_ENV
-          
-          aws ec2 modify-vpc-peering-connection-options \
-            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
-            --requester-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
-          
-          sleep 2
-          
-          aws ec2 modify-vpc-peering-connection-options \
-            --vpc-peering-connection-id $PEERING_CONNECTION_KAFKA \
-            --accepter-peering-connection-options '{"AllowDnsResolutionFromRemoteVpc": true}'
             
       - name: Connect Operations VPC to Kafka DNS
         working-directory: ${{ env.CONFIG_DIRECTORY }}

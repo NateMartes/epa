@@ -21,12 +21,25 @@ Parameters:
     Description: The SASL/PLAIN password for the Kafka cluster
     Type: String
     NoEcho: true
+  KafkaCertSSMArn:
+    Description: The certificate of the Kafka cert for SASL_SSL communication
+    Type: String
+    NoEcho: true
   TargetLambdaFunctionArn:
     Description: The ARN of the Lambda function to trigger
     Type: String
   TargetLambdaExecutionRoleName:
       Description: The exact name of the existing Lambda Execution Role
       Type: String
+  TargetLambdaFunctionSubnetId1:
+    Description: The Id of the first subnet that the Target Lambda function lives in
+    Type: String
+  TargetLambdaFunctionSubnetId2:
+    Description: The Id of the second subnet that the Target Lambda function lives in
+    Type: String
+  TargetLambdaFunctionSG:
+    Description: The security group the Target Lambda function lives in
+    Type: String
   
 Resources:
   KafkaCredentialsSecret:
@@ -50,20 +63,28 @@ Resources:
               Resource: !Ref KafkaCredentialsSecret
               
   SelfManagedKafkaEventSourceMapping:
-    Type: AWS::Lambda::EventSourceMapping
-    DependsOn: KafkaSecretAccessPolicy
-    Properties:
-      FunctionName: !Ref TargetLambdaFunctionArn
-      BatchSize: 100
-      Enabled: True
-      Topics: 
-        - !Ref KafkaTopicName
-      SelfManagedKafkaEventSourceConfig: 
-        ConsumerGroupId: !Ref KafkaConsumerGroupName
-      SelfManagedEventSource: 
-        Endpoints:
-          KafkaBootstrapServers:
-            - !Sub "${KafkaClusterHostname}:${KafkaClusterPort}"
-      SourceAccessConfigurations:
-        - Type: BASIC_AUTH
-          URI: !Ref KafkaCredentialsSecret
+      Type: AWS::Lambda::EventSourceMapping
+      DependsOn: KafkaSecretAccessPolicy
+      Properties:
+        FunctionName: !Ref TargetLambdaFunctionArn
+        BatchSize: 100
+        Enabled: True
+        Topics: 
+          - !Ref KafkaTopicName
+        SelfManagedKafkaEventSourceConfig: 
+          ConsumerGroupId: !Ref KafkaConsumerGroupName
+        SelfManagedEventSource: 
+          Endpoints:
+            KafkaBootstrapServers:
+              - !Sub "${KafkaClusterHostname}:${KafkaClusterPort}"
+        SourceAccessConfigurations:
+          - Type: BASIC_AUTH
+            URI: !Ref KafkaCredentialsSecret
+          - Type: SERVER_ROOT_CA_CERTIFICATE
+            URI: !Ref KafkaCertSSMArn
+          - Type: VPC_SUBNET
+            URI: !Sub "subnet:${TargetLambdaFunctionSubnetId1}" 
+          - Type: VPC_SUBNET
+            URI: !Sub "subnet:${TargetLambdaFunctionSubnetId2}"
+          - Type: VPC_SECURITY_GROUP
+            URI: !Sub "security_group:${TargetLambdaFunctionSG}"

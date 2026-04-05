@@ -16,6 +16,8 @@ module security {
   kafka_admin_password = module.compute.kafka_admin_password
   kafka_producer_password = module.compute.kafka_producer_password
   kafka_consumer_password = module.compute.kafka_consumer_password
+  kafka_cert = module.compute.kafka_cert
+  kafka_key = module.compute.kafka_key
 }
 
 module compute {
@@ -35,4 +37,6 @@ module compute {
   kafka_admin_password = var.EPA_KAFKA_ADMIN_PASSWORD
   kafka_producer_password = var.EPA_KAFKA_PRODUCER_PASSWORD
   kafka_consumer_password = var.EPA_KAFKA_CONSUMER_PASSWORD
+  kafka_cert = var.EPA_KAFKA_CERT_CONTENT
+  kafka_key = var.EPA_KAFKA_CERT_KEY
 }

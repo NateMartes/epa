@@ -9,7 +9,6 @@ import (
 	"os"
 	"fmt"
 	"errors"
-	"strings"
 	"encoding/base64"
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
@@ -395,15 +394,8 @@ func process_records(records []events.KafkaRecord) {
 
 func handler(ctx context.Context, event events.KafkaEvent) error {
 	
-	expectedTopic := os.Getenv("EPA_KAFKA_POST_TOPIC_NAME")
-	fmt.Println(os.Environ())
-	if expectedTopic == "" {
-		return errors.New("Environment variable EPA_KAFKA_POST_TOPIC_NAME not set or empty")
-	}
-	for topicParition, records := range event.Records {
-		if strings.Contains(topicParition, expectedTopic) {
-			process_records(records)
-		}
+	for _, records := range event.Records {
+		process_records(records)
 	}
 	
 	return nil
