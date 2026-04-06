@@ -1,9 +1,29 @@
 import { Text, View, StyleSheet } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export default function Index() {
+  const value = null;
+  const router = useRouter();
+  const getData = async () => {
+    try {
+      const value = await AsyncStorage.getItem('sessionID');
+      if (value !== null) {
+        // value previously stored
+        }
+      }
+  catch(e){
+  	//read error
+  	}
+  }
+  //value = AsyncStorage.getItem('sessionID');
+  getData();
+  if(getData().value == null){
+  router.navigate('/login');
+  }
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.poster}>

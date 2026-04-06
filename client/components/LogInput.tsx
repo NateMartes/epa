@@ -2,8 +2,27 @@ import React, {useState} from 'react';
 import {View, StyleSheet, TextInput} from 'react-native';
 import Button from '@/components/Button';
 import { Link, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function MyForm() {
   const router = useRouter();
+  const storeData = async (value) => {
+    try {
+      await AsyncStorage.setItem('sessionID', value);
+    } catch (e) {
+      // saving error
+    }
+  };
+  const getData = async () => {
+    try {
+      const value = await AsyncStorage.getItem('sessionID');
+      if (value !== null) {
+        // value previously stored
+        }
+      }
+    catch (e) {
+      // error reading value
+    }
+  };
   const [Uname, setUsername] = useState('');
   const [Pass, setPassword] = useState('');
   const styles = StyleSheet.create({
@@ -33,7 +52,8 @@ export default function MyForm() {
     //fetch('/some-api', {method: form.method, body: formData });
     console.log(formJson);
     if (Pass == "test"){
-      router.navigate('/index');
+      storeData(Uname);
+      router.navigate('/');
       }
     else{
       e => setPassword('');
