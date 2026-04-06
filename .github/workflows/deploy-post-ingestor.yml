@@ -1,0 +1,209 @@
+# .github/workflows/deploy-post-ingestor.yml
+name: "Deploy Post Ingestor Service"
+
+on:
+  workflow_call:
+    inputs:
+      vpc-id:
+        description: The VPC ID to deploy the post ingestor into
+        required: true
+        type: string
+      vpc-cidr-block:
+        description: The CIDR Block of the VPC
+        required: true
+        type: string
+      subnet-1-id:
+        description: The ID of the first subnet to deploy into
+        required: true
+        type: string
+      subnet-2-id:
+        description: The ID of the second subnet to deploy into
+        required: true
+        type: string
+      route-table-id:
+        description: The ID of the route table to use for dependency routing
+        required: true
+        type: string
+        
+      epa-mongodb-hostname:
+        description: MongoDB hostname
+        required: true
+        type: string
+      epa-mongodb-port:
+        description: MongoDB port number
+        required: true
+        type: string
+      epa-mongodb-database-name:
+        description: MongoDB database name
+        required: true
+        type: string
+      epa-mongodb-username:
+        description: MongoDB username
+        required: true
+        type: string
+      epa-mongodb-password:
+        description: MongoDB password
+        required: true
+        type: string
+      epa-mongodb-user-collection:
+        description: MongoDB user collection name
+        required: true
+        type: string
+      epa-mongodb-session-token-collection:
+        description: MongoDB session token collection name
+        required: true
+        type: string
+      epa-mongodb-posts-collection:
+        description: MongoDB posts collection name
+        required: true
+        type: string
+        
+      epa-kafka-broker-hostname:
+        description: Kafka broker hostname
+        required: true
+        type: string
+      epa-kafka-broker-port:
+        description: Kafka broker port
+        required: true
+        type: string
+      epa-kafka-post-topic-name:
+        description: Kafka topic name for new posts
+        required: true
+        type: string
+      epa-kafka-consumer-username:
+        description: Kafka consumer username
+        required: true
+        type: string
+      epa-kafka-consumer-password:
+        description: Kafka consumer password
+        required: true
+        type: string
+      epa-kafka-post-topic-consumer-group-postingestor:
+        description: Kafka consumer group for post ingestor
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    name: "Deploy Post Ingestor into EPA Operations"
+    runs-on: ubuntu-latest
+    environment: production
+    
+    permissions:
+      contents: read
+      
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Install AWS CLI
+        run: |
+          sudo apt update && sudo apt install -y unzip curl
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install --update
+          rm -rf awscliv2.zip aws
+          
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.EPA_TF_API_TOKEN }}
+          
+      - name: Init Terraform CLI
+        working-directory: ./post_queue/terraform
+        run: terraform init
+          
+      - name: Configure AWS CLI Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+          
+      - name: SAM Build
+        working-directory: ./post_ingestor/
+        run: |
+            sleep 5
+            sam build --use-container
+            
+      - name: Deploy SAM Project
+        working-directory: ./post_ingestor/
+        run: |
+          sleep 5
+          sam deploy --no-confirm-changeset \
+                    --no-fail-on-empty-changeset \
+                    --parameter-overrides \
+                      VPCId=${{ inputs.vpc-id }} \
+                      VPCCidrBlock=${{ inputs.vpc-cidr-block }} \
+                      Subnet1Id=${{ inputs.subnet-1-id }} \
+                      Subnet2Id=${{ inputs.subnet-2-id }} \
+                      RouteTableId=${{ inputs.route-table-id }} \
+                      EpaMongodbHostname=${{ inputs.epa-mongodb-hostname }} \
+                      EpaMongodbPort=${{ inputs.epa-mongodb-port }} \
+                      EpaMongodbDatabaseName=${{ inputs.epa-mongodb-database-name }} \
+                      EpaMongodbUsername=${{ inputs.epa-mongodb-username }} \
+                      EpaMongodbPassword=${{ inputs.epa-mongodb-password }} \
+                      EpaMongodbUserCollection=${{ inputs.epa-mongodb-user-collection }} \
+                      EpaMongodbSessionTokenCollection=${{ inputs.epa-mongodb-session-token-collection }} \
+                      EpaMongodbPostsCollection=${{ inputs.epa-mongodb-posts-collection }} \
+                      EpaKafkaBrokerHostname=${{ inputs.epa-kafka-broker-hostname }} \
+                      EpaKafkaBrokerPort=${{ inputs.epa-kafka-broker-port }} \
+                      EpaKafkaPostTopicName=${{ inputs.epa-kafka-post-topic-name }} \
+                      EpaKafkaConsumerUsername=${{ inputs.epa-kafka-consumer-username }} \
+                      EpaKafkaConsumerPassword=${{ inputs.epa-kafka-consumer-password }} \
+                      EpaKafkaPostTopicConsumerGroupPostIngestor=${{ inputs.epa-kafka-post-topic-consumer-group-postingestor }}
+        
+      - name: Add Event Source Mapping to Post Ingestor
+        working-directory: ./post_queue/
+        run: |
+          STACK_NAME=$(grep 'stack_name' ../post_ingestor/samconfig.toml | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
+          
+          FUNCTION_NAME=$(aws cloudformation describe-stack-resources \
+              --stack-name "$STACK_NAME" \
+              --query "StackResources[?ResourceType=='AWS::Lambda::Function'].PhysicalResourceId | [0]" \
+              --output text)
+          
+          sleep 2
+          
+          POST_INGESTOR_ARN=$(aws lambda get-function-configuration \
+              --function-name "$FUNCTION_NAME" \
+              --query "FunctionArn" \
+              --output text)
+          
+          sleep 2
+          
+          POST_INGESTOR_ROLE_NAME=$(aws lambda get-function-configuration \
+              --function-name "$FUNCTION_NAME" \
+              --query "Role" \
+              --output text | rev | cut -d'/' -f1 | rev)
+          
+          sleep 2
+          
+          POST_INGESTOR_SG=$(aws lambda get-function-configuration \
+              --function-name "$FUNCTION_NAME" \
+              --query "VpcConfig.SecurityGroupIds[0]" \
+              --output text)
+          
+          sleep 2
+          
+          cd ./terraform
+          KAFKA_CERT_ARN=$(terraform output -raw kafka_cert_arn)
+          cd ../
+          
+          aws cloudformation deploy \
+            --template-file ./cloudformation/event-source-mapping.yml \
+            --stack-name "${STACK_NAME}-event-source-addon" \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides \
+              KafkaClusterHostname=${{ vars.EPA_KAFKA_BROKER_HOSTNAME }} \
+              KafkaClusterPort=${{ vars.EPA_KAFKA_BROKER_PORT }} \
+              KafkaTopicName=${{ vars.EPA_KAFKA_POST_TOPIC_NAME }} \
+              KafkaConsumerGroupName=${{ vars.EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_POSTINGESTOR }} \
+              KafkaUsername=${{ vars.EPA_KAFKA_CONSUMER_USERNAME }} \
+              KafkaPassword=${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }} \
+              KafkaCertSSMArn=$KAFKA_CERT_ARN \
+              TargetLambdaFunctionArn=$POST_INGESTOR_ARN \
+              TargetLambdaExecutionRoleName=$POST_INGESTOR_ROLE_NAME \
+              TargetLambdaFunctionSubnetId1=${{ inputs.subnet-1-id }} \
+              TargetLambdaFunctionSubnetId2=${{ inputs.subnet-2-id }} \
+              TargetLambdaFunctionSG=$POST_INGESTOR_SG

@@ -474,3 +474,34 @@ jobs:
       route-table-id: ${{ needs.deploy-operations-environment.outputs.route_table_id }}
       epa-redis-hostname: ${{ needs.deploy-redis.outputs.hostname }}
       epa-redis-port: ${{ needs.deploy-redis.outputs.port }}
+  
+  deploy-post-ingestor-to-operations-env:
+    needs:
+      - deploy-operations-environment
+      - connect-operations-environment-dependencies
+      - deploy-database
+      - deploy-kafka
+    uses: NateMartes/epa/.github/workflows/deploy-post-ingestor.yml@main
+    secrets: inherit
+    with:
+      vpc-id: ${{ needs.deploy-operations-environment.outputs.vpc_id }}
+      vpc-cidr-block: ${{ needs.deploy-operations-environment.outputs.vpc_cidr_block }}
+      subnet-1-id: ${{ needs.deploy-operations-environment.outputs.subnet_1_id }}
+      subnet-2-id: ${{ needs.deploy-operations-environment.outputs.subnet_2_id }}
+      route-table-id: ${{ needs.deploy-operations-environment.outputs.route_table_id }}
+    
+      epa-mongodb-hostname: ${{ vars.EPA_MONGODB_HOSTNAME }}
+      epa-mongodb-port: ${{ vars.EPA_MONGODB_PORT }}
+      epa-mongodb-database-name: ${{ vars.EPA_MONGODB_DATABASE_NAME }}
+      epa-mongodb-username: ${{ secrets.EPA_MONGODB_USERNAME }}
+      epa-mongodb-password: ${{ secrets.EPA_MONGODB_PASSWORD }}
+      epa-mongodb-user-collection: ${{ vars.EPA_MONGODB_USER_COLLECTION }}
+      epa-mongodb-session-token-collection: ${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }}
+      epa-mongodb-posts-collection: ${{ vars.EPA_MONGODB_POSTS_COLLECTION }}
+    
+      epa-kafka-broker-hostname: ${{ vars.EPA_KAFKA_BROKER_HOSTNAME }}
+      epa-kafka-broker-port: ${{ vars.EPA_KAFKA_BROKER_PORT }}
+      epa-kafka-post-topic-name: ${{ vars.EPA_KAFKA_POST_TOPIC_NAME }}
+      epa-kafka-consumer-username: ${{ vars.EPA_KAFKA_CONSUMER_USERNAME }}
+      epa-kafka-consumer-password: ${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }}
+      epa-kafka-post-topic-consumer-group-postingestor: ${{ vars.EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_POSTINGESTOR }}
