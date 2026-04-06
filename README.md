@@ -60,7 +60,7 @@ sudo sam build && sudo sam local invoke
 
 The overview of EPA can appear as such:
 
-![EPA System Architecture](./system_diagram/event-posting-app.png "EPA System Architecture")
+![EPA System Architecture](./system_diagram/event-posting-app.drawio.png "EPA System Architecture")
 
 ### System Architecture Choices
 
@@ -94,7 +94,7 @@ npm start --android
 
 ## The API
 
-![EPA API](./system_diagram/api/epa-api.png "EPA API")
+![EPA API](./system_diagram/api/epa-api.drawio.png "EPA API")
 
 The EPA API uses a Contract-First approach, meaning endpoints are auto generated from an OpenAPI spec using the `openapi-generator-cli` tool:
 
@@ -143,7 +143,7 @@ class EpaAPIImplementation(BaseDefaultApi):
 ```
 
 ## The Database
-![EPA Database Architecture](./system_diagram/database/epa-database.png "EPA Database Architecture")
+![EPA Database Architecture](./system_diagram/database/epa-database.drawio.png "EPA Database Architecture")
 The database uses MongoDB for storing information such as `users`, `posts`, `session_tokens`, `categories`, and more.
 The database is initialized using a Python script and the `config.json` file found within the `./database` directory.
 The database `docker-compose.yml` file includes a database initializer to add the defined collections.
@@ -194,7 +194,7 @@ func connectToRedis() *redis.Client {
 ```
 
 ## The Post Queue
-![EPA Post Queue Architecture](./system_diagram/kafka/epa-kafka.png "EPA Post Queue Architecture")
+![EPA Post Queue Architecture](./system_diagram/kafka/epa-kafka.drawio.png "EPA Post Queue Architecture")
 The post queue uses Kafka to store posts for later consumers to pick up (e.g post_ingestor, cache_loader).
 You can use `docker-compose` to spin up a local Kafka instance.
 
@@ -225,6 +225,10 @@ These services are grouped together as they are all very similar.
 They run as AWS Lamdba functions and are triggered via Kafka Events.
 They all also use AWS SAM to be tested and deployed into the cloud.
 The only difference lies in that the post ingestor is written in Python, while the others are in Go.
+
+These are all deployed in an environment called the *operations* environment.
+![EPA Operations Architecture](./system_diagram/operations/epa-operations.drawio.png "EPA Operations")
+
 They can all be tested by executing:
 ```bash
 sam build && sam local invoke
@@ -242,7 +246,7 @@ EPA has 2 main environments for running Github Actions:
 - `Development`: Used for pull requests to test code before merging
 - `Production`: Used for pushes to `main` to update cloud production resources
 
-![EPA Workflows](./system_diagram/workflows/epa-workflows.png "EPA Workflows")
+![EPA Workflows](./system_diagram/workflows/epa-workflows.drawio.png "EPA Workflows")
 
 ### Terraform
 Terraform is primarly used for deploying resources into the cloud. The process for writing a Terraform Github Action for deployment is:
