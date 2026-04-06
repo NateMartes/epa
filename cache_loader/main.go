@@ -269,14 +269,14 @@ func connectToRedis() *redis.Client {
  * Returns:
  * 	(string, error): The value of the cache line as a string, an error if an error occured
  */
-func getUserCahceLineValue(userId string, rdb *redis.Client) (string, error) {
+func getUserCacheLineValue(userId string, rdb *redis.Client) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	return rdb.Get(ctx, userId).Result()
 }
 
 /*
- * The setUserCahceLineValue sets a cache line in a redis server using
+ * The setUserCacheLineValue sets a cache line in a redis server using
  * a user id as the key.
  * 
  * Args:
@@ -288,7 +288,7 @@ func getUserCahceLineValue(userId string, rdb *redis.Client) (string, error) {
  * Returns:
  * 	(string, error): The value of the cache line as a string, an error if an error occured
  */
-func setUserCahceLineValue(userId string, val string, exprAt time.Duration, rdb *redis.Client) (error) {
+func setUserCacheLineValue(userId string, val string, exprAt time.Duration, rdb *redis.Client) (error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	return rdb.Set(ctx, userId, val, exprAt).Err()
@@ -307,31 +307,31 @@ func setUserCahceLineValue(userId string, val string, exprAt time.Duration, rdb 
  * Returns:
  * 	error: If an error occured
  */
-func updateCacheLine(userId string, post Post, rdb *redis.Client) error {
-	
-	// Get the cache line value, defaulting to "{"posts": []}" for cache lines that do not exist
-	valString, err := getUserCahceLineValue(userId, rdb)
-	if err == redis.Nil {
-		valString = "{\"posts\": []}"
-	} else if err != nil {
-		return err
-	}
-	
-	// Parse the cache line into a PostList object
-	var val PostList
-	err = json.Unmarshal([]byte(valString), &val)
-	if err != nil {
-		return err
-	}
-		
-	// Add the new post and insert into the cache line
-	val.Posts = append(val.Posts, post)
-	jsonEncoded, err := (json.Marshal(val))
-	if err != nil {
-		return nil
-	}
-	
-	return setUserCahceLineValue(userId, string(jsonEncoded), time.Hour, rdb)
+// NEW SIGNATURE: accept authorId
+func updateCacheLine(userId string, authorId string, post Post, rdb *redis.Client) error {
+    valString, err := getUserCacheLineValue(userId, rdb)
+    if err == redis.Nil {
+        valString = "{\"posts\": []}"
+    } else if err != nil {
+        return err
+    }
+    
+    var val PostList
+    err = json.Unmarshal([]byte(valString), &val)
+    if err != nil {
+        return err
+    }
+    
+    //Skip if user is the author of the post
+    if userId != authorId {
+        val.Posts = append(val.Posts, post)
+        jsonEncoded, err := json.Marshal(val)
+        if err != nil {
+            return err
+        }
+        return setUserCacheLineValue(userId, string(jsonEncoded), time.Hour, rdb)
+    }
+    return nil  //Skip caching for author's own feed
 }
 
 /*
@@ -345,29 +345,36 @@ func updateCacheLine(userId string, post Post, rdb *redis.Client) error {
  * 	wg (*sync.WaitGroup): A Waitgroup this fucntion is apart of
  */
 func updateUserCacheLines(records []events.KafkaRecord, users *[]User, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	rdb := connectToRedis()
-	for _, record := range records {
-
-		// Decode the post from AWS
-		post, err := getFromBase64[Post](record.Value)
-		if err != nil {
-			log.Fatal(err)
-			continue
-		}
-		
-		for _, user := range *users {
-			for _, userCategorySlug := range user.Subscribed {
-				if userCategorySlug == post.CategorySlug {
-					err := updateCacheLine(user.Id, post, rdb)
-					if err != nil { log.Fatal(err) }
-				}
-			}
-		}
-	}
+    defer wg.Done()
+    rdb := connectToRedis()
+    
+    for _, record := range records {
+        // Decode Kafka key to get author's userId
+        authorIdBytes, err := base64.StdEncoding.DecodeString(record.Key)
+        if err != nil {
+            log.Printf("Failed to decode Kafka key: %v", err)
+            continue
+        }
+        authorId := string(authorIdBytes)
+        
+        post, err := getFromBase64[Post](record.Value)
+        if err != nil {
+            log.Printf("Failed to decode post: %v", err)
+            continue
+        }
+        
+        for _, user := range *users {
+            for _, userCategorySlug := range user.Subscribed {
+                if userCategorySlug == post.CategorySlug {
+                    //Pass authorId to updateCacheLine
+                    if err := updateCacheLine(user.Id, authorId, post, rdb); err != nil {
+                        log.Printf("Failed to update cache for user %s: %v", user.Id, err)
+                    }
+                }
+            }
+        }
+    }
 }
-
 /*
  * The process_records function takes a list of Kakfka records and processes them,
  * adding them into user caches as needed.

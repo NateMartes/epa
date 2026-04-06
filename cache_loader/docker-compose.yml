@@ -1,6 +1,8 @@
+version: '3.8'
+
 services:
-   epa_cache_loader:
-      build:
-         context: .
-      image: epa_cache_loader:latest
-      hostname: epa-cache-loader
+  epa_cache_loader:
+    build:
+      context: .
+    image: epa_cache_loader:latest
+    hostname: epa-cache-loader

@@ -3,28 +3,25 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   cache_loader
 
-  Sample SAM Template for cache_loader
-
 Globals:
   Function:
     Timeout: 5
     MemorySize: 128
     LoggingConfig:
       LogFormat: JSON
-      
+
 Resources:
   CacheLoaderServiceFunction:
     Type: AWS::Serverless::Function
     Properties:
       PackageType: Image
       Architectures:
-      - x86_64
+        - x86_64
       Events:
         MyMSKEvent:
           Type: MSK
           Properties:
             StartingPosition: LATEST
-            # Stream: !Ref PUT MKS CLUSTER ARN HERE
             Topics:
               - cache_loader_consumer
             BatchSize: 100
@@ -32,42 +29,32 @@ Resources:
             Enabled: true
       Environment:
         Variables:
-          EPA_REDIS_HOSTNAME: ""
-          EPA_REDIS_PORT: ""
-          EPA_REDIS_PASSWORD: ""
-          EPA_MONGODB_HOSTNAME: ""
-          EPA_MONGODB_PORT: ""
-          EPA_MONGODB_DATABASE_NAME: ""
-          EPA_MONGODB_USERNAME: ""
-          EPA_MONGODB_PASSWORD: ""
-          EPA_MONGODB_USER_COLLECTION: ""
-          EPA_KAFKA_TOPIC_CACHELOADER_NAME: ""
+          # ── MongoDB (hardcoded, like post-ingestor) ──
+          EPA_MONGODB_HOSTNAME: "epa-db"
+          EPA_MONGODB_PORT: "27017"
+          EPA_MONGODB_USERNAME: "test"
+          EPA_MONGODB_PASSWORD: "test"
+          EPA_MONGODB_DATABASE_NAME: "epa_database"
+          EPA_MONGODB_USER_COLLECTION: "users"
+          EPA_MONGODB_SESSION_TOKEN_COLLECTION: "session_tokens"
+          EPA_MONGODB_POSTS_COLLECTION: "posts"
+          EPA_MONGODB_CATEGORIES_COLLECTION: "categories"
+          
+          # ── Redis (hardcoded) ──
+          EPA_REDIS_HOSTNAME: "epa-redis"
+          EPA_REDIS_PORT: "6379"
+          EPA_REDIS_PASSWORD: "test"
+          EPA_REDIS_USE_SSL: "false"
+          
+          # ── Kafka (for event parsing, not connection) ──
+          EPA_KAFKA_TOPIC_CACHELOADER_NAME: "cache_loader_consumer"
+
     Metadata:
       DockerTag: provided.al2-v1
       DockerContext: .
       Dockerfile: Dockerfile
 
-  ApplicationResourceGroup:
-    Type: AWS::ResourceGroups::Group
-    Properties:
-      Name:
-        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
-      ResourceQuery:
-        Type: CLOUDFORMATION_STACK_1_0
-  ApplicationInsightsMonitoring:
-    Type: AWS::ApplicationInsights::Application
-    Properties:
-      ResourceGroupName:
-        Ref: ApplicationResourceGroup
-      AutoConfigurationEnabled: 'true'
 Outputs:
-  CacheLoaderSericeFunction:
-    Description: API Gateway endpoint URL for Prod environment for First 
-      Function
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/prod/cache-loader/"
-  CacheLoaderSericeFunction:
-    Description: First Lambda Function ARN
-    Value: !GetAtt CacheLoaderSericeFunction.Arn
-  CacheLoaderSericeFunction:
-    Description: Implicit IAM Role created for Cache Loader Service function
-    Value: !GetAtt CacheLoaderSericeFunctionRole.Arn
+  CacheLoaderServiceFunctionArn:
+    Description: Lambda Function ARN
+    Value: !GetAtt CacheLoaderServiceFunction.Arn
