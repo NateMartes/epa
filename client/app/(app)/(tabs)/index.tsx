@@ -29,8 +29,8 @@ export default function Index() {
       </View>
       <View style={styles.space}/>
       <View style={styles.link}>
-      <Button  style={styles.button}>
-        Sign out?
+      <Link href="/about" style={styles.button}>
+        Go to About Screen
       </Link>
       </View>
     </SafeAreaView>
