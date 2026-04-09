@@ -6,7 +6,6 @@ import Input from '@/components/Input';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Index() {
-  const value = null;
   const router = useRouter();
   const getData = async () => {
     try {
@@ -19,9 +18,8 @@ export default function Index() {
   	//read error
   	}
   }
-  //value = AsyncStorage.getItem('sessionID');
-  getData();
-  if(getData().value == null){
+  console.log(getData());
+  if(getData() == 'data'){
   router.navigate('/login');
   }
   return (
@@ -31,8 +29,8 @@ export default function Index() {
       </View>
       <View style={styles.space}/>
       <View style={styles.link}>
-      <Link href="/about" style={styles.button}>
-        Go to About Screen
+      <Button  style={styles.button}>
+        Sign out?
       </Link>
       </View>
     </SafeAreaView>
