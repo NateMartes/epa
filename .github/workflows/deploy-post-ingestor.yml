@@ -4,6 +4,7 @@ name: "Deploy Post Ingestor Service"
 on:
   workflow_call:
     inputs:
+      # ── VPC Networking ONLY (same as deploy-cache-loader.yml) ──
       vpc-id:
         description: The VPC ID to deploy the post ingestor into
         required: true
@@ -24,64 +25,7 @@ on:
         description: The ID of the route table to use for dependency routing
         required: true
         type: string
-        
-      epa-mongodb-hostname:
-        description: MongoDB hostname
-        required: true
-        type: string
-      epa-mongodb-port:
-        description: MongoDB port number
-        required: true
-        type: string
-      epa-mongodb-database-name:
-        description: MongoDB database name
-        required: true
-        type: string
-      epa-mongodb-username:
-        description: MongoDB username
-        required: false 
-        type: string
-      epa-mongodb-password:
-        description: MongoDB password
-        required: false  
-        type: string
-      epa-mongodb-user-collection:
-        description: MongoDB user collection name
-        required: true
-        type: string
-      epa-mongodb-session-token-collection:
-        description: MongoDB session token collection name
-        required: true
-        type: string
-      epa-mongodb-posts-collection:
-        description: MongoDB posts collection name
-        required: true
-        type: string
-        
-      epa-kafka-broker-hostname:
-        description: Kafka broker hostname
-        required: true
-        type: string
-      epa-kafka-broker-port:
-        description: Kafka broker port
-        required: true
-        type: string
-      epa-kafka-post-topic-name:
-        description: Kafka topic name for new posts
-        required: true
-        type: string
-      epa-kafka-consumer-username:
-        description: Kafka consumer username
-        required: true
-        type: string
-      epa-kafka-consumer-password:
-        description: Kafka consumer password
-        required: false  # ← CHANGED: true → false
-        type: string
-      epa-kafka-post-topic-consumer-group-postingestor:
-        description: Kafka consumer group for post ingestor
-        required: true
-        type: string
+      # ✅ NO MongoDB/Kafka inputs — accessed directly via vars/secrets below
 
 jobs:
   deploy:
@@ -133,25 +77,27 @@ jobs:
           sam deploy --no-confirm-changeset \
                     --no-fail-on-empty-changeset \
                     --parameter-overrides \
-                      VPCId="${{ inputs.vpc-id }}" \
-                      VPCCidrBlock="${{ inputs.vpc-cidr-block }}" \
-                      Subnet1Id="${{ inputs.subnet-1-id }}" \
-                      Subnet2Id="${{ inputs.subnet-2-id }}" \
-                      RouteTableId="${{ inputs.route-table-id }}" \
-                      EpaMongodbHostname="${{ inputs.epa-mongodb-hostname }}" \
-                      EpaMongodbPort="${{ inputs.epa-mongodb-port }}" \
-                      EpaMongodbDatabaseName="${{ inputs.epa-mongodb-database-name }}" \
-                      EpaMongodbUsername="${{ secrets.EPA_MONGODB_USERNAME }}" \
-                      EpaMongodbPassword="${{ secrets.EPA_MONGODB_PASSWORD }}" \
-                      EpaMongodbUserCollection="${{ inputs.epa-mongodb-user-collection }}" \
-                      EpaMongodbSessionTokenCollection="${{ inputs.epa-mongodb-session-token-collection }}" \
-                      EpaMongodbPostsCollection="${{ inputs.epa-mongodb-posts-collection }}" \
-                      EpaKafkaBrokerHostname="${{ inputs.epa-kafka-broker-hostname }}" \
-                      EpaKafkaBrokerPort="${{ inputs.epa-kafka-broker-port }}" \
-                      EpaKafkaPostTopicName="${{ inputs.epa-kafka-post-topic-name }}" \
-                      EpaKafkaConsumerUsername="${{ inputs.epa-kafka-consumer-username }}" \
-                      EpaKafkaConsumerPassword="${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }}" \
-                      EpaKafkaPostTopicConsumerGroupPostIngestor="${{ inputs.epa-kafka-post-topic-consumer-group-postingestor }}"
+                      VPCId=${{ inputs.vpc-id }} \
+                      VPCCidrBlock=${{ inputs.vpc-cidr-block }} \
+                      Subnet1Id=${{ inputs.subnet-1-id }} \
+                      Subnet2Id=${{ inputs.subnet-2-id }} \
+                      RouteTableId=${{ inputs.route-table-id }} \
+                      # ── MongoDB config: accessed directly via vars/secrets ──
+                      EpaMongodbHostname=${{ vars.EPA_MONGODB_HOSTNAME }} \
+                      EpaMongodbPort=${{ vars.EPA_MONGODB_PORT }} \
+                      EpaMongodbDatabaseName=${{ vars.EPA_MONGODB_DATABASE_NAME }} \
+                      EpaMongodbUsername=${{ secrets.EPA_MONGODB_USERNAME }} \
+                      EpaMongodbPassword=${{ secrets.EPA_MONGODB_PASSWORD }} \
+                      EpaMongodbUserCollection=${{ vars.EPA_MONGODB_USER_COLLECTION }} \
+                      EpaMongodbSessionTokenCollection=${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }} \
+                      EpaMongodbPostsCollection=${{ vars.EPA_MONGODB_POSTS_COLLECTION }} \
+                      # ── Kafka config: accessed directly via vars/secrets ──
+                      EpaKafkaBrokerHostname=${{ vars.EPA_KAFKA_BROKER_HOSTNAME }} \
+                      EpaKafkaBrokerPort=${{ vars.EPA_KAFKA_BROKER_PORT }} \
+                      EpaKafkaPostTopicName=${{ vars.EPA_KAFKA_POST_TOPIC_NAME }} \
+                      EpaKafkaConsumerUsername=${{ vars.EPA_KAFKA_CONSUMER_USERNAME }} \
+                      EpaKafkaConsumerPassword=${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }} \
+                      EpaKafkaPostTopicConsumerGroupPostIngestor=${{ vars.EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_POSTINGESTOR }}
                 
       - name: Add Event Source Mapping to Post Ingestor
         working-directory: ./post_queue/
@@ -195,15 +141,15 @@ jobs:
             --stack-name "${STACK_NAME}-event-source-addon" \
             --capabilities CAPABILITY_IAM \
             --parameter-overrides \
-                KafkaClusterHostname="${{ vars.EPA_KAFKA_BROKER_HOSTNAME }}" \
-                KafkaClusterPort="${{ vars.EPA_KAFKA_BROKER_PORT }}" \
-                KafkaTopicName="${{ vars.EPA_KAFKA_POST_TOPIC_NAME }}" \
-                KafkaConsumerGroupName="${{ vars.EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_POSTINGESTOR }}" \
-                KafkaUsername="${{ vars.EPA_KAFKA_CONSUMER_USERNAME }}" \
-                KafkaPassword="${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }}" \
-                KafkaCertSSMArn="${KAFKA_CERT_ARN}" \
-                TargetLambdaFunctionArn="${POST_INGESTOR_ARN}" \
-                TargetLambdaExecutionRoleName="${POST_INGESTOR_ROLE_NAME}" \
-                TargetLambdaFunctionSubnetId1="${{ inputs.subnet-1-id }}" \
-                TargetLambdaFunctionSubnetId2="${{ inputs.subnet-2-id }}" \
-                TargetLambdaFunctionSG="${POST_INGESTOR_SG}"
+              KafkaClusterHostname=${{ vars.EPA_KAFKA_BROKER_HOSTNAME }} \
+              KafkaClusterPort=${{ vars.EPA_KAFKA_BROKER_PORT }} \
+              KafkaTopicName=${{ vars.EPA_KAFKA_POST_TOPIC_NAME }} \
+              KafkaConsumerGroupName=${{ vars.EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_POSTINGESTOR }} \
+              KafkaUsername=${{ vars.EPA_KAFKA_CONSUMER_USERNAME }} \
+              KafkaPassword=${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }} \
+              KafkaCertSSMArn=$KAFKA_CERT_ARN \
+              TargetLambdaFunctionArn=$POST_INGESTOR_ARN \
+              TargetLambdaExecutionRoleName=$POST_INGESTOR_ROLE_NAME \
+              TargetLambdaFunctionSubnetId1=${{ inputs.subnet-1-id }} \
+              TargetLambdaFunctionSubnetId2=${{ inputs.subnet-2-id }} \
+              TargetLambdaFunctionSG=$POST_INGESTOR_SG
