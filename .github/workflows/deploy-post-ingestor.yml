@@ -39,11 +39,11 @@ on:
         type: string
       epa-mongodb-username:
         description: MongoDB username
-        required: true
+        required: false 
         type: string
       epa-mongodb-password:
         description: MongoDB password
-        required: true
+        required: false  
         type: string
       epa-mongodb-user-collection:
         description: MongoDB user collection name
@@ -76,7 +76,7 @@ on:
         type: string
       epa-kafka-consumer-password:
         description: Kafka consumer password
-        required: true
+        required: false  # ← CHANGED: true → false
         type: string
       epa-kafka-post-topic-consumer-group-postingestor:
         description: Kafka consumer group for post ingestor
