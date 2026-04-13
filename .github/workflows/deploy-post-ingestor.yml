@@ -76,6 +76,7 @@ jobs:
           sleep 5
           sam deploy --no-confirm-changeset \
                     --no-fail-on-empty-changeset \
+                    --stack-name epa-post-ingestor-prod \
                     --parameter-overrides \
                       VPCId=${{ inputs.vpc-id }} \
                       VPCCidrBlock=${{ inputs.vpc-cidr-block }} \
