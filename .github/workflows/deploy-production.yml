@@ -1,10 +1,13 @@
 name: "Deploy Applications to Production"
-
+#
 on:
   push:
     branches:
       - main
-
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
 jobs:
   # Deploy dependencies
   deploy-database:
@@ -481,7 +484,7 @@ jobs:
       - connect-operations-environment-dependencies
       - deploy-database
       - deploy-kafka
-    uses: NateMartes/epa/.github/workflows/deploy-post-ingestor.yml@main
+    uses: NateMartes/epa/.github/workflows/deploy-post-ingestor.yml@120-feature-create-deployment-workflow-for-post-ingestor
     secrets: inherit
     with:
       vpc-id: ${{ needs.deploy-operations-environment.outputs.vpc_id }}
