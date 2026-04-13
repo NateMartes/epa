@@ -141,8 +141,8 @@ jobs:
                       EpaMongodbHostname=${{ inputs.epa-mongodb-hostname }} \
                       EpaMongodbPort=${{ inputs.epa-mongodb-port }} \
                       EpaMongodbDatabaseName=${{ inputs.epa-mongodb-database-name }} \
-                      EpaMongodbUsername=${{ inputs.epa-mongodb-username }} \
-                      EpaMongodbPassword=${{ inputs.epa-mongodb-password }} \
+                      EpaMongodbUsername=${{ secrets.EPA_MONGODB_USERNAME }} \
+                      EpaMongodbPassword=${{ secrets.EPA_MONGODB_PASSWORD }} \
                       EpaMongodbUserCollection=${{ inputs.epa-mongodb-user-collection }} \
                       EpaMongodbSessionTokenCollection=${{ inputs.epa-mongodb-session-token-collection }} \
                       EpaMongodbPostsCollection=${{ inputs.epa-mongodb-posts-collection }} \
@@ -150,60 +150,60 @@ jobs:
                       EpaKafkaBrokerPort=${{ inputs.epa-kafka-broker-port }} \
                       EpaKafkaPostTopicName=${{ inputs.epa-kafka-post-topic-name }} \
                       EpaKafkaConsumerUsername=${{ inputs.epa-kafka-consumer-username }} \
-                      EpaKafkaConsumerPassword=${{ inputs.epa-kafka-consumer-password }} \
+                      EpaKafkaConsumerPassword=${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }} \
                       EpaKafkaPostTopicConsumerGroupPostIngestor=${{ inputs.epa-kafka-post-topic-consumer-group-postingestor }}
-        
+
       - name: Add Event Source Mapping to Post Ingestor
         working-directory: ./post_queue/
         run: |
           STACK_NAME=$(grep 'stack_name' ../post_ingestor/samconfig.toml | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
-          
+    
           FUNCTION_NAME=$(aws cloudformation describe-stack-resources \
-              --stack-name "$STACK_NAME" \
-              --query "StackResources[?ResourceType=='AWS::Lambda::Function'].PhysicalResourceId | [0]" \
-              --output text)
-          
+            --stack-name "$STACK_NAME" \
+            --query "StackResources[?ResourceType=='AWS::Lambda::Function'].PhysicalResourceId | [0]" \
+            --output text)
+    
           sleep 2
-          
+    
           POST_INGESTOR_ARN=$(aws lambda get-function-configuration \
               --function-name "$FUNCTION_NAME" \
               --query "FunctionArn" \
               --output text)
-          
+    
           sleep 2
-          
+    
           POST_INGESTOR_ROLE_NAME=$(aws lambda get-function-configuration \
               --function-name "$FUNCTION_NAME" \
               --query "Role" \
               --output text | rev | cut -d'/' -f1 | rev)
-          
+    
           sleep 2
-          
+    
           POST_INGESTOR_SG=$(aws lambda get-function-configuration \
               --function-name "$FUNCTION_NAME" \
               --query "VpcConfig.SecurityGroupIds[0]" \
               --output text)
-          
+    
           sleep 2
-          
+    
           cd ./terraform
           KAFKA_CERT_ARN=$(terraform output -raw kafka_cert_arn)
           cd ../
-          
+    
           aws cloudformation deploy \
             --template-file ./cloudformation/event-source-mapping.yml \
             --stack-name "${STACK_NAME}-event-source-addon" \
             --capabilities CAPABILITY_IAM \
             --parameter-overrides \
-              KafkaClusterHostname=${{ vars.EPA_KAFKA_BROKER_HOSTNAME }} \
-              KafkaClusterPort=${{ vars.EPA_KAFKA_BROKER_PORT }} \
-              KafkaTopicName=${{ vars.EPA_KAFKA_POST_TOPIC_NAME }} \
-              KafkaConsumerGroupName=${{ vars.EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_POSTINGESTOR }} \
-              KafkaUsername=${{ vars.EPA_KAFKA_CONSUMER_USERNAME }} \
-              KafkaPassword=${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }} \
-              KafkaCertSSMArn=$KAFKA_CERT_ARN \
-              TargetLambdaFunctionArn=$POST_INGESTOR_ARN \
-              TargetLambdaExecutionRoleName=$POST_INGESTOR_ROLE_NAME \
-              TargetLambdaFunctionSubnetId1=${{ inputs.subnet-1-id }} \
-              TargetLambdaFunctionSubnetId2=${{ inputs.subnet-2-id }} \
-              TargetLambdaFunctionSG=$POST_INGESTOR_SG
+                KafkaClusterHostname="${{ vars.EPA_KAFKA_BROKER_HOSTNAME }}" \
+                KafkaClusterPort="${{ vars.EPA_KAFKA_BROKER_PORT }}" \
+                KafkaTopicName="${{ vars.EPA_KAFKA_POST_TOPIC_NAME }}" \
+                KafkaConsumerGroupName="${{ vars.EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_POSTINGESTOR }}" \
+                KafkaUsername="${{ vars.EPA_KAFKA_CONSUMER_USERNAME }}" \
+                KafkaPassword="${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }}" \
+                KafkaCertSSMArn="${KAFKA_CERT_ARN}" \
+                TargetLambdaFunctionArn="${POST_INGESTOR_ARN}" \
+                TargetLambdaExecutionRoleName="${POST_INGESTOR_ROLE_NAME}" \
+                TargetLambdaFunctionSubnetId1="${{ inputs.subnet-1-id }}" \
+                TargetLambdaFunctionSubnetId2="${{ inputs.subnet-2-id }}" \
+                TargetLambdaFunctionSG="${POST_INGESTOR_SG}"
