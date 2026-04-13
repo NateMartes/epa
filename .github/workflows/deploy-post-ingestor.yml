@@ -133,26 +133,26 @@ jobs:
           sam deploy --no-confirm-changeset \
                     --no-fail-on-empty-changeset \
                     --parameter-overrides \
-                      VPCId=${{ inputs.vpc-id }} \
-                      VPCCidrBlock=${{ inputs.vpc-cidr-block }} \
-                      Subnet1Id=${{ inputs.subnet-1-id }} \
-                      Subnet2Id=${{ inputs.subnet-2-id }} \
-                      RouteTableId=${{ inputs.route-table-id }} \
-                      EpaMongodbHostname=${{ inputs.epa-mongodb-hostname }} \
-                      EpaMongodbPort=${{ inputs.epa-mongodb-port }} \
-                      EpaMongodbDatabaseName=${{ inputs.epa-mongodb-database-name }} \
-                      EpaMongodbUsername=${{ secrets.EPA_MONGODB_USERNAME }} \
-                      EpaMongodbPassword=${{ secrets.EPA_MONGODB_PASSWORD }} \
-                      EpaMongodbUserCollection=${{ inputs.epa-mongodb-user-collection }} \
-                      EpaMongodbSessionTokenCollection=${{ inputs.epa-mongodb-session-token-collection }} \
-                      EpaMongodbPostsCollection=${{ inputs.epa-mongodb-posts-collection }} \
-                      EpaKafkaBrokerHostname=${{ inputs.epa-kafka-broker-hostname }} \
-                      EpaKafkaBrokerPort=${{ inputs.epa-kafka-broker-port }} \
-                      EpaKafkaPostTopicName=${{ inputs.epa-kafka-post-topic-name }} \
-                      EpaKafkaConsumerUsername=${{ inputs.epa-kafka-consumer-username }} \
-                      EpaKafkaConsumerPassword=${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }} \
-                      EpaKafkaPostTopicConsumerGroupPostIngestor=${{ inputs.epa-kafka-post-topic-consumer-group-postingestor }}
-
+                      VPCId="${{ inputs.vpc-id }}" \
+                      VPCCidrBlock="${{ inputs.vpc-cidr-block }}" \
+                      Subnet1Id="${{ inputs.subnet-1-id }}" \
+                      Subnet2Id="${{ inputs.subnet-2-id }}" \
+                      RouteTableId="${{ inputs.route-table-id }}" \
+                      EpaMongodbHostname="${{ inputs.epa-mongodb-hostname }}" \
+                      EpaMongodbPort="${{ inputs.epa-mongodb-port }}" \
+                      EpaMongodbDatabaseName="${{ inputs.epa-mongodb-database-name }}" \
+                      EpaMongodbUsername="${{ secrets.EPA_MONGODB_USERNAME }}" \
+                      EpaMongodbPassword="${{ secrets.EPA_MONGODB_PASSWORD }}" \
+                      EpaMongodbUserCollection="${{ inputs.epa-mongodb-user-collection }}" \
+                      EpaMongodbSessionTokenCollection="${{ inputs.epa-mongodb-session-token-collection }}" \
+                      EpaMongodbPostsCollection="${{ inputs.epa-mongodb-posts-collection }}" \
+                      EpaKafkaBrokerHostname="${{ inputs.epa-kafka-broker-hostname }}" \
+                      EpaKafkaBrokerPort="${{ inputs.epa-kafka-broker-port }}" \
+                      EpaKafkaPostTopicName="${{ inputs.epa-kafka-post-topic-name }}" \
+                      EpaKafkaConsumerUsername="${{ inputs.epa-kafka-consumer-username }}" \
+                      EpaKafkaConsumerPassword="${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }}" \
+                      EpaKafkaPostTopicConsumerGroupPostIngestor="${{ inputs.epa-kafka-post-topic-consumer-group-postingestor }}"
+                
       - name: Add Event Source Mapping to Post Ingestor
         working-directory: ./post_queue/
         run: |
