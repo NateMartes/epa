@@ -6,6 +6,14 @@ Description: >
 
   SAM Template for post_ingestor
 
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    LoggingConfig:
+      LogFormat: JSON
+
+
 # ── PARAMETERS SECTION (Matches deploy-post-ingestor.yml inputs) ──
 Parameters:
   # VPC Networking
@@ -88,13 +96,6 @@ Parameters:
   EpaKafkaPostTopicConsumerGroupPostIngestor:
     Type: String
     Description: Kafka consumer group for post ingestor
-
-Globals:
-  Function:
-    Timeout: 30
-    MemorySize: 256
-    LoggingConfig:
-      LogFormat: JSON
 
 Resources:
   # ── Security Group for Lambda VPC access ──────────────────────
@@ -191,4 +192,4 @@ Outputs:
 
   PostIngestorFunctionRoleName:
     Description: Post Ingestor Lambda Execution Role Name
-    Value: !GetAtt PostIngestorFunction.Arn  # Adjust if you have a separate role resource
+    Value: !GetAtt PostIngestorFunction.Role
