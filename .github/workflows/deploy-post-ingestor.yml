@@ -1,3 +1,4 @@
+# .github/workflows/deploy-post-ingestor.yml
 name: "Deploy Post Ingestor Service"
 
 on:
@@ -24,6 +25,7 @@ on:
         description: The ID of the route table to use for dependency routing
         required: true
         type: string
+      # ✅ NO MongoDB/Kafka inputs — accessed directly via vars/secrets below
 
 jobs:
   deploy:
