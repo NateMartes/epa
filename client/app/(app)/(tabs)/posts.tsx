@@ -2,10 +2,10 @@ import { Text, View, StyleSheet } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
 import Button from '@/components/Button';
-import Input from '@/components/Input';
+import Scrollable from '@/components/Scrollable';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function Index() {
+export default function Posts() {
   const router = useRouter();
   const getData = async () => {
     try {
@@ -25,12 +25,12 @@ export default function Index() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.poster}>
-	<Input/>
+	<Scrollable/>
       </View>
       <View style={styles.space}/>
       <View style={styles.link}>
-      <Link href="/posts" style={styles.button}>
-         Go to Read Posts
+      <Link href="/" style={styles.button}>
+        Go to Make Posts
       </Link>
       </View>
     </SafeAreaView>

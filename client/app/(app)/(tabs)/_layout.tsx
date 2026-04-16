@@ -16,10 +16,12 @@ export default function RootLayout() {
       else{
         return null;
       }
+      return (value);
     }
   catch(e){
         console.log('error');
         }
+	
   }
   const hello = getData();
   
