@@ -1,4 +1,3 @@
-# .github/workflows/deploy-post-ingestor.yml
 name: "Deploy Post Ingestor Service"
 
 on:
@@ -25,7 +24,6 @@ on:
         description: The ID of the route table to use for dependency routing
         required: true
         type: string
-      # ✅ NO MongoDB/Kafka inputs — accessed directly via vars/secrets below
 
 jobs:
   deploy:
@@ -76,14 +74,12 @@ jobs:
           sleep 5
           sam deploy --no-confirm-changeset \
                     --no-fail-on-empty-changeset \
-                    --stack-name epa-post-ingestor-prod \
                     --parameter-overrides \
                       VPCId=${{ inputs.vpc-id }} \
                       VPCCidrBlock=${{ inputs.vpc-cidr-block }} \
                       Subnet1Id=${{ inputs.subnet-1-id }} \
                       Subnet2Id=${{ inputs.subnet-2-id }} \
                       RouteTableId=${{ inputs.route-table-id }} \
-                      # ── MongoDB config: accessed directly via vars/secrets ──
                       EpaMongodbHostname=${{ vars.EPA_MONGODB_HOSTNAME }} \
                       EpaMongodbPort=${{ vars.EPA_MONGODB_PORT }} \
                       EpaMongodbDatabaseName=${{ vars.EPA_MONGODB_DATABASE_NAME }} \
@@ -92,7 +88,6 @@ jobs:
                       EpaMongodbUserCollection=${{ vars.EPA_MONGODB_USER_COLLECTION }} \
                       EpaMongodbSessionTokenCollection=${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }} \
                       EpaMongodbPostsCollection=${{ vars.EPA_MONGODB_POSTS_COLLECTION }} \
-                      # ── Kafka config: accessed directly via vars/secrets ──
                       EpaKafkaBrokerHostname=${{ vars.EPA_KAFKA_BROKER_HOSTNAME }} \
                       EpaKafkaBrokerPort=${{ vars.EPA_KAFKA_BROKER_PORT }} \
                       EpaKafkaPostTopicName=${{ vars.EPA_KAFKA_POST_TOPIC_NAME }} \
