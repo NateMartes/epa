@@ -30,8 +30,16 @@ export default function MyForm() {
   const SubmitApi = async() => {
   	 const formJson = { password: Pass, email: Emails, username: Uname  };
 	 const substring = JSON.stringify(formJson);
-    	 const response = await fetch("https://01xioere1a.execute-api.us-west-2.amazonaws.com/Prod/v1/auth/register", {method: 'POST', body: substring, });
-    	 console.log(formJson);
+    	 try {
+	 const response = await fetch("https://01xioere1a.execute-api.us-west-2.amazonaws.com/Prod/v1/auth/register", {method: 'POST', body: substring, });
+    	 }
+	 catch (error){
+	 alert('There was an issue creating your account, please try again');
+	 setPassword('');
+         setPasswordTwo('');
+       	 setUsername('');
+	 setEmail('');
+	 }
     	 if (!response.ok) {
 	 throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -45,11 +53,14 @@ export default function MyForm() {
        setPasswordTwo('');
        }
     else {
+    try{
     SubmitApi();
+    }
+    catch{
     //if some error, then return pop up saying no, reset fields
   	 }
 }
-
+}
   return (
     <form method="POST" onSubmit={handleSubmit}>
            <TextInput

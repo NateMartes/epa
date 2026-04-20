@@ -43,10 +43,13 @@ const getMoreData = async () => {
 
       setItems((prevItems) => [...prevItems, ...newData]);
 };
-const Item = ({title , content }) => (
+const Item = ({title , content, category, created_by }) => (
   <View style={styles.item}>
     <Text style={styles.title}>{title}</Text>
+    <Text style={styles.text}>{category}</Text>
     <Text style={styles.text}> {content} </Text>
+    <Text style={styles.text}> {created_by} </Text>
+    
   </View>
 );
 
