@@ -27,7 +27,15 @@ export default function MyForm() {
     color: '#ccc',
   },
   })
-  
+  const SubmitApi = async() => {
+  	 const formJson = { password: Pass, email: Emails, username: Uname  };
+	 const substring = JSON.stringify(formJson);
+    	 const response = await fetch("https://01xioere1a.execute-api.us-west-2.amazonaws.com/Prod/v1/auth/register", {method: 'POST', body: substring, });
+    	 console.log(formJson);
+    	 if (!response.ok) {
+	 throw new Error(`HTTP error! status: ${response.status}`);
+    }
+   } 
   function handleSubmit(e) {
   
     e.preventDefault();
@@ -37,16 +45,12 @@ export default function MyForm() {
        setPasswordTwo('');
        }
     else {
-    	 
-    	 const formJson = { Username: Uname, Password: Pass, Email: Emails  };
-    	 //fetch('/some-api', {method: form.method, body: formData });
-    	 console.log(formJson);
-    	 e => setPassword('');
+    SubmitApi();
   	 }
 }
 
   return (
-    <form method="signup" onSubmit={handleSubmit}>
+    <form method="POST" onSubmit={handleSubmit}>
            <TextInput
 	     value={Emails}
 	     maxLength={100}
