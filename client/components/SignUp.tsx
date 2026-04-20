@@ -46,6 +46,7 @@ export default function MyForm() {
        }
     else {
     SubmitApi();
+    //if some error, then return pop up saying no, reset fields
   	 }
 }
 
