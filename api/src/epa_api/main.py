@@ -14,7 +14,7 @@
 
 from fastapi import FastAPI, Request
 from mangum import Mangum
-
+from fastapi.middleware.cors import CORSMiddleware
 from epa_api.apis.authentication_api import router as AuthenticationApiRouter
 from epa_api.apis.system_api import router as SystemApiRouter
 from epa_api.apis.posts_api import router as PostsApiRouter
@@ -28,6 +28,19 @@ app = FastAPI(
     title="EPA (Event Posting App) API",
     description="API for a mobile safety application that allows users to post and subscribe to local safety concerns. ",
     version="1.0.0",
+)
+
+origins = [
+    "https://localhost:8081",
+    "http://localhost:8081",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.middleware("http")
