@@ -35,14 +35,6 @@ origins = [
     "http://localhost:8081",
 ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 @app.middleware("http")
 async def persist_auth_context(request: Request, call_next):
     
@@ -60,7 +52,15 @@ async def persist_auth_context(request: Request, call_next):
     # Proceed to the Router -> Security Dependency -> Implementation
     response = await call_next(request)
     return response
-              
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(AuthenticationApiRouter)
 app.include_router(SystemApiRouter)
 app.include_router(PostsApiRouter)
