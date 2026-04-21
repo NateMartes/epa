@@ -25,7 +25,8 @@ const styles = StyleSheet.create({
 
 
 const getData = async () => {
-  const resp = await fetch("https://01xioere1a.execute-api.us-west-2.amazonaws.com/Prod/v1/post");
+   const response = await fetch("https://01xioere1a.execute-api.us-west-2.amazonaws.com/Prod/v1/auth/post", {
+   	 method: 'POST',headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session_token}` }, body: substring, });
   const data = await resp.json();
   console.log(data);
   setData(data);

@@ -1,13 +1,13 @@
 import React, {useState} from 'react';
 import {View, StyleSheet, TextInput} from 'react-native';
 import Button from '@/components/Button';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 export default function MyForm() {
   const [Uname, setUsername] = useState('');
   const [Pass, setPassword] = useState('');
   const [Emails, setEmail] = useState('');
   const [PassTwo, setPasswordTwo] = useState('');
- 
+  const router = useRouter();
   const styles = StyleSheet.create({
   input: {
     flex: 1,
@@ -29,21 +29,26 @@ export default function MyForm() {
   })
   const SubmitApi = async() => {
   	 const formJson = { password: Pass, email: Emails, username: Uname  };
-	 const substring = JSON.stringify(formJson);
-    	 try {
-	 const response = await fetch("https://01xioere1a.execute-api.us-west-2.amazonaws.com/Prod/v1/auth/register", {method: 'POST', body: substring, });
+	 const substring = JSON.stringify(formJson); 
+    	 
+	 const response = await fetch("https://01xioere1a.execute-api.us-west-2.amazonaws.com/Prod/v1/auth/register", {method: 'POST', headers: { 'Content-Type': 'application/json'}, body: substring, });
+	 const responseJSON = await response.json();
+	 if (!response.ok){
+	    console.log(responseJSON);
+	    console.log(responseJSON.detail);
+	    console.log(`HTTP error, status: ${response.status}`);	 
+	    alert(`Error: ${responseJSON.detail}`);
+    	 
+	 //setPassword('');
+         //setPasswordTwo('');
+       	 //setUsername('');
+	 //setEmail('');
     	 }
-	 catch (error){
-	 alert('There was an issue creating your account, please try again');
-	 setPassword('');
-         setPasswordTwo('');
-       	 setUsername('');
-	 setEmail('');
+	 else {
+	 router.navigate('/login');	 
 	 }
-    	 if (!response.ok) {
-	 throw new Error(`HTTP error! status: ${response.status}`);
     }
-   } 
+    
   function handleSubmit(e) {
   
     e.preventDefault();
@@ -53,12 +58,12 @@ export default function MyForm() {
        setPasswordTwo('');
        }
     else {
-    try{
+    //try{
     SubmitApi();
-    }
-    catch{
+    //}
+    //catch{
     //if some error, then return pop up saying no, reset fields
-  	 }
+  //	 }
 }
 }
   return (
