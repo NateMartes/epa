@@ -356,6 +356,11 @@ Resources:
           Properties:
             Path: /v1/{proxy+}
             Method: ANY
+        OptionsCheck:
+          Type: Api
+          Properties:
+            Path: /v1/{proxy+}
+            Method: OPTIONS 
       Timeout: 10
       Environment:
         Variables:
