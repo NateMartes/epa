@@ -10,7 +10,7 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  # Deploy dependencies
+  # Deploy dependencies add one word
   deploy-database:
     uses: NateMartes/epa/.github/workflows/deploy-db.yml@main
     secrets: inherit
