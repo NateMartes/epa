@@ -10,9 +10,10 @@ export default function Index() {
   const router = useRouter();
   const removeData = async () => {
     try {
-     await AsyncStorage.setItem('sessionID', null);
-        } catch (e) {}
-	router.navigate('/login');
+     await AsyncStorage.clear();
+     router.navigate('/login');
+        } catch (e) {alert('There was an issue with sign out. Please try again');}
+	
   };
   return (
     <SafeAreaView style={styles.container}>

@@ -39,10 +39,10 @@ export default function MyForm() {
 	    console.log(`HTTP error, status: ${response.status}`);	 
 	    alert(`Error: ${responseJSON.detail}`);
     	 
-	 //setPassword('');
-         //setPasswordTwo('');
-       	 //setUsername('');
-	 //setEmail('');
+	    setPassword('');
+            setPasswordTwo('');
+       	    setUsername('');
+	    setEmail('');
     	 }
 	 else {
 	 router.navigate('/login');	 

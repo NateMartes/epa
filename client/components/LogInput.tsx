@@ -13,16 +13,16 @@ export default function MyForm() {
          
          const response = await fetch("https://01xioere1a.execute-api.us-west-2.amazonaws.com/Prod/v1/auth/login", {
 method: 'POST',headers: { 'Content-Type': 'application/json'}, body: substring, });
+	 const responseJson = await response.json();
 
 	 if (!response.ok) {
-	    alert('Error: ${response.detail}');
+	    alert(`Error: ${responseJson.detail}`);
       	    console.log(`HTTP error, status: ${response.status}`);
        	    setPassword('');
             setUsername('');
     	 }
 	 else{
-            const tokenData = await response.json();
-	    storeData(tokenData.session_token);
+	    storeData(responseJson.session_token);
 	    router.navigate('/');
          }
          
@@ -72,7 +72,7 @@ method: 'POST',headers: { 'Content-Type': 'application/json'}, body: substring, 
 	     value={Uname}
 	     maxLength={100}
 	     onChange={e =>setUsername(e.target.value)}
-	     placeholder="Email"
+	     placeholder="Email or Username"
 	     style={styles.input}
 	   />
 	   <TextInput

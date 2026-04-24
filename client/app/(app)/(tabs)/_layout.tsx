@@ -1,31 +1,32 @@
 import { Tabs } from "expo-router";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Slot } from "expo-router";
-import { Link, useRouter } from 'expo-router';
+import { Link, useRouter, Redirect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function RootLayout() {
-  const router = useRouter();
+  let hello = 1;
   const getData = async () => {
     try {
       const value = await AsyncStorage.getItem('sessionID');
-      console.log(value);
-      if(value == null){
-      router.navigate('/login'); }
-      if (value !== null) {
-      }
+      console.log(value); 
+      if (value !== null) {hello = 0;}
       else{
-        return null;
-      }
-      return (value);
+        hello = 1;
+      } 
     }
-  catch(e){
+    catch(e){
         console.log('error');
         }
-	
-  }
-  const hello = getData();
-  
+
+}	
+      
+     const returnstate = getData().then(() => {
+      if (hello == 1) {
+      return <Redirect href="/login" />;
+      }
+  console.log('fuck');    
   return (
+
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#ff0033',
@@ -59,5 +60,7 @@ export default function RootLayout() {
       />
     </Tabs>
   );
+  });
+  return returnstate;
 }
   

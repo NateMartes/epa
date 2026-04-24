@@ -7,21 +7,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Index() {
   const router = useRouter();
-  const getData = async () => {
-    try {
-      const value = await AsyncStorage.getItem('sessionID');
-      if (value !== null) {
+//  const getData = async () => {
+  //  try {
+    //  const value = await AsyncStorage.getItem('sessionID');
+      //if (value !== null) {
         // value previously stored
-        }
-      }
-  catch(e){
+       // }
+     // }
+  //catch(e){
   	//read error
-  	}
-  }
-  console.log(getData());
-  //if(getData() == 'data'){
-  //router.navigate('/login');
-  //}
+  //	}
+ // }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.poster}>
