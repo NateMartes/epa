@@ -70,6 +70,42 @@ jobs:
             sleep 5
             sam build --use-container
             
+
+            
+      - name: Clean up failed CloudFormation stack
+        working-directory: ./post_ingestor/
+        run: |
+          STACK_NAME="post-ingestor"
+          REGION="${{ vars.AWS_REGION }}"
+    
+          # Check if stack exists and get status
+          STACK_STATUS=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --region "$REGION" \
+            --query "Stacks[0].StackStatus" \
+            --output text 2>/dev/null || echo "NOT_FOUND")
+    
+          echo "Stack $STACK_NAME status: $STACK_STATUS"
+    
+          # Delete if in terminal failure state
+          if [[ "$STACK_STATUS" == "ROLLBACK_COMPLETE" || "$STACK_STATUS" == "CREATE_FAILED" || "$STACK_STATUS" == "DELETE_FAILED" ]]; then
+            echo "⚠️  Stack is in $STACK_STATUS state, deleting..."
+            aws cloudformation delete-stack \
+              --stack-name "$STACK_NAME" \
+              --region "$REGION"
+      
+            # Wait for deletion (with timeout)
+            timeout 300 aws cloudformation wait stack-delete-complete \
+              --stack-name "$STACK_NAME" \
+              --region "$REGION" || echo "⚠️  Deletion timed out, continuing..."
+      
+            echo "Stack $STACK_NAME cleanup complete"
+          elif [[ "$STACK_STATUS" == "NOT_FOUND" ]]; then
+            echo "Stack $STACK_NAME does not exist, proceeding with creation"
+          else
+            echo "Stack $STACK_NAME is in $STACK_STATUS state, proceeding with update"
+          fi
+
       - name: Deploy SAM Project
         working-directory: ./post_ingestor/
         run: |
