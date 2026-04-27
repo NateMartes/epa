@@ -8,6 +8,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Index() {
   const router = useRouter();
+  const storeDataAcc = async (value) => {
+  try {
+   await AsyncStorage.setItem('AccessID', value);
+      } catch (e) {}
+  };
   const removeData = async () => {
     try {
      await AsyncStorage.clear();
