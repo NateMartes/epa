@@ -479,11 +479,13 @@ jobs:
       epa-redis-hostname: ${{ needs.deploy-redis.outputs.hostname }}
       epa-redis-port: ${{ needs.deploy-redis.outputs.port }}
   
-  
+
   deploy-post-ingestor-to-operations-env:
     needs:
       - deploy-operations-environment
       - connect-operations-environment-dependencies
+      - deploy-database   
+      - deploy-kafka     
     uses: NateMartes/epa/.github/workflows/deploy-post-ingestor.yml@120-feature-create-deployment-workflow-for-post-ingestor
     secrets: inherit
     with:
