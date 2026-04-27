@@ -569,6 +569,7 @@ components:
         created_at: 2026-02-06T19:00:00Z
         title: Downed Power Line
         created_by: user_123
+        username: john_doe
         content: High winds knocked down a line on 5th Ave. Avoid the area.
         category: Electrical Hazard
         category_slug: electrical-hazard
@@ -581,6 +582,11 @@ components:
           description: The user ID of the author.
           example: user_123
           title: created_by
+          type: string
+        username:
+          description: The username of the author.
+          example: john_doe
+          title: username
           type: string
         title:
           example: Downed Power Line

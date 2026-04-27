@@ -204,7 +204,7 @@ class PostUtils:
         return True
         
     @staticmethod
-    def create_post(post_collection: Collection, user_id: str, category: str, category_slug: str, create_post_object: CreatePost) -> Post:
+    def create_post(post_collection: Collection, user_id: str, username: str, category: str, category_slug: str, create_post_object: CreatePost) -> Post:
         """
         Creates a post in the post collection.
         
@@ -212,6 +212,8 @@ class PostUtils:
         :type post_collection: pymongo.Collection
         :param user_id: The id to makes this post on behalf of
         :type user_id: str
+        :param username: The username of the user to makes this post on behalf of
+        :type username: str
         :param category_slug: The category this post belongs to
         :type category_slug: str
         :param create_post_object: The new post to create
@@ -223,6 +225,7 @@ class PostUtils:
         new_post = {
             "post_id": str(uuid.uuid4()),
             "created_by": user_id,
+            "username": username,
             "title": create_post_object.title,
             "content": create_post_object.content,
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -241,6 +244,7 @@ class PostUtils:
         return Post(
             post_id=new_post["post_id"],
             created_by=new_post["created_by"],
+            username=username,
             title=new_post["title"],
             content=new_post["content"],
             created_at=new_post["created_at"],
