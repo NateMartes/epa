@@ -11,10 +11,10 @@ from epa_api.api_implementation.utils.cache import CacheUtils
 from epa_api.api_implementation.utils.redis import RedisUtils
 from epa_api.api_implementation.utils.token import TokenUtils
 from epa_api.api_implementation.utils.category import CategoryUtils
+from epa_api.api_implementation.utils.user import UserUtils
 import logging
 from fastapi.exceptions import HTTPException
 from fastapi import status
-
 
 class PostAPIImplementation(BasePostsApi):
     async def get_posts(
@@ -129,14 +129,20 @@ class PostAPIImplementation(BasePostsApi):
         client, db = MongoUtils.get_mongodb_database_connection()
         post_collection = MongoUtils.get_post_collection(db)
         category_collection = MongoUtils.get_categories_collection(db)
+        user_collection = MongoUtils.get_user_collection(db)
         
         PostUtils.validate_post(create_post, category_collection)
         user_id = TokenUtils.get_user_id(token)
         if not user_id:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+        
+        user = UserUtils.get_user_from_user_id(user_id, user_collection)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        print(user)
         output = PostUtils.create_post(post_collection, 
-            user_id, 
+            user_id,
+            user["username"],
             list(CategoryUtils.get_categories(
                 category_collection, 
                 query=CategoryUtils.build_category_query(category_id=create_post.category_slug))

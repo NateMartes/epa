@@ -1,5 +1,6 @@
 from kafka import KafkaProducer
 from typing import Dict, Any, Tuple
+import logging
 import os
 import json
 import ssl
@@ -62,24 +63,38 @@ class KafkaUtils:
         :return: A new kafka producer object
         :rtype: kafka.KafkaProducer
         """
-                
+        
+        use_ssl = os.getenv("EPA_KAFKA_USE_SSL", "true").lower() == "true"
+        
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
         
         server = KafkaUtils.get_kafka_bootstrap_server()
         username, password = KafkaUtils.get_kafka_producer_credentials()
-        return KafkaProducer(
-            bootstrap_servers=[server],
-            allow_auto_create_topics=False,
-            retries=3,
-            security_protocol="SASL_SSL",
-            sasl_mechanism="PLAIN",
-            sasl_plain_username=username,
-            sasl_plain_password=password,
-            ssl_context=ssl_context,
-        )
-        
+        if use_ssl:
+            return KafkaProducer(
+                bootstrap_servers=[server],
+                allow_auto_create_topics=False,
+                retries=3,
+                security_protocol="SASL_SSL",
+                sasl_mechanism="PLAIN",
+                sasl_plain_username=username,
+                sasl_plain_password=password,
+                ssl_context=ssl_context,
+            )
+        else:
+            logging.getLogger(__name__).warning("Environment variable EPA_KAFKA_USE_SSL is false, not using kafka SSL protocal")
+            return KafkaProducer(
+                bootstrap_servers=[server],
+                allow_auto_create_topics=False,
+                retries=3,
+                security_protocol="SASL_PLAINTEXT",
+                sasl_mechanism="PLAIN",
+                sasl_plain_username=username,
+                sasl_plain_password=password,
+            )
+
     @staticmethod
     def send_message(producer: KafkaProducer, message: Dict[Any, Any]):
         """

@@ -34,12 +34,13 @@ class Post(BaseModel):
     """ # noqa: E501
     post_id: StrictStr
     created_by: StrictStr = Field(description="The user ID of the author.")
+    username: Optional[StrictStr] = Field(default=None, description="The username of the author.")
     title: StrictStr
     content: StrictStr
     category: Optional[StrictStr] = Field(default=None, description="URL-friendly identifier for the category.")
     category_slug: StrictStr = Field(description="Identifier for the category.")
     created_at: Optional[datetime] = None
-    __properties: ClassVar[List[str]] = ["post_id", "created_by", "title", "content", "category", "category_slug", "created_at"]
+    __properties: ClassVar[List[str]] = ["post_id", "created_by", "username", "title", "content", "category", "category_slug", "created_at"]
 
     model_config = {
         "populate_by_name": True,
@@ -92,6 +93,7 @@ class Post(BaseModel):
         _obj = cls.model_validate({
             "post_id": obj.get("post_id"),
             "created_by": obj.get("created_by"),
+            "username": obj.get("username"),
             "title": obj.get("title"),
             "content": obj.get("content"),
             "category": obj.get("category"),

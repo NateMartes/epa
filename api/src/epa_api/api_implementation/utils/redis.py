@@ -18,10 +18,10 @@ class RedisUtils:
         port = os.getenv("EPA_REDIS_PORT")
         password = os.getenv("EPA_REDIS_PASSWORD")
         protocol = "rediss"
-        use_ssl = os.getenv("EPA_REDIS_USE_SSL", "false").lower() == "true"
+        use_ssl = os.getenv("EPA_REDIS_USE_SSL", "true").lower() == "true"
        
         if not use_ssl:
-            logging.getLogger(__name__).warning("Environment variable EPA_REDIS_USE_SSL is false or not set, not using 'rediss' protocal")
+            logging.getLogger(__name__).warning("Environment variable EPA_REDIS_USE_SSL is false, not using 'rediss' protocal")
             protocol = "redis"
     
         if not hostname or not port or not password:
