@@ -12,9 +12,7 @@ Globals:
     LoggingConfig:
       LogFormat: JSON
 
-# ── PARAMETERS SECTION (Matches deploy-post-ingestor.yml inputs) ──
 Parameters:
-  # VPC Networking
   VPCId:
     Type: String
     Description: The VPC ID to deploy the post ingestor into
@@ -35,7 +33,6 @@ Parameters:
     Type: String
     Description: The ID of the route table to use for dependency routing
 
-  # MongoDB Configuration
   EpaMongodbHostname:
     Type: String
     Description: MongoDB hostname
@@ -69,7 +66,6 @@ Parameters:
     Type: String
     Description: MongoDB posts collection name
 
-  # Kafka Configuration
   EpaKafkaBrokerHostname:
     Type: String
     Description: Kafka broker hostname
@@ -96,7 +92,6 @@ Parameters:
     Description: Kafka consumer group for post ingestor
 
 Resources:
-  # ── Security Group for Lambda VPC access ──────────────────────
   PostIngestorSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -117,7 +112,6 @@ Resources:
         - Key: Name
           Value: !Sub "${AWS::StackName}-post-ingestor-sg"
 
-  # ── Lambda Function ───────────────────────────────────────────
   PostIngestorFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -139,7 +133,6 @@ Resources:
             Resource: "*"
       Environment:
         Variables:
-          # MongoDB - reference parameters with !Ref
           EPA_MONGODB_HOSTNAME: !Ref EpaMongodbHostname
           EPA_MONGODB_PORT: !Ref EpaMongodbPort
           EPA_MONGODB_DATABASE_NAME: !Ref EpaMongodbDatabaseName
@@ -148,7 +141,6 @@ Resources:
           EPA_MONGODB_USER_COLLECTION: !Ref EpaMongodbUserCollection
           EPA_MONGODB_SESSION_TOKEN_COLLECTION: !Ref EpaMongodbSessionTokenCollection
           EPA_MONGODB_POSTS_COLLECTION: !Ref EpaMongodbPostsCollection
-          # Kafka - reference parameters with !Ref
           EPA_KAFKA_BROKER_HOSTNAME: !Ref EpaKafkaBrokerHostname
           EPA_KAFKA_BROKER_PORT: !Ref EpaKafkaBrokerPort
           EPA_KAFKA_POST_TOPIC_NAME: !Ref EpaKafkaPostTopicName
@@ -166,11 +158,10 @@ Resources:
       DockerContext: .
       Dockerfile: Dockerfile
 
-# ── Outputs (for downstream workflows) ─────────────────────────
 Outputs:
   PostIngestorFunctionArn:
     Description: Post Ingestor Lambda Function ARN
     Value: !GetAtt PostIngestorFunction.Arn
   PostIngestorFunctionRoleName:
     Description: Post Ingestor Lambda Execution Role Name
-    Value: !Ref PostIngestorServiceFunctionRole
+    Value: !Ref PostIngestorFunctionRole

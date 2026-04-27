@@ -31,7 +31,7 @@ warm_containers = "EAGER"
 warm_containers = "EAGER"
 
 [production.global.parameters]
-stack_name = "epa-post-ingestor-prod"
+stack_name = "post-ingestor"
 
 [production.deploy.parameters]
 confirm_changeset = false
