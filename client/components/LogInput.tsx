@@ -22,7 +22,8 @@ method: 'POST',headers: { 'Content-Type': 'application/json'}, body: substring, 
             setUsername('');
     	 }
 	 else{
-	    storeData(responseJson.session_token);
+	    storeDataSess(responseJson.session_token);
+	    storeDataAcc(responseJson.access_token);
 	    router.navigate('/');
          }
          
@@ -32,9 +33,14 @@ method: 'POST',headers: { 'Content-Type': 'application/json'}, body: substring, 
          
 	 
 	 }
-  const storeData = async (value) => {
+  const storeDataSess = async (value) => {
     try {
      await AsyncStorage.setItem('sessionID', value);
+        } catch (e) {}
+  };
+  const storeDataAcc = async (value) => {
+    try {
+     await AsyncStorage.setItem('AccessID', value);
         } catch (e) {}
   };
   const router = useRouter();
