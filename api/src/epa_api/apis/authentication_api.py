@@ -31,6 +31,7 @@ from epa_api.models.auth_token import AuthToken
 from epa_api.models.login_request import LoginRequest
 from epa_api.models.user_created import UserCreated
 from epa_api.models.user_registration import UserRegistration
+from epa_api.models.username_response import UsernameResponse
 from epa_api.security_api import get_token_BearerAuth
 
 router = APIRouter()
@@ -151,3 +152,20 @@ async def renew_session_token(
     if not BaseAuthenticationApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseAuthenticationApi.subclasses[0]().renew_session_token()
+
+
+@router.get(
+    "/v1/auth/user",
+    responses={
+        200: {"model": UsernameResponse, "description": "Username for the given user ID."},
+    },
+    tags=["Authentication"],
+    summary="Retrieve username by user ID",
+    response_model_by_alias=True,
+)
+async def get_username_by_user_id(
+    user_id: Annotated[StrictStr, Field(description="The ID of the user to look up.")] = Query(None, description="The ID of the user to look up.", alias="user_id"),
+) -> UsernameResponse:
+    if not BaseAuthenticationApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseAuthenticationApi.subclasses[0]().get_username_by_user_id(user_id)

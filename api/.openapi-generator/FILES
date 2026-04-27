@@ -26,4 +26,5 @@ src/epa_api/models/status.py
 src/epa_api/models/subscribe_category_request.py
 src/epa_api/models/user_created.py
 src/epa_api/models/user_registration.py
+src/epa_api/models/username_response.py
 tests/conftest.py

@@ -17,6 +17,7 @@ from epa_api.api_implementation.utils.mongo import MongoUtils
 from epa_api.api_implementation.utils.user import UserUtils
 from epa_api.api_implementation.utils.token import TokenUtils
 from epa_api.api_implementation.utils.google import GoogleUtils
+from epa_api.models.username_response import UsernameResponse 
 from fastapi.responses import RedirectResponse
 from fastapi import status
 import urllib.parse
@@ -168,4 +169,25 @@ class AuthAPIImplementation(BaseAuthenticationApi):
             session_token=new_session_token,
             token_type="Bearer",
             access_expires_in=TokenUtils.get_ttl_in_seconds(expire_time)
-        )        
+        )    
+    
+    async def get_username_by_user_id(
+        self, 
+        user_id: StrictStr
+    ) -> UsernameResponse:
+        
+        print(user_id)
+        
+        TokenUtils.validate_access_token_with_db()
+        
+        # Connect to the database
+        client, db = MongoUtils.get_mongodb_database_connection()
+        user_collection = MongoUtils.get_user_collection(db)
+        
+        user = UserUtils.get_user_from_user_id(user_id, user_collection)
+        print(user)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            
+        output = UsernameResponse(username=user["username"])
+        return output

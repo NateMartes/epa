@@ -164,6 +164,28 @@ paths:
       summary: Session Token Renewal
       tags:
       - Authentication
+  /v1/auth/user:
+    get:
+      operationId: get_username_by_user_id
+      parameters:
+      - description: The ID of the user to look up.
+        explode: true
+        in: query
+        name: user_id
+        required: true
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsernameResponse"
+          description: Username for the given user ID.
+      summary: Retrieve username by user ID
+      tags:
+      - Authentication
   /v1/post:
     delete:
       description: Deletes a post
@@ -638,6 +660,18 @@ components:
           maxItems: 10
           type: array
       title: PostList
+      type: object
+    UsernameResponse:
+      example:
+        username: username
+      properties:
+        username:
+          description: The username associated with the provided user_id.
+          title: username
+          type: string
+      required:
+      - username
+      title: UsernameResponse
       type: object
   securitySchemes:
     BearerAuth:
