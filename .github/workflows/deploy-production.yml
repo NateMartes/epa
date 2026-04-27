@@ -4,9 +4,13 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
 
 jobs:
-  # Deploy dependencies
+  # Deploy dependencies add one word
   deploy-database:
     uses: NateMartes/epa/.github/workflows/deploy-db.yml@main
     secrets: inherit
@@ -474,3 +478,19 @@ jobs:
       route-table-id: ${{ needs.deploy-operations-environment.outputs.route_table_id }}
       epa-redis-hostname: ${{ needs.deploy-redis.outputs.hostname }}
       epa-redis-port: ${{ needs.deploy-redis.outputs.port }}
+  
+
+  deploy-post-ingestor-to-operations-env:
+    needs:
+      - deploy-operations-environment
+      - connect-operations-environment-dependencies
+      - deploy-database   
+      - deploy-kafka     
+    uses: NateMartes/epa/.github/workflows/deploy-post-ingestor.yml@120-feature-create-deployment-workflow-for-post-ingestor
+    secrets: inherit
+    with:
+      vpc-id: ${{ needs.deploy-operations-environment.outputs.vpc_id }}
+      vpc-cidr-block: ${{ needs.deploy-operations-environment.outputs.vpc_cidr_block }}
+      subnet-1-id: ${{ needs.deploy-operations-environment.outputs.subnet_1_id }}
+      subnet-2-id: ${{ needs.deploy-operations-environment.outputs.subnet_2_id }}
+      route-table-id: ${{ needs.deploy-operations-environment.outputs.route_table_id }}

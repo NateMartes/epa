@@ -36,6 +36,7 @@ type Post struct {
 	Title string `json:"title,omitempty"`
 	CategoryName string `json:"category_name,omitempty"`
 	CategorySlug string `json:"category_slug,omitempty"`
+	CreatedBy string `json:"created_by,omitempty"`
 }
 
 /*
@@ -73,7 +74,7 @@ func chunk[T any](k int, slice []T) [][]T {
 }
 
 /*
- * The connectToMongoDB function connects to a MongoDB instance, using the environment
+ * The connectToMongoDB function takes a MongoDB instance, using the environment
  * variables known to the program
  * 
  * Returns:
@@ -170,7 +171,7 @@ func getUsersWithSubscriptions() *mongo.Cursor {
 }
 
 /*
- * The mongoCursorToSlice function takes a mongo.Cursor object and coverts it
+ * The mongoCursorToSlice function takes a mongo.Cursor object and converts it
  * into a slice of some type T. Each item in the resulting slice is an item in the MongoDB cursor
  * 
  * Args:
@@ -180,7 +181,7 @@ func getUsersWithSubscriptions() *mongo.Cursor {
  * 	[]T: The resulting slice
  */
 func mongoCursorToSlice[T any](cursor *mongo.Cursor) []T {
-	// Close the cursor when finised
+	// Close the cursor when finished
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
     	defer cancel()
@@ -209,13 +210,13 @@ func mongoCursorToSlice[T any](cursor *mongo.Cursor) []T {
 }
 
 /*
- * The getFromBase64 takes a base64 encoded strings and returns an object of type Tas.
+ * The getFromBase64 takes a base64 encoded string and returns an object of type T.
  * 
  * Args:
  * 	base64String (string): A base64 encoded string
  * 
  * Returns:
- * 	(T, error): The resulting object, an error if an error occured 
+ * 	(T, error): The resulting object, an error if an error occurred 
  */
 func getFromBase64[T any](base64String string) (T, error) {
 	
@@ -266,31 +267,31 @@ func connectToRedis() *redis.Client {
  * 	rdb (*redis.Client): A connection to a redis instance
  * 
  * Returns:
- * 	(string, error): The value of the cache line as a string, an error if an error occured
+ * 	(string, error): The value of the cache line as a string, an error if an error occurred
  */
-func getUserCahceLineValue(userId string, rdb *redis.Client) (string, error) {
+func getUserCacheLineValue(userId string, rdb *redis.Client) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	return rdb.Get(ctx, userId).Result()
 }
 
 /*
- * The setUserCahceLineValue sets a cache line in a redis server using
+ * The setUserCacheLineValue sets a cache line in a redis server using
  * a user id as the key.
  * 
  * Args:
  * 	userId (string): A user id
  * 	val (string): The new value of the cache line
- * 	exprAt (time.Duration): The time to live of the cache line
+ * 	ttl (time.Duration): The time to live of the cache line
  * 	rdb (*redis.Client): A connection to a redis instance
  * 
  * Returns:
- * 	(string, error): The value of the cache line as a string, an error if an error occured
+ * 	(error): An error if an error occurred
  */
-func setUserCahceLineValue(userId string, val string, exprAt time.Duration, rdb *redis.Client) (error) {
+func setUserCacheLineValue(userId string, val string, ttl time.Duration, rdb *redis.Client) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return rdb.Set(ctx, userId, val, exprAt).Err()
+	return rdb.Set(ctx, userId, val, ttl).Err()
 }
 
 /*
@@ -304,12 +305,12 @@ func setUserCahceLineValue(userId string, val string, exprAt time.Duration, rdb 
  * 	rdb (*redis.Client): A connection to a redis instance
  * 
  * Returns:
- * 	error: If an error occured
+ * 	error: If an error occurred
  */
 func updateCacheLine(userId string, post Post, rdb *redis.Client) error {
 	
 	// Get the cache line value, defaulting to "{"posts": []}" for cache lines that do not exist
-	valString, err := getUserCahceLineValue(userId, rdb)
+	valString, err := getUserCacheLineValue(userId, rdb)
 	if err == redis.Nil {
 		valString = "{\"posts\": []}"
 	} else if err != nil {
@@ -330,7 +331,7 @@ func updateCacheLine(userId string, post Post, rdb *redis.Client) error {
 		return nil
 	}
 	
-	return setUserCahceLineValue(userId, string(jsonEncoded), time.Hour, rdb)
+	return setUserCacheLineValue(userId, string(jsonEncoded), time.Hour, rdb)
 }
 
 /*
@@ -340,8 +341,8 @@ func updateCacheLine(userId string, post Post, rdb *redis.Client) error {
  * 
  * Args:
  * 	records ([]events.KafkaRecord): A list of records to possibly insert into user cache lines
- * 	users (*[]User): A list of users that may have their cache lines update
- * 	wg (*sync.WaitGroup): A Waitgroup this fucntion is apart of
+ * 	users (*[]User): A list of users that may have their cache lines updated
+ * 	wg (*sync.WaitGroup): A WaitGroup this function is a part of
  */
 func updateUserCacheLines(records []events.KafkaRecord, users *[]User, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -358,7 +359,7 @@ func updateUserCacheLines(records []events.KafkaRecord, users *[]User, wg *sync.
 		
 		for _, user := range *users {
 			for _, userCategorySlug := range user.Subscribed {
-				if userCategorySlug == post.CategorySlug {
+				if userCategorySlug == post.CategorySlug && user.Id != post.CreatedBy {
 					err := updateCacheLine(user.Id, post, rdb)
 					if err != nil { log.Fatal(err) }
 				}
@@ -368,7 +369,7 @@ func updateUserCacheLines(records []events.KafkaRecord, users *[]User, wg *sync.
 }
 
 /*
- * The process_records function takes a list of Kakfka records and processes them,
+ * The process_records function takes a list of Kafka records and processes them,
  * adding them into user caches as needed.
  * 
  * Args:
@@ -382,8 +383,8 @@ func process_records(records []events.KafkaRecord) {
 	usersChunked := chunk(cores, users)
 
 	// Then we process each chunk with the list of records from Kafka.
-	// We could give each record to the entire list of users, but that would be more inefficent
-	// and we would also have to handled for collisions between threads and user cache line accesses
+	// We could give each record to the entire list of users, but that would be more inefficient
+	// and we would also have to handle collisions between threads and user cache line accesses
 	var wg sync.WaitGroup
 	for i := range usersChunked {
 		wg.Add(1)

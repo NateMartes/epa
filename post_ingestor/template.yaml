@@ -12,36 +12,156 @@ Globals:
     LoggingConfig:
       LogFormat: JSON
 
+Parameters:
+  VPCId:
+    Type: String
+    Description: The VPC ID to deploy the post ingestor into
+  
+  VPCCidrBlock:
+    Type: String
+    Description: The CIDR Block of the VPC
+  
+  Subnet1Id:
+    Type: String
+    Description: The ID of the first subnet to deploy into
+ 
+  Subnet2Id:
+    Type: String
+    Description: The ID of the second subnet to deploy into
+    
+  RouteTableId:
+    Type: String
+    Description: The ID of the route table to use for dependency routing
+
+  EpaMongodbHostname:
+    Type: String
+    Description: MongoDB hostname
+
+  EpaMongodbPort:
+    Type: String
+    Description: MongoDB port number
+
+  EpaMongodbDatabaseName:
+    Type: String
+    Description: MongoDB database name
+
+  EpaMongodbUsername:
+    Type: String
+    Description: MongoDB username
+
+  EpaMongodbPassword:
+    Type: String
+    Description: MongoDB password
+    NoEcho: true
+
+  EpaMongodbUserCollection:
+    Type: String
+    Description: MongoDB user collection name
+
+  EpaMongodbSessionTokenCollection:
+    Type: String
+    Description: MongoDB session token collection name
+
+  EpaMongodbPostsCollection:
+    Type: String
+    Description: MongoDB posts collection name
+
+  EpaKafkaBrokerHostname:
+    Type: String
+    Description: Kafka broker hostname
+
+  EpaKafkaBrokerPort:
+    Type: String
+    Description: Kafka broker port
+
+  EpaKafkaPostTopicName:
+    Type: String
+    Description: Kafka topic name for new posts
+
+  EpaKafkaConsumerUsername:
+    Type: String
+    Description: Kafka consumer username
+
+  EpaKafkaConsumerPassword:
+    Type: String
+    Description: Kafka consumer password
+    NoEcho: true
+
+  EpaKafkaPostTopicConsumerGroupPostIngestor:
+    Type: String
+    Description: Kafka consumer group for post ingestor
+
 Resources:
+  PostIngestorSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Post Ingestor Lambda function
+      VpcId: !Ref VPCId
+      SecurityGroupEgress:
+        - Description: Allow outbound to MongoDB
+          IpProtocol: tcp
+          FromPort: !Ref EpaMongodbPort
+          ToPort: !Ref EpaMongodbPort
+          CidrIp: 0.0.0.0/0
+        - Description: Allow outbound to Kafka broker
+          IpProtocol: tcp
+          FromPort: !Ref EpaKafkaBrokerPort
+          ToPort: !Ref EpaKafkaBrokerPort
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-post-ingestor-sg"
+
   PostIngestorFunction:
     Type: AWS::Serverless::Function
     Properties:
       PackageType: Image
       Architectures:
         - x86_64
-      Events:
-        MyMSKEvent:
-          Type: MSK
-          Properties:
-            StartingPosition: LATEST
-            Topics:
-              - new_post
-            ConsumerGroupId: post_ingestor_consumer_group
-            BatchSize: 100
-            MaximumBatchingWindowInSeconds: 5
-            Enabled: true
+      Policies:
+        - AWSLambdaVPCAccessExecutionRole
+        - Statement:
+          - Effect: Allow
+            Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeSubnets
+              - ec2:DescribeSecurityGroups
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeVpcs
+              - secretsmanager:GetSecretValue
+            Resource: "*"
       Environment:
         Variables:
-          EPA_MONGODB_HOSTNAME: "epa_database"
-          EPA_MONGODB_PORT: "27017"
-          EPA_MONGODB_USERNAME: "test"
-          EPA_MONGODB_PASSWORD: "test"
-          EPA_MONGODB_DATABASE_NAME: "epa_database"
-          EPA_MONGODB_USER_COLLECTION: "users"
-          EPA_MONGODB_SESSION_TOKEN_COLLECTION: "session_tokens"
-          EPA_MONGODB_POSTS_COLLECTION: "posts"
-
+          EPA_MONGODB_HOSTNAME: !Ref EpaMongodbHostname
+          EPA_MONGODB_PORT: !Ref EpaMongodbPort
+          EPA_MONGODB_DATABASE_NAME: !Ref EpaMongodbDatabaseName
+          EPA_MONGODB_USERNAME: !Ref EpaMongodbUsername
+          EPA_MONGODB_PASSWORD: !Ref EpaMongodbPassword
+          EPA_MONGODB_USER_COLLECTION: !Ref EpaMongodbUserCollection
+          EPA_MONGODB_SESSION_TOKEN_COLLECTION: !Ref EpaMongodbSessionTokenCollection
+          EPA_MONGODB_POSTS_COLLECTION: !Ref EpaMongodbPostsCollection
+          EPA_KAFKA_BROKER_HOSTNAME: !Ref EpaKafkaBrokerHostname
+          EPA_KAFKA_BROKER_PORT: !Ref EpaKafkaBrokerPort
+          EPA_KAFKA_POST_TOPIC_NAME: !Ref EpaKafkaPostTopicName
+          EPA_KAFKA_CONSUMER_USERNAME: !Ref EpaKafkaConsumerUsername
+          EPA_KAFKA_CONSUMER_PASSWORD: !Ref EpaKafkaConsumerPassword
+          EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_POSTINGESTOR: !Ref EpaKafkaPostTopicConsumerGroupPostIngestor
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref PostIngestorSG
+        SubnetIds:
+          - !Ref Subnet1Id
+          - !Ref Subnet2Id
     Metadata:
       DockerTag: python3.11-al2-v1
       DockerContext: .
       Dockerfile: Dockerfile
+
+Outputs:
+  PostIngestorFunctionArn:
+    Description: Post Ingestor Lambda Function ARN
+    Value: !GetAtt PostIngestorFunction.Arn
+  PostIngestorFunctionRoleName:
+    Description: Post Ingestor Lambda Execution Role Name
+    Value: !Ref PostIngestorFunctionRole

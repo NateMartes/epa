@@ -1,0 +1,189 @@
+# .github/workflows/deploy-post-ingestor.yml
+name: "Deploy Post Ingestor Service"
+
+on:
+  workflow_call:
+    inputs:
+      # ── VPC Networking ONLY (same as deploy-cache-loader.yml) ──
+      vpc-id:
+        description: The VPC ID to deploy the post ingestor into
+        required: true
+        type: string
+      vpc-cidr-block:
+        description: The CIDR Block of the VPC
+        required: true
+        type: string
+      subnet-1-id:
+        description: The ID of the first subnet to deploy into
+        required: true
+        type: string
+      subnet-2-id:
+        description: The ID of the second subnet to deploy into
+        required: true
+        type: string
+      route-table-id:
+        description: The ID of the route table to use for dependency routing
+        required: true
+        type: string
+      # ✅ NO MongoDB/Kafka inputs — accessed directly via vars/secrets below
+
+jobs:
+  deploy:
+    name: "Deploy Post Ingestor into EPA Operations"
+    runs-on: ubuntu-latest
+    environment: production
+    
+    permissions:
+      contents: read
+      
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Install AWS CLI
+        run: |
+          sudo apt update && sudo apt install -y unzip curl
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install --update
+          rm -rf awscliv2.zip aws
+          
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.EPA_TF_API_TOKEN }}
+          
+      - name: Init Terraform CLI
+        working-directory: ./post_queue/terraform
+        run: terraform init
+          
+      - name: Configure AWS CLI Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_RUNNER_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_RUNNER_SECRET_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+          
+      - name: SAM Build
+        working-directory: ./post_ingestor/
+        run: |
+            sleep 5
+            sam build --use-container
+            
+
+            
+      - name: Clean up failed CloudFormation stack
+        working-directory: ./post_ingestor/
+        run: |
+          STACK_NAME="post-ingestor"
+          REGION="${{ vars.AWS_REGION }}"
+    
+          # Check if stack exists and get status
+          STACK_STATUS=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --region "$REGION" \
+            --query "Stacks[0].StackStatus" \
+            --output text 2>/dev/null || echo "NOT_FOUND")
+    
+          echo "Stack $STACK_NAME status: $STACK_STATUS"
+    
+          # Delete if in terminal failure state
+          if [[ "$STACK_STATUS" == "ROLLBACK_COMPLETE" || "$STACK_STATUS" == "CREATE_FAILED" || "$STACK_STATUS" == "DELETE_FAILED" ]]; then
+            echo "Stack is in $STACK_STATUS state, deleting..."
+            aws cloudformation delete-stack \
+              --stack-name "$STACK_NAME" \
+              --region "$REGION"
+      
+            # Wait for deletion (with timeout)
+            timeout 300 aws cloudformation wait stack-delete-complete \
+              --stack-name "$STACK_NAME" \
+              --region "$REGION" || echo "Deletion timed out, continuing..."
+      
+            echo "Stack $STACK_NAME cleanup complete"
+          elif [[ "$STACK_STATUS" == "NOT_FOUND" ]]; then
+            echo "Stack $STACK_NAME does not exist, proceeding with creation"
+          else
+            echo "Stack $STACK_NAME is in $STACK_STATUS state, proceeding with update"
+          fi
+
+      - name: Deploy SAM Project
+        working-directory: ./post_ingestor/
+        run: |
+          sleep 5
+          sam deploy --no-confirm-changeset \
+                    --no-fail-on-empty-changeset \
+                    --parameter-overrides \
+                      VPCId=${{ inputs.vpc-id }} \
+                      VPCCidrBlock=${{ inputs.vpc-cidr-block }} \
+                      Subnet1Id=${{ inputs.subnet-1-id }} \
+                      Subnet2Id=${{ inputs.subnet-2-id }} \
+                      RouteTableId=${{ inputs.route-table-id }} \
+                      EpaMongodbHostname=${{ vars.EPA_MONGODB_HOSTNAME }} \
+                      EpaMongodbPort=${{ vars.EPA_MONGODB_PORT }} \
+                      EpaMongodbDatabaseName=${{ vars.EPA_MONGODB_DATABASE_NAME }} \
+                      EpaMongodbUsername=${{ secrets.EPA_MONGODB_USERNAME }} \
+                      EpaMongodbPassword=${{ secrets.EPA_MONGODB_PASSWORD }} \
+                      EpaMongodbUserCollection=${{ vars.EPA_MONGODB_USER_COLLECTION }} \
+                      EpaMongodbSessionTokenCollection=${{ vars.EPA_MONGODB_SESSION_TOKEN_COLLECTION }} \
+                      EpaMongodbPostsCollection=${{ vars.EPA_MONGODB_POSTS_COLLECTION }} \
+                      EpaKafkaBrokerHostname=${{ vars.EPA_KAFKA_BROKER_HOSTNAME }} \
+                      EpaKafkaBrokerPort=${{ vars.EPA_KAFKA_BROKER_PORT }} \
+                      EpaKafkaPostTopicName=${{ vars.EPA_KAFKA_POST_TOPIC_NAME }} \
+                      EpaKafkaConsumerUsername=${{ vars.EPA_KAFKA_CONSUMER_USERNAME }} \
+                      EpaKafkaConsumerPassword=${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }} \
+                      EpaKafkaPostTopicConsumerGroupPostIngestor=${{ vars.EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_POSTINGESTOR }}
+                
+      - name: Add Event Source Mapping to Post Ingestor
+        working-directory: ./post_queue/
+        run: |
+          STACK_NAME=$(grep 'stack_name' ../post_ingestor/samconfig.toml | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
+    
+          FUNCTION_NAME=$(aws cloudformation describe-stack-resources \
+            --stack-name "$STACK_NAME" \
+            --query "StackResources[?ResourceType=='AWS::Lambda::Function'].PhysicalResourceId | [0]" \
+            --output text)
+    
+          sleep 2
+    
+          POST_INGESTOR_ARN=$(aws lambda get-function-configuration \
+              --function-name "$FUNCTION_NAME" \
+              --query "FunctionArn" \
+              --output text)
+    
+          sleep 2
+    
+          POST_INGESTOR_ROLE_NAME=$(aws lambda get-function-configuration \
+              --function-name "$FUNCTION_NAME" \
+              --query "Role" \
+              --output text | rev | cut -d'/' -f1 | rev)
+    
+          sleep 2
+    
+          POST_INGESTOR_SG=$(aws lambda get-function-configuration \
+              --function-name "$FUNCTION_NAME" \
+              --query "VpcConfig.SecurityGroupIds[0]" \
+              --output text)
+    
+          sleep 2
+    
+          cd ./terraform
+          KAFKA_CERT_ARN=$(terraform output -raw kafka_cert_arn)
+          cd ../
+    
+          aws cloudformation deploy \
+            --template-file ./cloudformation/event-source-mapping.yml \
+            --stack-name "${STACK_NAME}-event-source-addon" \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides \
+              KafkaClusterHostname=${{ vars.EPA_KAFKA_BROKER_HOSTNAME }} \
+              KafkaClusterPort=${{ vars.EPA_KAFKA_BROKER_PORT }} \
+              KafkaTopicName=${{ vars.EPA_KAFKA_POST_TOPIC_NAME }} \
+              KafkaConsumerGroupName=${{ vars.EPA_KAFKA_POST_TOPIC_CONSUMER_GROUP_POSTINGESTOR }} \
+              KafkaUsername=${{ vars.EPA_KAFKA_CONSUMER_USERNAME }} \
+              KafkaPassword=${{ secrets.EPA_KAFKA_CONSUMER_PASSWORD }} \
+              KafkaCertSSMArn=$KAFKA_CERT_ARN \
+              TargetLambdaFunctionArn=$POST_INGESTOR_ARN \
+              TargetLambdaExecutionRoleName=$POST_INGESTOR_ROLE_NAME \
+              TargetLambdaFunctionSubnetId1=${{ inputs.subnet-1-id }} \
+              TargetLambdaFunctionSubnetId2=${{ inputs.subnet-2-id }} \
+              TargetLambdaFunctionSG=$POST_INGESTOR_SG
