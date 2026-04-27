@@ -89,7 +89,7 @@ jobs:
     
           # Delete if in terminal failure state
           if [[ "$STACK_STATUS" == "ROLLBACK_COMPLETE" || "$STACK_STATUS" == "CREATE_FAILED" || "$STACK_STATUS" == "DELETE_FAILED" ]]; then
-            echo "⚠️  Stack is in $STACK_STATUS state, deleting..."
+            echo "Stack is in $STACK_STATUS state, deleting..."
             aws cloudformation delete-stack \
               --stack-name "$STACK_NAME" \
               --region "$REGION"
@@ -97,7 +97,7 @@ jobs:
             # Wait for deletion (with timeout)
             timeout 300 aws cloudformation wait stack-delete-complete \
               --stack-name "$STACK_NAME" \
-              --region "$REGION" || echo "⚠️  Deletion timed out, continuing..."
+              --region "$REGION" || echo "Deletion timed out, continuing..."
       
             echo "Stack $STACK_NAME cleanup complete"
           elif [[ "$STACK_STATUS" == "NOT_FOUND" ]]; then

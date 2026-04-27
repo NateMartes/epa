@@ -113,11 +113,6 @@ Resources:
           FromPort: !Ref EpaKafkaBrokerPort
           ToPort: !Ref EpaKafkaBrokerPort
           CidrIp: 0.0.0.0/0
-        - Description: Allow outbound HTTPS for AWS API calls
-          IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-post-ingestor-sg"
@@ -166,7 +161,6 @@ Resources:
         SubnetIds:
           - !Ref Subnet1Id
           - !Ref Subnet2Id
-      # ✅ REMOVED: Events section (handled by separate CloudFormation template)
     Metadata:
       DockerTag: python3.11-al2-v1
       DockerContext: .
@@ -177,7 +171,6 @@ Outputs:
   PostIngestorFunctionArn:
     Description: Post Ingestor Lambda Function ARN
     Value: !GetAtt PostIngestorFunction.Arn
-
   PostIngestorFunctionRoleName:
     Description: Post Ingestor Lambda Execution Role Name
-    Value: !GetAtt PostIngestorFunction.Role
+    Value: !Ref PostIngestorServiceFunctionRole
