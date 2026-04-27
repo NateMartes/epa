@@ -10,6 +10,7 @@ from epa_api.models.auth_token import AuthToken
 from epa_api.models.login_request import LoginRequest
 from epa_api.models.user_created import UserCreated
 from epa_api.models.user_registration import UserRegistration
+from epa_api.models.username_response import UsernameResponse
 from epa_api.security_api import get_token_BearerAuth
 
 class BaseAuthenticationApi:
@@ -63,4 +64,11 @@ class BaseAuthenticationApi:
         self,
     ) -> AuthToken:
         """Uses a session token to generate a new short-lived access JWT."""
+        ...
+
+
+    async def get_username_by_user_id(
+        self,
+        user_id: Annotated[StrictStr, Field(description="The ID of the user to look up.")],
+    ) -> UsernameResponse:
         ...
