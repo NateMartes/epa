@@ -55,7 +55,7 @@ const removeData = async () => {
 const Refresh = async () => {
       }
 const GetPosts = async () => {
-      reauth();
+      //reauth();
       const token = await AsyncStorage.getItem('AccessID');
    const response = await fetch('https://01xioere1a.execute-api.us-west-2.amazonaws.com/Prod/v1/post?' + new URLSearchParams({page_num: pageNo}).toString(), {
    	 method: 'GET',headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } });
