@@ -33,7 +33,7 @@ const reauth = async () => {
 method: 'POST',headers: { 'Content-Type': 'application/json' , 'Authorization': `Bearer ${token}`}, });
 
         if(!response.ok){
-                removeData();
+                //removeData();
                 console.log(`HTTP error, status: ${response.status}`);
         }
         else{
@@ -48,7 +48,6 @@ const removeData = async () => {
      router.navigate('/login');
         } catch (e) {
         alert('There was an issue with sign out. Please try again');}
-        alert(`${e}`);
 
 
   };
@@ -80,7 +79,7 @@ useEffect(() => {
 //type ItemProps = {title: string, content: string, created_by: string, category: string };
 
 const getMorePosts = async () => {
-      reauth();
+      //reauth();
       const token = await AsyncStorage.getItem('AccessID');
 const response = await fetch('https://01xioere1a.execute-api.us-west-2.amazonaws.com/Prod/v1/post?' + new URLSearchParams({page_num: pageNo}).toString(), {
    	 method: 'GET',headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } });	 if (!response.ok)
@@ -100,7 +99,7 @@ const Item = ({title , content, category, username }) => (
   <View style={styles.item}>
     <Text style={styles.title}>{title}</Text>
     <Text style={styles.text}> {content} </Text>
-    <Text style={styles.text}>  {username} </Text>
+    <Text style={styles.text}>  {username} {category}</Text>
     
   </View>
 );

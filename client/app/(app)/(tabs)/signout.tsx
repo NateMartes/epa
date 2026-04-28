@@ -28,8 +28,8 @@ export default function Index() {
       <Link href="/index" style={styles.button}>
         Create Post
       </Link>
-      <Link href="/about" style={styles.button}>
-        Make Posts (links to about rn)
+      <Link href="/posts" style={styles.button}>
+        Make Posts 
       </Link>
       </View>
     </SafeAreaView>

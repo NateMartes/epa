@@ -8,9 +8,9 @@ export default function MyForm() {
   const [Slug, setSlug] = useState('');
   const [Title, setTitle] = useState('');
   const OPTIONS = [
-  { label: 'electrical hazard', value: 'electrical hazard' },
-  { label: 'Female', value: 'female' },
-  { label: 'Other', value: 'other' },
+  { label: 'Test-1', value: 'test-1' },
+  { label: 'Test-2', value: 'test-2' },
+  { label: 'Test-3', value: 'test-3' },
   ];
   const SubmitApi = async() => {
          const formJson = { title: Title, email: Uname  };
@@ -78,7 +78,7 @@ method: 'POST',headers: { 'Content-Type': 'application/json'}, body: substring, 
 	     style={styles.input}
 	   />
 	   <PaperProvider>
-      <View style={{ margin: 16 }}>
+//      <View style={{ margin: 16 }}>
         <Dropdown
           label="Category"
           placeholder="Select Category"
@@ -86,7 +86,7 @@ method: 'POST',headers: { 'Content-Type': 'application/json'}, body: substring, 
           value={Slug}
           onSelect={setSlug}
         />
-      </View>
+//      </View>
     </PaperProvider>
       </View>
       <View style={{alignItems: 'flex-end'}}>

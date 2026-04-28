@@ -8,6 +8,11 @@ export default function MyForm() {
   const [Post, setPost] = useState('');
   const [Slug, setSlug] = useState('');
   const [Title, setTitle] = useState('');
+  const OPTIONS = [
+  { label: 'Test-1', value: 'test-1' },
+  { label: 'Test-2', value: 'test-2' },
+  { label: 'Test-3', value: 'test-3' },
+  ];  
   const PostApi = async() => {
          const formJson = { title: Title, content: Post, category_slug: Slug  };
          const substring = JSON.stringify(formJson);
@@ -96,7 +101,9 @@ method: 'POST',headers: { 'Content-Type': 'application/json', 'Authorization': `
 	     placeholder="Post Tag"
 	     style={styles.smallInput}
 	   />
+	 
       </View>
+     
       <hr />
       <View style={{alignItems: 'flex-end'}}>
       <Button type="submit" theme="primary" label="Make Post" onPress={handleSubmit}/>
