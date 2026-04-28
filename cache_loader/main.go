@@ -33,7 +33,7 @@ type PostList struct {
 
 // A Post that would come from the Kafka queue
 type Post struct {
-	PostId int `json:"post_id,omitempty"`
+	PostId string `json:"post_id,omitempty"`
 	Title string `json:"title,omitempty"`
 	CategoryName string `json:"category_name,omitempty"`
 	CategorySlug string `json:"category_slug,omitempty"`

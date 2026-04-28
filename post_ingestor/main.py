@@ -4,7 +4,6 @@ import base64
 from typing import List, Dict, Any
 from pymongo import MongoClient
 
-
 def lambda_handler(event, context):
     """
     Handles:
@@ -21,7 +20,8 @@ def lambda_handler(event, context):
 
     # Case-insensitive Kafka event detection
     event_source = str(event.get("eventSource", "")).lower()
-    if event_source == "aws:kafka" and isinstance(event.get("records"), dict):
+    kafka_sources = {"aws:kafka", "aws:selfmanagedkafka"}
+    if event_source in kafka_sources and isinstance(event.get("records"), dict):
         try:
             posts = parse_kafka_event(event)
             inserted = ingest_posts(posts, env_vars)
