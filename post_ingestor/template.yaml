@@ -112,6 +112,7 @@ Resources:
           IpProtocol: tcp
           FromPort: 443
           ToPort: 443
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-post-ingestor-sg"
