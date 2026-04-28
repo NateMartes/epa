@@ -307,7 +307,8 @@ class PostUtils:
                             category=post["category"],
                             category_slug=post["category_slug"],
                             created_at=post["created_at"],
-                            created_by=post["created_by"]
+                            created_by=post["created_by"],
+                            username=post["username"]
                         )
                     )
                 except KeyError:
