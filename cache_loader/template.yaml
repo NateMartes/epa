@@ -141,7 +141,6 @@ Resources:
           EPA_MONGODB_USER_COLLECTION: !Ref EpaMongodbUserCollection
           EPA_MONGODB_IS_CLUSTER: !Ref EpaMongoDbIsCluster
           EPA_KAFKA_POST_TOPIC_NAME: !Ref EpaKafkaPostTopicName
-          EPA_MONGODB_IS_CLUSTER: !Ref EpaMongoDBIsCluster
       VpcConfig:
         SecurityGroupIds:
           - !Ref CacheLoaderSG
