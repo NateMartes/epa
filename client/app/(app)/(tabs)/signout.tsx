@@ -1,18 +1,35 @@
 import { Text, View, StyleSheet } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+
 export default function Index() {
+  const router = useRouter();
+  const storeDataAcc = async (value) => {
+  try {
+   await AsyncStorage.setItem('AccessID', value);
+      } catch (e) {}
+  };
+  const removeData = async () => {
+    try {
+     await AsyncStorage.clear();
+     router.navigate('/login');
+        } catch (e) {alert('There was an issue with sign out. Please try again');}
+	
+  };
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.poster}>
-	<Input/>
-      </View>
+      <Button label="Sign out" onPress={removeData}/>
       <View style={styles.space}/>
       <View style={styles.link}>
+      <Link href="/index" style={styles.button}>
+        Create Post
+      </Link>
       <Link href="/about" style={styles.button}>
-        Go to About Screen
+        Make Posts (links to about rn)
       </Link>
       </View>
     </SafeAreaView>

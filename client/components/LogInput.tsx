@@ -1,9 +1,49 @@
 import React, {useState} from 'react';
 import {View, StyleSheet, TextInput} from 'react-native';
 import Button from '@/components/Button';
+import { Link, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function MyForm() {
+
   const [Uname, setUsername] = useState('');
   const [Pass, setPassword] = useState('');
+  const SubmitApi = async() => {
+         const formJson = { password: Pass, email: Uname  };
+         const substring = JSON.stringify(formJson);
+         
+         const response = await fetch("https://01xioere1a.execute-api.us-west-2.amazonaws.com/Prod/v1/auth/login", {
+method: 'POST',headers: { 'Content-Type': 'application/json'}, body: substring, });
+	 const responseJson = await response.json();
+
+	 if (!response.ok) {
+	    alert(`Error: ${responseJson.detail}`);
+      	    console.log(`HTTP error, status: ${response.status}`);
+       	    setPassword('');
+            setUsername('');
+    	 }
+	 else{
+	    storeDataSess(responseJson.session_token);
+	    storeDataAcc(responseJson.access_token);
+	    router.navigate('/');
+         }
+         
+      
+         
+         
+         
+	 
+	 }
+  const storeDataSess = async (value) => {
+    try {
+     await AsyncStorage.setItem('sessionID', value);
+        } catch (e) {}
+  };
+  const storeDataAcc = async (value) => {
+    try {
+     await AsyncStorage.setItem('AccessID', value);
+        } catch (e) {}
+  };
+  const router = useRouter();
   const styles = StyleSheet.create({
   input: {
     flex: 1,
@@ -17,15 +57,19 @@ export default function MyForm() {
     color: '#000',
     textAlignVertical: 'top',
     },
+  button: {
+    fontSize: 15,
+    textDecorationLine: 'underLine',
+    color: '#ccc',
+  },
   })
   
   function handleSubmit(e) {
   
     e.preventDefault();
-    const formJson = { Username: Uname, Password: Pass };
-    //fetch('/some-api', {method: form.method, body: formData });
-    console.log(formJson);
-    e => setPassword('');
+    SubmitApi();
+    //if read data then route?
+   
   }
 
   return (
@@ -34,7 +78,7 @@ export default function MyForm() {
 	     value={Uname}
 	     maxLength={100}
 	     onChange={e =>setUsername(e.target.value)}
-	     placeholder="Username"
+	     placeholder="Email or Username"
 	     style={styles.input}
 	   />
 	   <TextInput
@@ -46,8 +90,11 @@ export default function MyForm() {
 	     style={styles.input}
 	   />
       <hr />
-      <View style={{alignItems: 'flex-end'}}>
-      <Button theme="primary" label="Make Post" onPress={handleSubmit}/>
+      <View style={{alignItems: 'center'}}>
+      <Button label="Login" onPress={handleSubmit}/>
+      <Link href="/signup" style = {styles.button}>
+        Create Account
+      </Link>
       </View>
       
       
