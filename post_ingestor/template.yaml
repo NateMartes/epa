@@ -108,6 +108,10 @@ Resources:
           FromPort: !Ref EpaKafkaBrokerPort
           ToPort: !Ref EpaKafkaBrokerPort
           CidrIp: 0.0.0.0/0
+        - Description: Allow outbound HTTPS for AWS API calls
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-post-ingestor-sg"
