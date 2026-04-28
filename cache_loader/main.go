@@ -1,22 +1,23 @@
 package main
 
 import (
-	"sync"
 	"context"
-	"runtime"
-	"time"
-	"log"
-	"os"
-	"fmt"
-	"errors"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"os"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // A User in the MongoDB database. We only include the fields we need
@@ -66,7 +67,8 @@ func chunk[T any](k int, slice []T) [][]T {
 	
 	currChunk := -1
 	for _, item := range slice {
-		currChunk = currChunk + 1 % k
+		currChunk = (currChunk + 1) % k
+		fmt.Println(currChunk)
 		output[currChunk] = append(output[currChunk], item)
 	}
 	
@@ -89,10 +91,18 @@ func connectToMongoDB() (*mongo.Client, error) {
 		return nil, errors.New("Not all MongoDB environment variables set or are empty")
 	}
 	
-	uri := fmt.Sprintf("mongodb+srv://%s:%s@%s/?ssl=false", username, password, hostname)
-	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
-	return mongo.Connect(opts)
+	val, is_cluster_present := os.LookupEnv("EPA_MONGODB_IS_CLUSTER")
+	if is_cluster_present && strings.ToLower(val) == "false" {
+		uri := fmt.Sprintf("mongodb://%s:%s@%s:%s", username, password, hostname, port)
+		serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+		opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
+		return mongo.Connect(opts)
+	} else {
+		uri := fmt.Sprintf("mongodb+srv://%s:%s@%s/?ssl=false", username, password, hostname)
+		serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+		opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
+		return mongo.Connect(opts)
+	}
 }
 
 /*
