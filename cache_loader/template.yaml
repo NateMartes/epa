@@ -72,10 +72,6 @@ Parameters:
   EpaKafkaPostTopicName:
     Type: String
     Description: Kafka post topic name
-    
-  EpaMongoDbIsCluster:
-    Type: String
-    Description: False if MongoDB is not a cluster, true otherwise
 
 Resources:
   
