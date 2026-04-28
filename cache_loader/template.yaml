@@ -72,6 +72,10 @@ Parameters:
   EpaKafkaPostTopicName:
     Type: String
     Description: Kafka post topic name
+    
+  EpaMongoDBIsCluster:
+    Type: String
+    Description: False if MongoDB is not a cluster, true otherwise
 
 Resources:
   
@@ -135,7 +139,9 @@ Resources:
           EPA_MONGODB_USERNAME: !Ref EpaMongodbUsername
           EPA_MONGODB_PASSWORD: !Ref EpaMongodbPassword
           EPA_MONGODB_USER_COLLECTION: !Ref EpaMongodbUserCollection
+          EPA_MONGODB_IS_CLUSTER: !Ref 
           EPA_KAFKA_POST_TOPIC_NAME: !Ref EpaKafkaPostTopicName
+          EPA_MONGODB_IS_CLUSTER: !Ref EpaMongoDBIsCluster
       VpcConfig:
         SecurityGroupIds:
           - !Ref CacheLoaderSG
