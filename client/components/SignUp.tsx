@@ -41,8 +41,7 @@ export default function MyForm() {
     	 
 	    setPassword('');
             setPasswordTwo('');
-       	    setUsername('');
-	    setEmail('');
+       	    
     	 }
 	 else {
 	 router.navigate('/login');	 
